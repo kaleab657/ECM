@@ -404,7 +404,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                   />
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                  {['all', 'active', 'pending', 'sold', 'rejected'].map((status) => (
+                  {['all', 'active', 'pending', 'sold', 'rejected', 'pending_payment_verification'].map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
@@ -414,7 +414,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                           : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
                       }`}
                     >
-                      {status}
+                      {status === 'pending_payment_verification' ? 'To Verify' : status}
                     </button>
                   ))}
                 </div>

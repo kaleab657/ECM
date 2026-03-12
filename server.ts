@@ -398,7 +398,7 @@ async function startServer() {
   });
 
   // Admin Verification API
-  api.post("/admin/verify-payment", authenticate, async (req, res) => {
+  api.post("/admin/verify-payment", authenticate, adminOnly, async (req, res) => {
     const { paymentId, listingId, status } = req.body;
     const user = (req as any).user;
 
@@ -408,12 +408,6 @@ async function startServer() {
       }
 
       if (!admin || !db) throw new Error("Firebase Admin not initialized.");
-      
-      // Verify the requester is an admin
-      const userDoc = await db.collection('users').doc(user.uid).get();
-      if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
-        return res.status(403).json({ success: false, error: "Unauthorized: Admin access required" });
-      }
 
       const batch = db.batch();
       const paymentRef = db.collection('payments').doc(paymentId);
