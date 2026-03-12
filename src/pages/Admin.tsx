@@ -55,7 +55,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
   const [carToDelete, setCarToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.role?.toLowerCase() === 'admin' || user?.email === 'kaleabepherem@gmail.com' || user?.email === 'kaleabepherem98@gmail.com';
 
   useEffect(() => {
     if (!user || !isAdmin) return;

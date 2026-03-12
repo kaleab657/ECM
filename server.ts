@@ -62,7 +62,7 @@ async function startServer() {
     try {
       const userDoc = await db.collection('users').doc(user.uid).get();
       const userData = userDoc.data();
-      const isDefaultAdmin = user.email === 'kaleabepherem@gmail.com' && user.email_verified;
+      const isDefaultAdmin = user.email === 'kaleabepherem@gmail.com' || user.email === 'kaleabepherem98@gmail.com';
       
       if (!userDoc.exists || (userData?.role !== 'admin' && !isDefaultAdmin)) {
         // If it's the default admin but doc doesn't exist or role isn't set, auto-upgrade
