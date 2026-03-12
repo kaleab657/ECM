@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #FF5C22;
+  --color-brand-hover: #E64A19;
+  
+  --shadow-cool: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-[#FDFDFD] text-zinc-900 antialiased transition-colors duration-500 dark:bg-zinc-950 dark:text-zinc-100;
+    background-image: radial-gradient(at 0% 0%, rgba(255, 92, 34, 0.03) 0, transparent 50%), 
+                      radial-gradient(at 100% 100%, rgba(255, 92, 34, 0.03) 0, transparent 50%);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand text-white font-bold py-4 px-8 rounded-2xl shadow-xl shadow-brand/20 hover:bg-brand-hover hover:-translate-y-0.5 transition-all active:scale-[0.98] flex items-center justify-center gap-2;
+  }
+  
+  .card-base {
+    @apply bg-white dark:bg-zinc-900/50 dark:backdrop-blur-xl rounded-[32px] border border-black/[0.03] dark:border-white/[0.05] shadow-cool overflow-hidden transition-all hover:shadow-2xl hover:shadow-black/5;
+  }
+
+  .input-base {
+    @apply w-full bg-zinc-50 dark:bg-zinc-900/50 border border-black/[0.03] dark:border-white/[0.05] rounded-2xl px-6 py-4 text-sm font-bold focus:ring-4 focus:ring-brand/10 focus:border-brand focus:outline-none transition-all dark:text-white;
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center gap-1 text-[10px] font-medium transition-colors;
+  }
+}
+
+.aspect-car {
+  aspect-ratio: 16 / 10;
+}
+
+/* Custom scrollbar for horizontal categories */
+.hide-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar,
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area inset utilities for mobile fullscreen */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Ensure the bottom nav clears the home indicator */
+nav.bottom-nav-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+}

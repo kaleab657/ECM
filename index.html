@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>EthioCars</title>
+    
+    <style>
+      #splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+      }
+      #splash-logo {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 42px;
+        font-weight: 900;
+        font-style: italic;
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        text-transform: uppercase;
+        margin-bottom: 24px;
+      }
+      #splash-logo .ethio { color: #18181b; }
+      #splash-logo .cars { color: #FF5C22; margin-left: 6px; }
+      
+      .splash-loader {
+        width: 24px;
+        height: 24px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #FF5C22;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .dark #splash-screen { background: #09090b; }
+      .dark #splash-logo .ethio { color: #ffffff; }
+      .dark .splash-loader { border: 3px solid #18181b; border-top: 3px solid #FF5C22; }
+    </style>
+    
+    <script>
+      // Immediate dark mode check to prevent flash
+      if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+
+      // Silence Vite WebSocket/HMR errors in production/preview
+      window.addEventListener('error', function(e) {
+        if (e.message && (e.message.indexOf('vite') !== -1 || e.message.indexOf('WebSocket') !== -1)) {
+          e.stopImmediatePropagation();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.message && (e.reason.message.indexOf('vite') !== -1 || e.reason.message.indexOf('WebSocket') !== -1)) {
+          e.preventDefault();
+        }
+      });
+    </script>
+
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800&display=swap"></noscript>
+    
+    <!-- External domains -->
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
+    <link rel="dns-prefetch" href="https://picsum.photos">
+    <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com">
+
+    <link rel="preload" as="image" href="/assets/logo/logo.png">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF5C22'><path d='M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z'/></svg>">
+  </head>
+  <body>
+    <div id="splash-screen">
+      <img src="/assets/logo/logo.png" alt="Logo" style="width: 80px; height: 80px; margin-bottom: 20px; object-contain;" onerror="this.style.display='none'">
+      <div id="splash-logo">
+        <span class="ethio">ETHIO</span>
+        <span class="cars">CARS</span>
+      </div>
+      <div class="splash-loader"></div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Remove splash screen after 1.5s or when React is ready
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var splash = document.getElementById('splash-screen');
+          if (splash) {
+            splash.style.opacity = '0';
+            splash.style.transition = 'opacity 0.5s ease';
+            setTimeout(function() {
+              splash.remove();
+            }, 500);
+          }
+        }, 1500);
+      });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,5 @@
+﻿src/components/Footer.tsx(78,62): error TS2339: Property 'footer' does not exist on type '(key: string, params?: Record<string, string | number>) => string'.
+src/pages/Detail.tsx(249,43): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/pages/Payment.tsx(331,26): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.

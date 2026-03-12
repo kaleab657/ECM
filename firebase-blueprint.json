@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "CarListing": {
+      "title": "Car Listing",
+      "description": "A car advertisement listed on the platform.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "condition": { "type": "string", "enum": ["Used", "New"] },
+        "location": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "integer" },
+        "transmission": { "type": "string", "enum": ["Manual", "Automatic"] },
+        "fuelType": { "type": "string", "enum": ["Petrol", "Diesel", "Hybrid", "Electric"] },
+        "engineSize": { "type": "string" },
+        "bodyType": { "type": "string", "enum": ["SUV", "Sedan", "Pickup", "Hatchback"] },
+        "colour": { "type": "string" },
+        "mileage": { "type": "number" },
+        "price": { "type": "number" },
+        "priceType": { "type": "string", "enum": ["Negotiable", "Slightly Negotiable", "Fixed Price", "Owner Call"] },
+        "saleType": { "type": "string", "enum": ["Owner", "Broker", "Dealer"] },
+        "phoneNumber": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" },
+        "packageType": { "type": "string", "enum": ["free", "featured", "premium"] },
+        "status": { "type": "string", "enum": ["active", "pending", "sold", "pending_payment_verification"] },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "brand", "model", "price", "ownerId"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "A record of a manual payment for a listing package.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "listingId": { "type": "string" },
+        "packageType": { "type": "string" },
+        "price": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["CBE", "Telebirr"] },
+        "screenshotURL": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "listingId", "screenshotURL"]
+    },
+    "ChatSession": {
+      "title": "Chat Session",
+      "description": "A chat session between a buyer and a seller.",
+      "type": "object",
+      "properties": {
+        "carId": { "type": "string" },
+        "carTitle": { "type": "string" },
+        "carImage": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "participantNames": { "type": "object" },
+        "unreadCount": { "type": "integer" },
+        "lastMessageSenderId": { "type": "string" },
+        "deletedBy": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["carId", "participants"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message in a chat session.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["sent", "seen"] },
+        "imageURLs": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["senderId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/cars/{carId}": {
+      "schema": "CarListing",
+      "description": "Collection of car advertisements."
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Collection of payment records."
+    },
+    "/chats/{chatId}": {
+      "schema": "ChatSession",
+      "description": "Collection of chat sessions."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Collection of chat messages."
+    }
+  }
+}
