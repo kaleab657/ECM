@@ -437,6 +437,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                   </div>
                 </div>
               </div>
+
+              {isAdmin && (
+                <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800 space-y-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-brand/10 rounded-xl flex items-center justify-center text-brand">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-tight">Admin Portal</h2>
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Manage platform</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setPage('admin')}
+                    className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl flex items-center justify-center gap-2 hover:bg-zinc-800 transition-all"
+                  >
+                    Open Admin Dashboard
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </main>

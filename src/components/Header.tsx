@@ -150,6 +150,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setPage }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
               onClick={() => setIsMobileMenuOpen(false)}
               className="fixed inset-0 z-[100] bg-zinc-900/60 backdrop-blur-sm md:hidden"
             />
@@ -157,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setPage }) => {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              transition={{ type: 'tween', duration: 0.25, ease: 'easeInOut' }}
               className="fixed top-0 right-0 h-[100dvh] w-[85vw] max-w-sm bg-white dark:bg-zinc-950 z-[101] shadow-2xl flex flex-col md:hidden"
             >
               <div className="flex items-center justify-between p-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
