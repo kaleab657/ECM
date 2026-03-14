@@ -365,7 +365,7 @@ async function startServer() {
     }
   });
 
-  // Admin Push Notification API
+  // Admin Push Notification API (Broadcast to all users)
   api.post("/admin/notifications", authenticate, adminOnly, async (req, res) => {
     const { title, message } = req.body;
 
@@ -376,22 +376,100 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Title and message are required" });
       }
 
-      // Send to 'all_users' topic
+      // Send to 'all_users' topic - works for both web and Android
       const response = await admin.messaging().send({
         topic: 'all_users',
         notification: {
           title,
           body: message
         },
-        webpush: {
+        android: {
+          priority: 'high' as const,
           notification: {
-            icon: '/logo.png', // Adjust as needed
-            badge: '/logo.png'
+            icon: 'ic_launcher',
+            color: '#6C5CE7',
+            channelId: 'default',
+            sound: 'default'
           }
+        },
+        data: {
+          type: 'announcement',
+          title,
+          message
         }
       });
 
       res.json({ success: true, messageId: response });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Chat Message Push Notification API
+  // Called when a user sends a chat message to notify the recipient
+  api.post("/notifications/chat", authenticate, async (req, res) => {
+    const { recipientId, senderName, message, chatId, carTitle } = req.body;
+
+    try {
+      if (!admin || !db) throw new Error("Firebase Admin not initialized");
+
+      if (!recipientId || !message) {
+        return res.status(400).json({ success: false, error: "recipientId and message are required" });
+      }
+
+      // Get recipient's device tokens from Firestore
+      const recipientDoc = await db.collection('users').doc(recipientId).get();
+      const recipientData = recipientDoc.data();
+      const tokens: string[] = recipientData?.fcmTokens || [];
+
+      if (tokens.length === 0) {
+        return res.json({ success: true, sent: false, reason: "No device tokens found for recipient" });
+      }
+
+      const notificationTitle = senderName || 'New Message';
+      const notificationBody = message.length > 100 ? message.substring(0, 100) + '...' : message;
+
+      // Send to all of the recipient's registered devices
+      const sendPromises = tokens.map(token =>
+        admin!.messaging().send({
+          token,
+          notification: {
+            title: carTitle ? `${notificationTitle} • ${carTitle}` : notificationTitle,
+            body: notificationBody
+          },
+          android: {
+            priority: 'high' as const,
+            notification: {
+              icon: 'ic_launcher',
+              color: '#6C5CE7',
+              channelId: 'messages',
+              sound: 'default',
+              tag: `chat_${chatId}` // Group notifications per chat
+            }
+          },
+          data: {
+            type: 'chat',
+            chatId: chatId || '',
+            senderId: (req as any).user?.uid || '',
+            senderName: senderName || '',
+          }
+        }).catch(async (err: any) => {
+          // If token is invalid/expired, remove it from user's document
+          if (err.code === 'messaging/invalid-registration-token' ||
+              err.code === 'messaging/registration-token-not-registered') {
+            console.log(`[Push] Removing invalid token: ${token.substring(0, 20)}...`);
+            await db!.collection('users').doc(recipientId).update({
+              fcmTokens: admin!.firestore.FieldValue.arrayRemove(token)
+            });
+          }
+          return null; // Don't fail the whole request for one bad token
+        })
+      );
+
+      const results = await Promise.allSettled(sendPromises);
+      const successCount = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+
+      res.json({ success: true, sent: true, devicesNotified: successCount });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }

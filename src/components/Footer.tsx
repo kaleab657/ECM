@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, MapPin, Send, Instagram, Facebook } from 'lucide-react';
+import { Send, Instagram, Facebook } from 'lucide-react';
 import { Page } from '../types';
 import { useAppContext } from '../context/AppContext';
 
@@ -26,12 +26,7 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ setPage }) => {
   const { t } = useAppContext();
-  const handleLinkClick = (e: React.MouseEvent, page: Page) => {
-    e.preventDefault();
-    setPage(page);
-    window.scrollTo(0, 0);
-  };
-
+  
   const socialLinks = [
     { icon: Send, url: 'https://t.me/ethiocars18', label: 'Telegram' },
     { icon: TikTokIcon, url: 'https://www.tiktok.com/@ethi.ocars', label: 'TikTok' },
@@ -40,44 +35,29 @@ export const Footer: React.FC<FooterProps> = ({ setPage }) => {
   ];
 
   return (
-    <footer className="bg-zinc-950 dark:bg-black text-zinc-500 pt-20 pb-10 transition-colors duration-300">
+    <footer className="bg-transparent pb-8 pt-4">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
-          <div className="space-y-6">
-            <p className="text-sm leading-relaxed max-w-xs">
-              {t('hero.subtitle')}
-            </p>
-            <div className="flex gap-4">
-              {socialLinks.map((social) => (
-                <a 
-                  key={social.label}
-                  href={social.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-zinc-400 hover:bg-brand hover:text-white transition-all"
-                  aria-label={social.label}
-                >
-                  <social.icon size={18} />
-                </a>
-              ))}
-            </div>
+        <div className="flex flex-col items-center justify-center gap-6">
+          <div className="flex gap-4">
+            {socialLinks.map((social) => (
+              <a 
+                key={social.label}
+                href={social.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:bg-brand hover:text-white transition-all shadow-sm"
+                aria-label={social.label}
+              >
+                <social.icon size={18} />
+              </a>
+            ))}
           </div>
-          
-          <div>
-            <h4 className="text-white font-bold mb-6 uppercase tracking-widest text-xs">{t('footer.quickLinks')}</h4>
-            <ul className="space-y-4 text-sm">
-              <li><a href="#" onClick={(e) => handleLinkClick(e, 'browse')} className="hover:text-brand transition-colors">{t('footer.browseInventory')}</a></li>
-              <li><a href="#" onClick={(e) => handleLinkClick(e, 'valuation')} className="hover:text-brand transition-colors">{t('footer.valuation')}</a></li>
-              <li><a href="#" onClick={(e) => handleLinkClick(e, 'chat')} className="hover:text-brand transition-colors">{t('footer.messages')}</a></li>
-              <li><a href="#" onClick={(e) => handleLinkClick(e, 'saved')} className="hover:text-brand transition-colors">{t('footer.selectedVehicles')}</a></li>
-            </ul>
+          <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-600 text-center">
+            <p>&copy; {new Date().getFullYear()} EthioCars. {t('footer.rights') || 'All rights reserved.'}</p>
           </div>
-        </div>
-        
-        <div className="pt-8 border-t border-zinc-900 flex flex-col items-center justify-center text-[10px] font-bold uppercase tracking-widest text-center">
-          <p>&copy; {new Date().getFullYear()} EthioCars. {t('footer.rights') || 'All rights reserved.'}</p>
         </div>
       </div>
     </footer>
   );
 };
+

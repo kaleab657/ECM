@@ -21,6 +21,7 @@ import { db } from '../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { Car, Page } from '../types';
+import { apiFetch } from '../lib/api-client';
 
 import { useToast } from '../components/Toast';
 
@@ -64,10 +65,9 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     const fetchStats = async () => {
       try {
         const idToken = await user.getIdToken();
-        const response = await fetch('/api/admin/stats', {
+        const data = await apiFetch('/api/admin/stats', {
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
-        const data = await response.json();
         if (data.success) {
           setStats(data.stats);
         }
@@ -83,10 +83,9 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
       setLoading(true);
       try {
         const idToken = await user.getIdToken();
-        const response = await fetch(`/api/admin/listings?status=${statusFilter}`, {
+        const data = await apiFetch(`/api/admin/listings?status=${statusFilter}`, {
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
-        const data = await response.json();
         if (data.success) {
           setListings(data.listings);
         }
@@ -117,7 +116,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsProcessing(carId);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(`/api/admin/listings/${carId}`, {
+      const data = await apiFetch(`/api/admin/listings/${carId}`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${idToken}`,
@@ -125,7 +124,6 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
         },
         body: JSON.stringify({ status: newStatus })
       });
-      const data = await response.json();
       if (data.success) {
         setListings(prev => prev.map(c => c.id === carId ? { ...c, status: newStatus as any } : c));
         showToast(`Listing ${newStatus} successfully!`, 'success');
@@ -144,7 +142,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsProcessing(carId);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(`/api/admin/listings/${carId}`, {
+      const data = await apiFetch(`/api/admin/listings/${carId}`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${idToken}`,
@@ -152,7 +150,6 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
         },
         body: JSON.stringify({ featured: !currentFeatured })
       });
-      const data = await response.json();
       if (data.success) {
         setListings(prev => prev.map(c => c.id === carId ? { ...c, featured: !currentFeatured } : c));
         showToast(`Listing ${!currentFeatured ? 'featured' : 'unfeatured'} successfully!`, 'success');
@@ -172,11 +169,10 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsProcessing(carToDelete);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch(`/api/admin/listings/${carToDelete}`, {
+      const data = await apiFetch(`/api/admin/listings/${carToDelete}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${idToken}` }
       });
-      const data = await response.json();
       if (data.success) {
         setListings(prev => prev.filter(c => c.id !== carToDelete));
         showToast('Listing deleted successfully', 'success');
@@ -198,7 +194,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsProcessing(payment.id);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch('/api/admin/verify-payment', {
+      const data = await apiFetch('/api/admin/verify-payment', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${idToken}`,
@@ -210,7 +206,6 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
           status: status
         })
       });
-      const data = await response.json();
       if (data.success) {
         setPendingPayments(prev => prev.filter(p => p.id !== payment.id));
         showToast(`Payment ${status} successfully!`, 'success');
@@ -230,7 +225,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsSendingNotif(true);
     try {
       const idToken = await user.getIdToken();
-      const response = await fetch('/api/admin/notifications', {
+      const data = await apiFetch('/api/admin/notifications', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${idToken}`,
@@ -238,7 +233,6 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
         },
         body: JSON.stringify({ title: notifTitle, message: notifMessage })
       });
-      const data = await response.json();
       if (data.success) {
         showToast('Notification sent successfully!', 'success');
         setNotifTitle('');

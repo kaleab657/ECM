@@ -8,6 +8,11 @@ import { Page, Car } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from './context/AppContext';
 import { Loader2 } from 'lucide-react';
+import { App as CapacitorApp } from '@capacitor/app';
+import { SplashScreen } from '@capacitor/splash-screen';
+import { useToast } from './components/Toast';
+import { initPushNotifications, removePushListeners, associateTokenWithUser } from './lib/push-notifications';
+import { PullToRefresh } from './components/PullToRefresh';
 
 // Lazy load non-critical pages
 const Browse = React.lazy(() => import('./pages/Browse').then(m => ({ default: m.Browse })));
@@ -30,16 +35,95 @@ const Support = React.lazy(() => import('./pages/Support').then(m => ({ default:
 const Language = React.lazy(() => import('./pages/Language').then(m => ({ default: m.Language })));
 const SavedCars = React.lazy(() => import('./pages/SavedCars').then(m => ({ default: m.SavedCars })));
 const FeaturedListings = React.lazy(() => import('./pages/FeaturedListings').then(m => ({ default: m.FeaturedListings })));
+const MenuPage = React.lazy(() => import('./pages/Menu').then(m => ({ default: m.Menu })));
 
 
 export default function App() {
-  const [currentPage, setCurrentPage] = React.useState<Page>('home');
+  const [currentPage, _setCurrentPage] = React.useState<Page>('home');
+  const [history, setHistory] = React.useState<Page[]>(['home']);
+  const backPressCount = React.useRef(0);
+  const { showToast } = useToast();
+
+  const setCurrentPage = React.useCallback((page: Page) => {
+    setHistory(prev => {
+      if (prev[prev.length - 1] === page) return prev;
+      return [...prev, page];
+    });
+    _setCurrentPage(page);
+  }, []);
+
   const [selectedCar, setSelectedCar] = React.useState<Car | null>(null);
   const [initialFilters, setInitialFilters] = React.useState<any>(null);
   const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
   const [pendingListingId, setPendingListingId] = React.useState<string | null>(null);
-  const { loading, user } = useAppContext();
+  const { loading, user, isAuthModalOpen, setAuthModalOpen } = useAppContext();
   const [isRedirecting, setIsRedirecting] = React.useState(false);
+
+  // Hardware Back Button specific for Capacitor
+  React.useEffect(() => {
+    const listener = CapacitorApp.addListener('backButton', () => {
+      setHistory(prev => {
+        const current = prev[prev.length - 1];
+        if (current === 'home') {
+          if (backPressCount.current === 0) {
+            backPressCount.current = 1;
+            showToast('Press back again to exit', 'info');
+            setTimeout(() => {
+              backPressCount.current = 0;
+            }, 2000);
+          } else {
+            CapacitorApp.exitApp();
+          }
+          return prev;
+        } else {
+          // Navigate to previous page in history
+          if (prev.length > 1) {
+            const newHistory = [...prev];
+            newHistory.pop(); // Remove current
+            const previousPage = newHistory[newHistory.length - 1];
+            _setCurrentPage(previousPage);
+            return newHistory;
+          } else {
+            // Fallback
+            _setCurrentPage('home');
+            return ['home'];
+          }
+        }
+      });
+    });
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [showToast]);
+
+  // Initialize Push Notifications on first app launch
+  React.useEffect(() => {
+    const handleNotificationTap = (data: any) => {
+      // Navigate based on notification type
+      if (data.type === 'chat' && data.chatId) {
+        setActiveChatId(data.chatId);
+        setCurrentPage('chat');
+      } else if (data.type === 'listing' && data.listingId) {
+        setCurrentPage('browse');
+      } else if (data.type === 'announcement') {
+        setCurrentPage('home');
+      }
+    };
+
+    initPushNotifications(handleNotificationTap);
+
+    return () => {
+      removePushListeners();
+    };
+  }, []);
+
+  // Re-associate FCM token when user logs in
+  React.useEffect(() => {
+    if (user) {
+      associateTokenWithUser(user.uid);
+    }
+  }, [user]);
 
   // Auth Guard for protected pages
   React.useEffect(() => {
@@ -49,8 +133,11 @@ export default function App() {
     if (protectedPages.includes(currentPage) && !user) {
       sessionStorage.setItem('redirectAfterLogin', currentPage);
       setIsRedirecting(true);
-      setCurrentPage('auth');
-      // Reset redirecting flag after a short delay to allow state to settle
+      setAuthModalOpen(true);
+      // If they were trying to access a protected page, maybe we send them 'home' underneath until they auth
+      if (currentPage !== 'home') {
+         setCurrentPage('home');
+      }
       setTimeout(() => setIsRedirecting(false), 100);
     }
   }, [currentPage, user, loading, isRedirecting]);
@@ -59,6 +146,15 @@ export default function App() {
   React.useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentPage]);
+
+  // Hide splash screen when context is loaded
+  React.useEffect(() => {
+    if (!loading) {
+      setTimeout(() => {
+        SplashScreen.hide().catch(() => {});
+      }, 500); // Give it a slight moment to ensure visual DOM is ready
+    }
+  }, [loading]);
 
   if (loading) {
     return (
@@ -79,6 +175,8 @@ export default function App() {
         return <Home setPage={setCurrentPage} setSelectedCar={setSelectedCar} onSearch={handleSearch} />;
       case 'browse':
         return <Browse setPage={setCurrentPage} setSelectedCar={setSelectedCar} initialFilters={initialFilters} />;
+      case 'menu':
+        return <MenuPage setPage={setCurrentPage} />;
       case 'detail':
         return selectedCar ? (
           <Detail car={selectedCar} setPage={setCurrentPage} setActiveChatId={setActiveChatId} setSelectedCar={setSelectedCar} />
@@ -87,8 +185,6 @@ export default function App() {
         );
       case 'post':
         return <PostCar setPage={setCurrentPage} setPendingListingId={setPendingListingId} />;
-      case 'auth':
-        return <Auth setPage={setCurrentPage} />;
       case 'dashboard':
         return <Dashboard setPage={setCurrentPage} />;
       case 'valuation':
@@ -127,32 +223,42 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 selection:bg-brand/10 selection:text-brand pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 transition-colors duration-500">
+    <div className={`min-h-[100dvh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 selection:bg-brand/10 selection:text-brand transition-colors duration-500 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0`}>
       <NetworkStatus />
       <Header currentPage={currentPage} setPage={setCurrentPage} />
       
       <main>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentPage}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <React.Suspense fallback={
-              <div className="min-h-[60vh] flex items-center justify-center">
-                <Loader2 className="animate-spin text-brand" size={32} />
-              </div>
-            }>
-              {renderPage()}
-            </React.Suspense>
-          </motion.div>
-        </AnimatePresence>
+        <PullToRefresh disabled={currentPage === 'menu' || currentPage === 'chat'}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <React.Suspense fallback={
+                <div className="min-h-[60vh] flex items-center justify-center">
+                  <Loader2 className="animate-spin text-brand" size={32} />
+                </div>
+              }>
+                {renderPage()}
+              </React.Suspense>
+            </motion.div>
+          </AnimatePresence>
+        </PullToRefresh>
       </main>
 
       {currentPage === 'dashboard' && <Footer setPage={setCurrentPage} />}
       <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+
+      <AnimatePresence>
+        {isAuthModalOpen && (
+          <React.Suspense fallback={null}>
+            <Auth setPage={setCurrentPage} />
+          </React.Suspense>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

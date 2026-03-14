@@ -63,4 +63,4 @@ export type UserProfile = {
   createdAt: any;
 };
 
-export type Page = 'home' | 'browse' | 'detail' | 'post' | 'auth' | 'dashboard' | 'valuation' | 'dealerships' | 'help' | 'safety' | 'privacy' | 'terms' | 'contact' | 'chat' | 'payment' | 'admin' | 'saved' | 'about' | 'support' | 'language' | 'featuredListings';
+export type Page = 'home' | 'menu' | 'browse' | 'detail' | 'post' | 'auth' | 'dashboard' | 'valuation' | 'dealerships' | 'help' | 'safety' | 'privacy' | 'terms' | 'contact' | 'chat' | 'payment' | 'admin' | 'saved' | 'about' | 'support' | 'language' | 'featuredListings';

@@ -21,7 +21,7 @@ export const CarCard = React.memo<CarCardProps>(({ car, onClick, variant = 'sear
       className="bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm cursor-pointer group transition-all hover:shadow-xl hover:shadow-black/5"
       onClick={() => onClick(car)}
     >
-      <div className="aspect-[4/3] overflow-hidden relative">
+      <div className="aspect-[3/2] overflow-hidden relative">
         <img 
           src={car.imageURLs[0]} 
           alt={car.title}
@@ -65,17 +65,17 @@ export const CarCard = React.memo<CarCardProps>(({ car, onClick, variant = 'sear
         </button>
       </div>
       
-      <div className="p-4">
-        <div className="mb-3">
-          <h3 className="font-black text-sm text-zinc-900 dark:text-white tracking-tight truncate mb-1">
+      <div className="p-3">
+        <div className="mb-2">
+          <h3 className="font-black text-xs text-zinc-900 dark:text-white tracking-tight truncate mb-0.5">
             {car.brand} {car.model}
           </h3>
-          <p className="text-lg font-black text-brand tracking-tighter">
-            {car.price.toLocaleString()} <span className="text-[10px] font-bold">ETB</span>
+          <p className="text-base font-black text-brand tracking-tighter">
+            {car.price.toLocaleString()} <span className="text-[9px] font-bold">ETB</span>
           </p>
         </div>
         
-        <div className="grid grid-cols-2 gap-y-2 gap-x-4 mb-4">
+        <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 mb-3">
           <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
             <Calendar size={12} className="text-zinc-300" />
             <span>{car.year}</span>
@@ -95,7 +95,7 @@ export const CarCard = React.memo<CarCardProps>(({ car, onClick, variant = 'sear
         </div>
 
         <button 
-          className="w-full py-2.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand hover:text-white transition-all border border-zinc-100 dark:border-zinc-700"
+          className="w-full py-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-brand hover:text-white transition-all border border-zinc-100 dark:border-zinc-700"
           onClick={(e) => {
             e.stopPropagation();
             onClick(car);
@@ -110,8 +110,8 @@ export const CarCard = React.memo<CarCardProps>(({ car, onClick, variant = 'sear
 
 export const CarCardSkeleton: React.FC = () => (
   <div className="bg-white dark:bg-zinc-900 rounded-[32px] overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm animate-pulse">
-    <div className="aspect-[16/9] bg-zinc-100 dark:bg-zinc-800" />
-    <div className="p-6 space-y-4">
+    <div className="aspect-[3/2] bg-zinc-100 dark:bg-zinc-800" />
+    <div className="p-3 space-y-3">
       <div className="flex justify-between">
         <div className="h-6 bg-zinc-100 dark:bg-zinc-800 rounded-lg w-1/2" />
         <div className="h-6 bg-zinc-100 dark:bg-zinc-800 rounded-lg w-1/4" />

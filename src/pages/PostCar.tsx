@@ -7,6 +7,7 @@ import { Car, Page, ListingPackage } from '../types';
 import { db, storage } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { apiUpload, apiFetch } from '../lib/api-client';
 
 interface PostCarProps {
   setPage: (page: Page) => void;
@@ -156,7 +157,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
           const key = `listings/${user.uid}/${listingId}/${imageName}.jpg`;
           
           // Upload to R2 via Backend Proxy (Bypasses CORS)
-          const uploadResponse = await fetch(`/api/r2/upload-listing?fileName=${imageName}&fileType=${image.type}&customKey=${key}`, {
+          const uploadResponse = await apiUpload(`/api/r2/upload-listing?fileName=${imageName}&fileType=${image.type}&customKey=${key}`, {
             method: 'POST',
             headers: {
               'Content-Type': image.type,
@@ -166,11 +167,16 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
           });
 
           if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            const errorMessage = errorData.details 
-              ? `${errorData.error}: ${errorData.details}` 
-              : (errorData.error || 'Failed to upload image to R2');
-            throw new Error(errorMessage);
+            const contentType = uploadResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await uploadResponse.json();
+              const errorMessage = errorData.details 
+                ? `${errorData.error}: ${errorData.details}` 
+                : (errorData.error || 'Failed to upload image to R2');
+              throw new Error(errorMessage);
+            } else {
+              throw new Error(`Upload failed (status ${uploadResponse.status}). Server may be unreachable.`);
+            }
           }
           const { publicUrl } = await uploadResponse.json();
 
@@ -204,7 +210,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         setPage('payment');
       } else {
         // 2. Save car data via Backend API
-        const saveResponse = await fetch('/api/listings', {
+        await apiFetch('/api/listings', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -212,11 +218,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
           },
           body: JSON.stringify({ listing: listingPayload })
         });
-
-        if (!saveResponse.ok) {
-          const saveData = await saveResponse.json();
-          throw new Error(saveData.error || 'Failed to save listing');
-        }
 
         alert(t('post.success') || 'Listing posted successfully!');
         setPage('home');

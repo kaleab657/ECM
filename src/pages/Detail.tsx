@@ -209,7 +209,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.condition')}</span>
-                <p className="font-bold text-zinc-900 dark:text-white">{car.condition ? (t(`post.condition_${car.condition.toLowerCase()}`) || car.condition) : t('search.used')}</p>
+                <p className="font-bold text-zinc-900 dark:text-white">{car.condition ? (t(`search.${car.condition.toLowerCase()}`) || car.condition) : t('search.used')}</p>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.bodyType')}</span>
@@ -411,14 +411,14 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
         )}
       </AnimatePresence>
       {/* Similar Cars Section */}
-      <section className="max-w-7xl mx-auto px-6 w-full mb-20">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic">
+      <section className="max-w-7xl mx-auto px-4 w-full mb-20">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-black text-zinc-900 dark:text-white tracking-tight uppercase italic">
             {t('detail.similarCars')}
           </h2>
         </div>
         
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {similarCars.map((similarCar) => (
             <CarCard 
               key={similarCar.id} 

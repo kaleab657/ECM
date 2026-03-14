@@ -26,6 +26,8 @@ interface AppContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  isAuthModalOpen: boolean;
+  setAuthModalOpen: (isOpen: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -46,6 +48,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Start with loading false to allow initial UI shell to render immediately
   // This improves First Meaningful Paint and avoids blocking Lighthouse
   const [loading, setLoading] = useState(false);
+  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
@@ -146,7 +149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <AppContext.Provider value={{ theme, toggleTheme, language, setLanguage, t, user, profile, loading }}>
+    <AppContext.Provider value={{ theme, toggleTheme, language, setLanguage, t, user, profile, loading, isAuthModalOpen, setAuthModalOpen }}>
       {children}
     </AppContext.Provider>
   );

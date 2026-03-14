@@ -1,4 +1,5 @@
 import { auth } from './firebase';
+import { API_BASE, apiFetch } from './api-client';
 
 export interface UploadResult {
   publicUrl: string;
@@ -18,7 +19,7 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
   const idToken = await user.getIdToken();
 
   // 1. Get Presigned URL from Backend
-  const response = await fetch('/api/r2/presigned-url', {
+  const response = await fetch(`${API_BASE}/api/r2/presigned-url`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -27,7 +28,7 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
     body: JSON.stringify({ 
       fileName: file.name, 
       fileType: file.type,
-      folder // We'll update the API to handle this
+      folder
     })
   });
 
@@ -72,7 +73,7 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
   }
 
   // 3. Confirm upload success with backend
-  const confirmResponse = await fetch('/api/r2/confirm-upload', {
+  const confirmResponse = await fetch(`${API_BASE}/api/r2/confirm-upload`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

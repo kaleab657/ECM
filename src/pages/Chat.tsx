@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, updateDoc, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
+import { apiFetch } from '../lib/api-client';
 import { ChatSidebar } from '../components/chat/ChatSidebar';
 import { ChatWindow } from '../components/chat/ChatWindow';
 
@@ -203,6 +204,33 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
         lastMessageSenderId: user.uid,
         unreadCount: currentUnread + 1
       });
+
+      // Send push notification to the other participant
+      const recipientId = session?.participants.find(p => p !== user.uid);
+      if (recipientId) {
+        const senderName = session?.participantNames[user.uid] || user.displayName || 'Someone';
+        try {
+          const idToken = await auth.currentUser?.getIdToken();
+          if (idToken) {
+            apiFetch('/api/notifications/chat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`
+              },
+              body: JSON.stringify({
+                recipientId,
+                senderName,
+                message: imageURLs && imageURLs.length > 0 ? '📷 Image' : text,
+                chatId: activeChatId,
+                carTitle: session?.carTitle || ''
+              })
+            }).catch(() => {}); // Fire-and-forget, don't block chat
+          }
+        } catch {
+          // Silent - push notification is best-effort
+        }
+      }
     } catch (error) {
       // Silent error
     }

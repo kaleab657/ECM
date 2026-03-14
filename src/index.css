@@ -72,3 +72,107 @@
 nav.bottom-nav-safe {
   padding-bottom: max(env(safe-area-inset-bottom), 8px);
 }
+
+/* ─── Auth Modal System ─── */
+.auth-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: hidden; /* Prevent scrolling completely */
+  touch-action: none; /* Prevent iOS bounce/pull-to-refresh */
+}
+
+.auth-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.auth-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(255, 92, 34, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(255, 92, 34, 0.05) 0%, transparent 50%);
+}
+
+.auth-modal {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  max-height: 100%;
+  background: white;
+  border-radius: 20px;
+  padding: 20px 20px; /* Tighter padding for mobile */
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow-y: auto; /* Allow internal scrolling only if absolutely necessary (e.g. signup) */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.auth-modal::-webkit-scrollbar {
+  display: none;
+}
+
+:root.dark .auth-modal {
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.auth-input {
+  width: 100%;
+  background: #f4f4f5;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 10px 14px 10px 42px; /* Tighter vertical padding */
+  font-size: 14px;
+  font-weight: 600;
+  color: #18181b;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.auth-input:focus {
+  border-color: #FF5C22;
+  box-shadow: 0 0 0 3px rgba(255, 92, 34, 0.1);
+}
+
+:root.dark .auth-input {
+  background: #27272a;
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #fafafa;
+}
+
+:root.dark .auth-input:focus {
+  border-color: #FF5C22;
+  box-shadow: 0 0 0 3px rgba(255, 92, 34, 0.15);
+}
+
+/* Mobile keyboard adjustments */
+@media (max-height: 680px) {
+  .auth-fullscreen {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .auth-modal {
+    padding: 16px 16px;
+    border-radius: 16px;
+  }
+  .auth-input {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}

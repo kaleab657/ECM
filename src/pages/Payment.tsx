@@ -7,6 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAppContext } from '../context/AppContext';
 import { LISTING_PACKAGES } from '../constants';
 import { Page, Car, ListingPackage } from '../types';
+import { apiUpload, apiFetch } from '../lib/api-client';
 
 interface PaymentProps {
   listingId: string | null;
@@ -91,7 +92,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
       const fileName = `payment-${timestamp}.jpg`;
       
       // Upload to R2 via Backend Proxy (Bypasses CORS)
-      const uploadResponse = await fetch(`/api/r2/upload-payment?fileName=${fileName}&fileType=${screenshot.type}&customKey=${customKey}`, {
+      const uploadResponse = await apiUpload(`/api/r2/upload-payment?fileName=${fileName}&fileType=${screenshot.type}&customKey=${customKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': screenshot.type,
@@ -101,17 +102,22 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
       });
 
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        const errorMessage = errorData.details 
-          ? `${errorData.error}: ${errorData.details}` 
-          : (errorData.error || 'Failed to upload screenshot to R2');
-        throw new Error(errorMessage);
+        const contentType = uploadResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await uploadResponse.json();
+          const errorMessage = errorData.details 
+            ? `${errorData.error}: ${errorData.details}` 
+            : (errorData.error || 'Failed to upload screenshot to R2');
+          throw new Error(errorMessage);
+        } else {
+          throw new Error(`Upload failed (status ${uploadResponse.status}). Server may be unreachable.`);
+        }
       }
       const { publicUrl } = await uploadResponse.json();
 
       // 2. If listing data is in sessionStorage, create it now
       if (listingPayload) {
-        const saveResponse = await fetch('/api/listings', {
+        await apiFetch('/api/listings', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -119,11 +125,6 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
           },
           body: JSON.stringify({ listing: listingPayload })
         });
-
-        if (!saveResponse.ok) {
-          const saveData = await saveResponse.json();
-          throw new Error(saveData.error || 'Failed to save listing');
-        }
 
         sessionStorage.removeItem('pendingListing');
       }

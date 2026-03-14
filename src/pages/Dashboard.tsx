@@ -7,6 +7,7 @@ import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { signOut } from 'firebase/auth';
 import { Car, Page } from '../types';
 import { SELLER_TYPES } from '../constants';
+import { apiFetch } from '../lib/api-client';
 
 import { useToast } from '../components/Toast';
 
@@ -122,19 +123,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
       
       const idToken = await user.getIdToken();
       
-      const response = await fetch(`/api/listings?id=${carToDelete}`, {
+      const response = await apiFetch(`/api/listings?id=${carToDelete}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json'
         }
       });
-
-      const data = await response.json();
       
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete listing');
-      }
+      // apiFetch already validates response.ok and parses JSON
       
       // Update local state immediately for better perceived performance
       setListings(prev => prev.filter(car => car.id !== carToDelete));
@@ -274,23 +271,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <div key={car.id} className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex gap-4 items-center group">
                       <div className="relative shrink-0">
                         <img src={car.imageURLs[0]} alt="" className="w-24 h-20 rounded-xl object-cover" referrerPolicy="no-referrer" />
-                        <div className="absolute top-2 left-2">
-                          <span className={`inline-flex justify-center items-center text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-lg shadow-md border border-white/10 w-20 text-center ${
+                      </div>
+                      <div className="flex-1 min-w-0 py-1 flex flex-col items-start">
+                        <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate mb-0.5 w-full">{car.title}</h4>
+                        <p className="text-xs font-black text-brand mb-2">{car.price.toLocaleString()} ETB</p>
+                        <div className="mb-2">
+                          <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${
                             car.status === 'active' 
-                              ? 'bg-emerald-500/90 text-white backdrop-blur-md' 
+                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500'
                               : car.status === 'pending_payment_verification'
-                                ? 'bg-orange-500/90 text-white backdrop-blur-md'
-                                : 'bg-zinc-800/90 text-white backdrop-blur-md'
+                                ? 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-500'
+                                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                           }`}>
-                            <span className="truncate w-full block">
+                            <span className="whitespace-normal text-left break-words">
                               {car.status === 'active' ? t('dashboard.active') : car.status === 'pending_payment_verification' ? 'Payment Pending' : t('dashboard.sold')}
                             </span>
                           </span>
                         </div>
-                      </div>
-                      <div className="flex-1 min-w-0 py-1">
-                        <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate mb-0.5">{car.title}</h4>
-                        <p className="text-xs font-black text-brand mb-2">{car.price.toLocaleString()} ETB</p>
                         <div className="flex gap-2">
                           {car.status === 'active' && (
                             <button 
