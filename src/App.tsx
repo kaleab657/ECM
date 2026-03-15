@@ -59,9 +59,19 @@ export default function App() {
   const { loading, user, isAuthModalOpen, setAuthModalOpen } = useAppContext();
   const [isRedirecting, setIsRedirecting] = React.useState(false);
 
+  // Ref to track auth modal state inside the backButton listener (avoids stale closure)
+  const authModalRef = React.useRef(isAuthModalOpen);
+  React.useEffect(() => { authModalRef.current = isAuthModalOpen; }, [isAuthModalOpen]);
+
   // Hardware Back Button specific for Capacitor
   React.useEffect(() => {
     const listener = CapacitorApp.addListener('backButton', () => {
+      // If auth bottom sheet is open, close it first — don't navigate
+      if (authModalRef.current) {
+        setAuthModalOpen(false);
+        return;
+      }
+
       setHistory(prev => {
         const current = prev[prev.length - 1];
         if (current === 'home') {
@@ -95,7 +105,7 @@ export default function App() {
     return () => {
       listener.then(l => l.remove());
     };
-  }, [showToast]);
+  }, [showToast, setAuthModalOpen]);
 
   // Initialize Push Notifications on first app launch
   React.useEffect(() => {

@@ -73,63 +73,69 @@ nav.bottom-nav-safe {
   padding-bottom: max(env(safe-area-inset-bottom), 8px);
 }
 
-/* ─── Auth Modal System ─── */
-.auth-fullscreen {
+/* ─── Auth Bottom Sheet System ─── */
+.auth-bottomsheet-overlay {
   position: fixed;
   inset: 0;
   z-index: 200;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 16px;
-  overflow: hidden; /* Prevent scrolling completely */
-  touch-action: none; /* Prevent iOS bounce/pull-to-refresh */
+  overflow: hidden;
+  touch-action: none;
 }
 
-.auth-backdrop {
+.auth-bottomsheet-backdrop {
   position: absolute;
   inset: 0;
-  z-index: -1;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
-.auth-backdrop::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 20% 50%, rgba(255, 92, 34, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(255, 92, 34, 0.05) 0%, transparent 50%);
-}
-
-.auth-modal {
+.auth-bottomsheet {
   position: relative;
   width: 100%;
-  max-width: 400px;
-  max-height: 100%;
+  max-width: 100%;
+  max-height: 92dvh;
   background: white;
-  border-radius: 20px;
-  padding: 20px 20px; /* Tighter padding for mobile */
-  box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.4),
+  border-radius: 24px 24px 0 0;
+  padding: 8px 20px 24px;
+  box-shadow:
+    0 -10px 40px -10px rgba(0, 0, 0, 0.25),
     0 0 0 1px rgba(255, 255, 255, 0.05);
-  margin: auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  overflow-y: auto; /* Allow internal scrolling only if absolutely necessary (e.g. signup) */
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
 }
-.auth-modal::-webkit-scrollbar {
+.auth-bottomsheet::-webkit-scrollbar {
   display: none;
 }
 
-:root.dark .auth-modal {
+:root.dark .auth-bottomsheet {
   background: #18181b;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Drag handle */
+.auth-bottomsheet-handle-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 12px;
+  cursor: grab;
+}
+.auth-bottomsheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: #d4d4d8;
+  transition: background 0.2s;
+}
+:root.dark .auth-bottomsheet-handle {
+  background: #52525b;
 }
 
 .auth-input {
@@ -137,7 +143,7 @@ nav.bottom-nav-safe {
   background: #f4f4f5;
   border: 1px solid rgba(0, 0, 0, 0.04);
   border-radius: 12px;
-  padding: 10px 14px 10px 42px; /* Tighter vertical padding */
+  padding: 10px 14px 10px 42px;
   font-size: 14px;
   font-weight: 600;
   color: #18181b;
@@ -161,15 +167,19 @@ nav.bottom-nav-safe {
   box-shadow: 0 0 0 3px rgba(255, 92, 34, 0.15);
 }
 
+/* Desktop: constrain bottom sheet width */
+@media (min-width: 640px) {
+  .auth-bottomsheet {
+    max-width: 420px;
+    border-radius: 24px 24px 0 0;
+  }
+}
+
 /* Mobile keyboard adjustments */
 @media (max-height: 680px) {
-  .auth-fullscreen {
-    padding-top: 8px;
-    padding-bottom: 8px;
-  }
-  .auth-modal {
-    padding: 16px 16px;
-    border-radius: 16px;
+  .auth-bottomsheet {
+    padding: 8px 16px 16px;
+    max-height: 96dvh;
   }
   .auth-input {
     padding-top: 8px;

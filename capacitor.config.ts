@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     // Allow the WebView to navigate to the backend for API calls
-    allowNavigation: ['ethio-cars.vercel.app', '*.r2.dev', '*.r2.cloudflarestorage.com'],
+    allowNavigation: ['ethiocars-9jsd.onrender.com/', '*.r2.dev', '*.r2.cloudflarestorage.com'],
     // Enable mixed content (http from https context) for development
     androidScheme: 'https',
   },

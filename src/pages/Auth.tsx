@@ -9,12 +9,14 @@ import {
   sendEmailVerification, 
   signOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signInWithRedirect
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, collection, getCountFromServer, increment } from 'firebase/firestore';
 import { useAppContext } from '../context/AppContext';
 import { SELLER_TYPES } from '../constants';
 import { Page } from '../types';
+import { Capacitor } from '@capacitor/core';
 
 interface AuthProps {
   setPage: (page: Page) => void;
@@ -43,9 +45,31 @@ function getAuthErrorMessage(error: any, t: (key: string) => string): string {
     case 'auth/popup-closed-by-user':
       return t('auth.popupClosed') || 'Sign-in was cancelled. Please try again.';
     case 'auth/popup-blocked':
-      return t('auth.popupBlocked') || 'Sign-in popup was blocked. Please allow popups for this app.';
+      return t('auth.popupBlocked') || 'Sign-in popup was blocked. Redirecting instead...';
+    case 'auth/cancelled-popup-request':
+      return 'A sign-in request is already in progress. Please wait.';
+    case 'auth/redirect-cancelled-by-user':
+      return 'Sign-in was cancelled. Please try again.';
     default:
       return error?.message || t('auth.authError') || 'An error occurred. Please try again.';
+  }
+}
+
+/** After a successful Google sign-in, ensure user doc exists in Firestore */
+async function ensureUserDocument(user: any) {
+  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  if (!userDoc.exists()) {
+    await setDoc(doc(db, 'users', user.uid), {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || 'Anonymous',
+      createdAt: serverTimestamp(),
+      phoneNumber: '',
+      sellerType: SELLER_TYPES[0]
+    });
+    await setDoc(doc(db, 'stats', 'global'), {
+      usersCount: increment(1)
+    }, { merge: true });
   }
 }
 
@@ -62,6 +86,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showVerification, setShowVerification] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
+  const [showEmailForm, setShowEmailForm] = useState(false);
 
   // Auto-redirect if already logged in
   React.useEffect(() => {
@@ -73,39 +98,52 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
     }
   }, [user, isLoading, setPage, setAuthModalOpen]);
 
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      // Check if user document exists
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName || 'Anonymous',
-          createdAt: serverTimestamp(),
-          phoneNumber: '',
-          sellerType: SELLER_TYPES[0]
-        });
 
-        // Increment global user count
-        await setDoc(doc(db, 'stats', 'global'), {
-          usersCount: increment(1)
-        }, { merge: true });
+    // Strategy: 
+    // - On Capacitor native (Android/iOS): use signInWithPopup — it opens a Chrome Custom Tab
+    //   via BridgeActivity.onActivityResult, NOT a browser popup, so it is never blocked.
+    // - On web: try signInWithPopup first; if blocked, fall back to signInWithRedirect.
+    //
+    // signInWithRedirect CANNOT work in Capacitor because the WebView origin is
+    // https://localhost and Firebase Auth cannot redirect back to that origin.
+
+    const isNative = Capacitor.isNativePlatform();
+
+    try {
+      if (isNative) {
+        // Capacitor WebView — popup opens Chrome Custom Tab, always works
+        const result = await signInWithPopup(auth, provider);
+        await ensureUserDocument(result.user);
+        const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
+        sessionStorage.removeItem('redirectAfterLogin');
+        setPage(redirectTo as any);
+        setAuthModalOpen(false);
+      } else {
+        // Web browser — try popup first
+        try {
+          const result = await signInWithPopup(auth, provider);
+          await ensureUserDocument(result.user);
+          const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
+          sessionStorage.removeItem('redirectAfterLogin');
+          setPage(redirectTo as any);
+          setAuthModalOpen(false);
+        } catch (popupErr: any) {
+          // If popup was blocked by browser, fall back to redirect
+          if (popupErr?.code === 'auth/popup-blocked') {
+            await signInWithRedirect(auth, provider);
+            // Page reloads — getRedirectResult in AppContext handles the rest
+          } else {
+            throw popupErr; // Re-throw other errors
+          }
+        }
       }
-      
-      const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
-      sessionStorage.removeItem('redirectAfterLogin');
-      setPage(redirectTo as any);
-      setAuthModalOpen(false);
     } catch (err: any) {
-      // Don't show error for user-cancelled popups
-      if (err?.code !== 'auth/popup-closed-by-user') {
+      if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
         setError(getAuthErrorMessage(err, t));
       }
       setIsLoading(false);
@@ -210,38 +248,41 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
   }
 
   return (
-    <div className="auth-fullscreen z-[200]">
+    <div className="auth-bottomsheet-overlay z-[200]">
       {/* Backdrop */}
-      <div className="auth-backdrop" onClick={() => setAuthModalOpen(false)} />
-      
-      {/* Modal */}
       <motion.div 
-        className="auth-modal"
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="auth-bottomsheet-backdrop" 
+        onClick={() => setAuthModalOpen(false)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+      />
+      
+      {/* Bottom Sheet */}
+      <motion.div 
+        className="auth-bottomsheet"
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       >
-        {/* Close Button */}
-        <button 
-          onClick={() => setAuthModalOpen(false)}
-          className="absolute right-4 top-4 p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-full transition-colors"
-        >
-          <X size={18} />
-        </button>
-
-        {/* Logo */}
-        <div className="flex justify-center mb-2">
-          <Logo />
+        {/* Drag Handle */}
+        <div className="auth-bottomsheet-handle-wrap">
+          <div className="auth-bottomsheet-handle" />
         </div>
 
-        {/* Title */}
-        <div className="text-center mb-3">
+        {/* Header: Title + Close */}
+        <div className="flex items-center justify-between mb-4 px-1">
           <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
-            {isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}
+            {isLogin ? (t('auth.welcomeBack') || 'Welcome Back') : (t('auth.createAccount') || 'Create Account')}
           </h2>
-          <p className="text-zinc-400 font-medium text-xs mt-0.5">
-            {isLogin ? t('auth.loginSubtitle') : t('auth.signupSubtitle')}
-          </p>
+          <button 
+            onClick={() => setAuthModalOpen(false)}
+            className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-full transition-colors"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Error */}
@@ -259,11 +300,11 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           )}
         </AnimatePresence>
 
-        {/* Google Sign In - Show first for quick access */}
+        {/* Google Sign In */}
         <button 
           onClick={handleGoogleSignIn}
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-3 py-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all font-bold text-sm text-zinc-700 dark:text-zinc-200 shadow-sm disabled:opacity-50 mb-3"
+          className="w-full flex items-center justify-center gap-3 py-3.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all font-bold text-sm text-zinc-700 dark:text-zinc-200 shadow-sm disabled:opacity-50 mb-3"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -274,135 +315,166 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           {t('auth.googleSignIn') || 'Continue with Google'}
         </button>
 
-        {/* Divider */}
-        <div className="relative flex items-center justify-center mb-3">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-100 dark:border-zinc-800"></div>
-          </div>
-          <span className="relative px-3 bg-white dark:bg-zinc-900 text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('auth.continueWith') || 'Or'}</span>
-        </div>
+        {/* Email/Phone login button */}
+        <button 
+          onClick={() => setShowEmailForm(true)}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 py-3.5 bg-brand hover:bg-brand-hover text-white rounded-2xl transition-all font-bold text-sm shadow-lg shadow-brand/20 disabled:opacity-50 mb-4"
+          style={{ display: showEmailForm ? 'none' : undefined }}
+        >
+          <Mail size={18} />
+          {t('auth.emailLogin') || 'Log in with email or phone'}
+        </button>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-2.5">
-          {!isLogin && (
-            <>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-                <input 
-                  id="auth-signup-fullname"
-                  name="fullname"
-                  type="text" 
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder={t('profile.labels.fullName') || 'Full Name'}
-                  autoComplete="name"
-                  className="auth-input"
-                />
+        {/* Email/Phone Form (shown when clicked) */}
+        <AnimatePresence>
+          {showEmailForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
+            >
+              {/* Divider */}
+              <div className="relative flex items-center justify-center mb-3">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-zinc-100 dark:border-zinc-800"></div>
+                </div>
+                <span className="relative px-3 bg-white dark:bg-zinc-900 text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('auth.continueWith') || 'Or'}</span>
               </div>
 
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-                <input 
-                  id="auth-signup-phone"
-                  name="phone"
-                  type="tel" 
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+251 912 345 678"
-                  autoComplete="tel"
-                  className="auth-input"
-                />
-              </div>
+              <form onSubmit={handleSubmit} className="space-y-2.5">
+                {!isLogin && (
+                  <>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
+                      <input 
+                        id="auth-signup-fullname"
+                        name="fullname"
+                        type="text" 
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder={t('profile.labels.fullName') || 'Full Name'}
+                        autoComplete="name"
+                        className="auth-input"
+                      />
+                    </div>
 
-              <div className="relative">
-                <select 
-                  id="auth-signup-seller-type"
-                  name="sellerType"
-                  value={sellerType}
-                  onChange={(e) => setSellerType(e.target.value)}
-                  className="auth-input appearance-none cursor-pointer pr-10"
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
+                      <input 
+                        id="auth-signup-phone"
+                        name="phone"
+                        type="tel" 
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="+251 912 345 678"
+                        autoComplete="tel"
+                        className="auth-input"
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <select 
+                        id="auth-signup-seller-type"
+                        name="sellerType"
+                        value={sellerType}
+                        onChange={(e) => setSellerType(e.target.value)}
+                        className="auth-input appearance-none cursor-pointer pr-10"
+                      >
+                        {SELLER_TYPES.map(type => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600 pointer-events-none" size={16} />
+                    </div>
+                  </>
+                )}
+
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
+                  <input 
+                    id="auth-email"
+                    name="email"
+                    required
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={t('profile.labels.email') || 'Email'}
+                    autoComplete="email"
+                    className="auth-input"
+                  />
+                </div>
+
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
+                  <input 
+                    id="auth-password"
+                    name="password"
+                    required
+                    type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={t('auth.password') || 'Password'}
+                    autoComplete={isLogin ? "current-password" : "new-password"}
+                    className="auth-input"
+                  />
+                </div>
+
+                {!isLogin && (
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
+                    <input 
+                      id="auth-signup-confirm-password"
+                      name="confirmPassword"
+                      required
+                      type="password" 
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder={t('auth.confirmPassword') || 'Confirm Password'}
+                      autoComplete="new-password"
+                      className="auth-input"
+                    />
+                  </div>
+                )}
+
+                <button 
+                  disabled={isLoading}
+                  className="w-full btn-primary py-3 text-base shadow-lg shadow-brand/20 disabled:opacity-70 disabled:shadow-none rounded-2xl mt-1"
                 >
-                  {SELLER_TYPES.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600 pointer-events-none" size={16} />
-              </div>
-            </>
+                  {isLoading ? (
+                    <Loader2 className="animate-spin" size={22} />
+                  ) : (
+                    <>
+                      {isLogin ? t('auth.signInBtn') : t('auth.signUpBtn')}
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
+              </form>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-            <input 
-              id="auth-email"
-              name="email"
-              required
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('profile.labels.email') || 'Email'}
-              autoComplete="email"
-              className="auth-input"
-            />
-          </div>
-
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-            <input 
-              id="auth-password"
-              name="password"
-              required
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('auth.password') || 'Password'}
-              autoComplete={isLogin ? "current-password" : "new-password"}
-              className="auth-input"
-            />
-          </div>
-
-          {!isLogin && (
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-              <input 
-                id="auth-signup-confirm-password"
-                name="confirmPassword"
-                required
-                type="password" 
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={t('auth.confirmPassword') || 'Confirm Password'}
-                autoComplete="new-password"
-                className="auth-input"
-              />
-            </div>
-          )}
-
-          <button 
-            disabled={isLoading}
-            className="w-full btn-primary py-3 text-base shadow-lg shadow-brand/20 disabled:opacity-70 disabled:shadow-none rounded-2xl mt-1"
-          >
-            {isLoading ? (
-              <Loader2 className="animate-spin" size={22} />
-            ) : (
-              <>
-                {isLogin ? t('auth.signInBtn') : t('auth.signUpBtn')}
-                <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Toggle */}
-        <p className="mt-3 text-center text-[11px] font-bold text-zinc-500">
-          {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
+        {/* Toggle Login / Sign Up */}
+        <p className="mt-4 text-center text-[11px] font-bold text-zinc-500">
+          {isLogin ? (t('auth.noAccount') || "Don't have an account?") : (t('auth.hasAccount') || 'Already have an account?')}
           <button 
             type="button"
-            onClick={() => { setIsLogin(!isLogin); setError(null); }}
+            onClick={() => { setIsLogin(!isLogin); setError(null); setShowEmailForm(true); }}
             className="ml-1 text-brand hover:underline"
           >
-            {isLogin ? t('auth.signUpLink') : t('auth.signInLink')}
+            {isLogin ? (t('auth.signUpLink') || 'Create one now') : (t('auth.signInLink') || 'Sign in')}
           </button>
+        </p>
+
+        {/* Terms footer */}
+        <p className="mt-3 text-center text-[10px] text-zinc-400 leading-relaxed px-2">
+          By continuing, you agree to our{' '}
+          <button type="button" onClick={() => { setAuthModalOpen(false); setPage('terms'); }} className="text-brand hover:underline">Terms & Conditions</button>
+          {' '}and{' '}
+          <button type="button" onClick={() => { setAuthModalOpen(false); setPage('privacy'); }} className="text-brand hover:underline">Privacy Policy</button>
         </p>
       </motion.div>
     </div>

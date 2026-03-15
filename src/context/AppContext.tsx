@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged, User, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { doc, onSnapshot, getDoc, setDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import enTranslations from '../locales/english.json';
@@ -96,6 +96,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (authUnsubscribe) authUnsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
     };
+  }, []);
+
+  // Handle Google redirect result on app mount
+  // After signInWithRedirect, the page reloads and this picks up the result
+  useEffect(() => {
+    let cancelled = false;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && !cancelled) {
+          const redirectUser = result.user;
+          const userDoc = await getDoc(doc(db, 'users', redirectUser.uid));
+          if (!userDoc.exists()) {
+            await setDoc(doc(db, 'users', redirectUser.uid), {
+              uid: redirectUser.uid,
+              email: redirectUser.email,
+              displayName: redirectUser.displayName || 'Anonymous',
+              createdAt: serverTimestamp(),
+              phoneNumber: '',
+              sellerType: 'Private Seller'
+            });
+            await setDoc(doc(db, 'stats', 'global'), {
+              usersCount: increment(1)
+            }, { merge: true });
+          }
+          setAuthModalOpen(false);
+        }
+      })
+      .catch((err) => {
+        // Silently ignore redirect errors (user cancelled, etc.)
+        if (err?.code) {
+          console.warn('[Auth] Redirect result error:', err.code);
+        }
+      });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

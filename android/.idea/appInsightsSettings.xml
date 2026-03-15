@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AppInsightsSettings">
+    <option name="selectedTabId" value="Android vitals" />
+    <option name="tabSettings">
+      <map>
+        <entry key="Android vitals">
+          <value>
+            <InsightsFilterSettings>
+              <option name="failureTypes">
+                <list>
+                  <option value="ANR" />
+                </list>
+              </option>
+              <option name="signal" value="SIGNAL_UNSPECIFIED" />
+              <option name="timeIntervalDays" value="SIXTY_DAYS" />
+              <option name="visibilityType" value="ALL" />
+            </InsightsFilterSettings>
+          </value>
+        </entry>
+        <entry key="Firebase Crashlytics">
+          <value>
+            <InsightsFilterSettings>
+              <option name="connection">
+                <ConnectionSetting>
+                  <option name="appId" value="com.kaleab.ethiocars" />
+                  <option name="mobileSdkAppId" value="1:533268030508:android:0a56b340667cb3bd969d89" />
+                  <option name="projectId" value="ethiocars-dd66e" />
+                  <option name="projectNumber" value="533268030508" />
+                </ConnectionSetting>
+              </option>
+              <option name="signal" value="SIGNAL_UNSPECIFIED" />
+              <option name="timeIntervalDays" value="THIRTY_DAYS" />
+              <option name="visibilityType" value="ALL" />
+            </InsightsFilterSettings>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

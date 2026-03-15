@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "533268030508-thrb1sl8rihiohbb2c5438n8c2vsl68q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kaleab.ethiocars",
+            "certificate_hash": "bd925e03fe327e879b6170367046fa885c947e07"
+          }
+        },
+        {
           "client_id": "533268030508-vjkn0hhrc9to8e1oov0a5ohcu0ucrdkj.apps.googleusercontent.com",
           "client_type": 3
         }
