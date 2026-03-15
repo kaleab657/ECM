@@ -4,10 +4,10 @@ import { Camera, Upload, Info, X, Loader2, ChevronRight, ChevronLeft, CheckCircl
 import { MAKES, MODELS_BY_MAKE, LOCATIONS, ADDIS_ABABA_SUB_CITIES, BODY_TYPES, PRICE_TYPES, SELLER_TYPES, LISTING_PACKAGES } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { Car, Page, ListingPackage } from '../types';
-import { db, storage } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { apiUpload, apiFetch } from '../lib/api-client';
+import { db } from '../lib/firebase';
+import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
+import { apiFetch } from '../lib/api-client';
+import { uploadToR2 } from '../lib/r2-client-utils';
 
 interface PostCarProps {
   setPage: (page: Page) => void;
@@ -149,37 +149,12 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       // Get Firebase ID token for authentication
       const idToken = await user.getIdToken();
 
-      // 1. Upload images to R2
+      // 1. Upload images to R2 using the presigned-URL flow:
+      //    POST /api/r2/presigned-url → PUT directly to R2 → POST /api/r2/confirm-upload
       const listingId = Math.random().toString(36).substring(2, 15);
       const imageUrls = await Promise.all(
-        images.map(async (image, index) => {
-          const imageName = `image-${index + 1}-${Date.now()}`;
-          const key = `listings/${user.uid}/${listingId}/${imageName}.jpg`;
-          
-          // Upload to R2 via Backend Proxy (Bypasses CORS)
-          const uploadResponse = await apiUpload(`/api/r2/upload-listing?fileName=${imageName}&fileType=${image.type}&customKey=${key}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': image.type,
-              'Authorization': `Bearer ${idToken}`
-            },
-            body: image
-          });
-
-          if (!uploadResponse.ok) {
-            const contentType = uploadResponse.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const errorData = await uploadResponse.json();
-              const errorMessage = errorData.details 
-                ? `${errorData.error}: ${errorData.details}` 
-                : (errorData.error || 'Failed to upload image to R2');
-              throw new Error(errorMessage);
-            } else {
-              throw new Error(`Upload failed (status ${uploadResponse.status}). Server may be unreachable.`);
-            }
-          }
-          const { publicUrl } = await uploadResponse.json();
-
+        images.map(async (image) => {
+          const { publicUrl } = await uploadToR2(image, `listings/${user.uid}/${listingId}`);
           return publicUrl;
         })
       );
