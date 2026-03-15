@@ -46,7 +46,6 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [notificationSound] = useState(new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3'));
 
   const activeChatId = initialChatId || null;
 
@@ -69,25 +68,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
         ...doc.data()
       })) as ChatSession[];
       
-      // Notification Logic
       setSessions(prevSessions => {
-        if (prevSessions.length > 0) {
-          sessionData.forEach(newSession => {
-            const oldSession = prevSessions.find(s => s.id === newSession.id);
-            const isNewUpdate = !oldSession || 
-              (newSession.updatedAt?.toMillis?.() > (oldSession.updatedAt?.toMillis?.() || 0));
-              
-            if (isNewUpdate && newSession.lastMessageSenderId !== user?.uid) {
-              const isAppInBackground = document.visibilityState !== 'visible';
-              const isDifferentChat = activeChatId !== newSession.id;
-              
-              if (isAppInBackground || isDifferentChat) {
-                notificationSound.play().catch(() => {});
-              }
-            }
-          });
-        }
-
         return sessionData.sort((a, b) => {
           const dateA = a.updatedAt?.toDate?.() || (a.updatedAt ? new Date(a.updatedAt) : new Date());
           const dateB = b.updatedAt?.toDate?.() || (b.updatedAt ? new Date(b.updatedAt) : new Date());
@@ -104,7 +85,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
     });
 
     return () => unsubscribe();
-  }, [user, activeChatId, notificationSound]);
+  }, [user, activeChatId]);
 
   // Reset unread count when chat is opened
   useEffect(() => {
