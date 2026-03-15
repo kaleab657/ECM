@@ -16,25 +16,44 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
-      target: 'esnext',
+      target: 'es2020',
       minify: 'esbuild',
       cssMinify: true,
       sourcemap: false,
+      // Reduce bundle bloat
+      modulePreload: {
+        polyfill: false, // Modern browsers support this natively
+      },
       rollupOptions: {
         output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom'],
-            'lucide': ['lucide-react'],
-            'motion': ['motion'],
-            'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          // Aggressive code splitting for better caching
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              // Core React — smallest chunk, cached permanently
+              if (id.includes('react-dom') || id.includes('react/')) {
+                return 'react-vendor';
+              }
+              // Firebase — large, rarely changes 
+              if (id.includes('firebase')) {
+                return 'firebase';
+              }
+              // Animation library — only loaded when animations render
+              if (id.includes('motion')) {
+                return 'motion';
+              }
+              // Icons — only the tree-shaken subset
+              if (id.includes('lucide-react')) {
+                return 'lucide';
+              }
+              // Everything else from node_modules
+              return 'vendor';
+            }
           },
         },
       },
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 600,
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: false,
       proxy: {
         '/api': {

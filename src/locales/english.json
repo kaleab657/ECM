@@ -142,6 +142,7 @@
     "signInBtn": "Sign In",
     "signUpBtn": "Sign Up",
     "googleBtn": "Continue with Google",
+    "emailLogin": "Continue with Email",
     "googleSignIn": "Continue with Google",
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",

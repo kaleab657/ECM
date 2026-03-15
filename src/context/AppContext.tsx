@@ -152,57 +152,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   
   const setLanguage = (lang: Language) => setLanguageState(lang);
 
-  // Handle Notifications
+  // Handle service worker registration & push notifications
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => {
-          })
-          .catch(err => {
-            console.error('[SW] Registration failed:', err);
-          });
-      });
-    }
+    let messagingUnsubscribe: (() => void) | null = null;
 
-    const requestNotificationPermission = async () => {
+    const initNotifications = async () => {
+      // Guard: only run in browsers that support SW + Notification
+      if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+        return;
+      }
+
       try {
+        // Register the main service worker (caching)
+        await navigator.serviceWorker.register('/sw.js');
+
+        // Only request notification permission if user is logged in
+        if (!user) return;
+
         const permission = await Notification.requestPermission();
-        if (permission === 'granted' && user) {
-          // Register for FCM
+        if (permission !== 'granted') return;
+
+        // Register the FCM service worker for push notifications
+        const fcmReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+          scope: '/firebase-cloud-messaging-push-scope'
+        });
+
+        // Initialize FCM — wrapped in try/catch because it may fail
+        // on browsers that lack PushManager or if the project has no
+        // Web Push certificate configured in Firebase Console.
+        try {
           const messaging = getMessaging();
-          const token = await getToken(messaging, { 
-            vapidKey: 'BGHc0_oXh-2R-E7I7vA738pXbY38-6i_V8WfU8P7E1v8W28X4Z4z4w', // Placeholder VAPID key
-            serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js')
-          });
           
+          // Get FCM token. vapidKey must match the Web Push certificate
+          // generated in Firebase Console → Project Settings → Cloud Messaging.
+          // If you haven't generated one yet, go to:
+          // https://console.firebase.google.com/project/ethiocars-dd66e/settings/cloudmessaging
+          // and generate a new key pair, then paste the public key here.
+          const token = await getToken(messaging, {
+            serviceWorkerRegistration: fcmReg
+            // vapidKey is OPTIONAL if you're using Firebase's auto-generated key.
+            // Only add it if you've manually created a VAPID key pair in Firebase Console.
+          });
+
           if (token) {
-            // Save token to user profile
+            // Save token to user profile for targeted notifications
             await setDoc(doc(db, 'users', user.uid), {
               fcmTokens: arrayUnion(token),
               updatedAt: serverTimestamp()
             }, { merge: true });
           }
+
+          // Listen for foreground messages
+          messagingUnsubscribe = onMessage(messaging, (payload) => {
+            if (document.visibilityState === 'visible') {
+              // Show a native notification even when the app is in the foreground
+              new Notification(payload.notification?.title || 'EthioCars', {
+                body: payload.notification?.body,
+                icon: '/favicon.ico'
+              });
+            }
+          });
+        } catch (fcmError) {
+          // FCM init can fail if PushManager is unavailable or VAPID key is wrong
+          console.warn('[FCM] Firebase messaging not available:', fcmError);
         }
       } catch (error) {
-        console.error('[Notifications] Error initializing:', error);
+        console.warn('[Notifications] Init error:', error);
       }
     };
 
-    if (user) {
-      requestNotificationPermission();
-    }
-    
-    // Listen for foreground messages
-    const messaging = getMessaging();
-    const unsubscribeOnMessage = onMessage(messaging, (payload) => {
-      new Notification(payload.notification?.title || 'EthioCars', {
-        body: payload.notification?.body,
-        icon: '/assets/logo/logo.png'
-      });
-    });
+    initNotifications();
 
-    return () => unsubscribeOnMessage();
+    return () => {
+      if (messagingUnsubscribe) messagingUnsubscribe();
+    };
   }, [user]);
 
   const t = (key: string, params?: Record<string, string | number> | { returnObjects: boolean }): any => {
