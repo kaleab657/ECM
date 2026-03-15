@@ -390,6 +390,8 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
                   <input 
+                    id="admin-search-input"
+                    name="adminSearch"
                     type="text"
                     placeholder="Search by title, brand, model..."
                     value={searchTerm}
@@ -577,6 +579,8 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">Title</label>
                     <input 
+                      id="admin-notif-title"
+                      name="notifTitle"
                       type="text" 
                       placeholder="e.g. New Features Available!"
                       value={notifTitle}
@@ -588,6 +592,8 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">Message</label>
                     <textarea 
+                      id="admin-notif-message"
+                      name="notifMessage"
                       placeholder="Enter your message here..."
                       rows={4}
                       value={notifMessage}

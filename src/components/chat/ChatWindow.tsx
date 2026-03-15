@@ -71,9 +71,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
   }
 
   return (
-    <div className={`flex-1 flex flex-col bg-zinc-50/30 dark:bg-zinc-900/30 h-full ${!activeChatId && 'hidden md:flex'}`}>
+    <div className={`flex-1 flex flex-col bg-zinc-50/30 dark:bg-zinc-900/30 h-full min-h-0 ${!activeChatId && 'hidden md:flex'}`}>
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 p-3 md:p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2 md:gap-4 sticky top-0 z-10">
+      <div className="bg-white dark:bg-zinc-900 p-3 md:p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2 md:gap-4 shrink-0 z-10">
         <button 
           onClick={() => setActiveChatId(null)}
           className="md:hidden p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"

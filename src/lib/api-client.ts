@@ -65,83 +65,105 @@ async function safeParseJson(response: Response): Promise<any> {
  * 1. Prepends the correct API base URL
  * 2. Adds request timeout
  * 3. Validates JSON responses safely
+ * 4. Retries on network failure
  *
  * @param path - The API path (e.g., '/api/listings')
  * @param options - Standard fetch options
  * @param timeoutMs - Request timeout in milliseconds (default: 30s)
+ * @param retries - Number of retries on network failure (default: 2)
  * @returns The parsed JSON response
  */
 export async function apiFetch(
   path: string,
   options: RequestInit = {},
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  retries: number = 2
 ): Promise<any> {
   const url = `${API_BASE}${path}`;
-  const { controller, timeoutId } = createTimeoutController(timeoutMs);
+  let lastError;
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
+  for (let i = 0; i <= retries; i++) {
+    const { controller, timeoutId } = createTimeoutController(timeoutMs);
 
-    clearTimeout(timeoutId);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
 
-    const data = await safeParseJson(response);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const errorMsg = data?.error || data?.message || `Request failed with status ${response.status}`;
-      throw new Error(errorMsg);
+      const data = await safeParseJson(response);
+
+      if (!response.ok) {
+        const errorMsg = data?.error || data?.message || `Request failed with status ${response.status}`;
+        throw new Error(errorMsg);
+      }
+
+      return data;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      lastError = error;
+
+      // Only retry on network errors or timeouts, not on 4xx/5xx errors thrown above
+      const isNetworkError = error instanceof TypeError || error.name === 'AbortError';
+      
+      if (!isNetworkError || i === retries) {
+        throw error;
+      }
+
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
     }
-
-    return data;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    if (error.name === 'AbortError') {
-      throw new Error(
-        'Request timed out. Please check your internet connection and try again.'
-      );
-    }
-
-    throw error;
   }
+
+  throw lastError;
 }
 
 /**
  * Enhanced fetch for binary uploads (images, files).
  * Uploads go through the Express server as a proxy — no CORS issues.
- *
- * @param path - The API path (e.g., '/api/r2/upload-listing?...')
- * @param options - Standard fetch options (should include body as binary)
- * @param timeoutMs - Request timeout (default: 60s for uploads)
- * @returns The raw Response object
  */
 export async function apiUpload(
   path: string,
   options: RequestInit = {},
-  timeoutMs: number = 60000 // 60s for uploads
+  timeoutMs: number = 60000,
+  retries: number = 1
 ): Promise<Response> {
   const url = `${API_BASE}${path}`;
-  const { controller, timeoutId } = createTimeoutController(timeoutMs);
+  let lastError;
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
+  for (let i = 0; i <= retries; i++) {
+    const { controller, timeoutId } = createTimeoutController(timeoutMs);
 
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error: any) {
-    clearTimeout(timeoutId);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
 
-    if (error.name === 'AbortError') {
-      throw new Error(
-        'Upload timed out. Please check your internet connection and try again.'
-      );
+      clearTimeout(timeoutId);
+      
+      if (response.ok || i === retries) {
+        return response;
+      }
+      
+      // If we got a server error, we might want to retry choice errors
+      if (response.status >= 500) {
+         throw new Error(`Server error ${response.status}`);
+      }
+      
+      return response;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      lastError = error;
+
+      if (i === retries) throw error;
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-
-    throw error;
   }
+  
+  throw lastError;
 }

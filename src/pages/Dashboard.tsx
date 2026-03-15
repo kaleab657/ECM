@@ -372,6 +372,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={18} />
                       <input 
+                        id="dashboard-display-name"
+                        name="displayName"
                         type="text" 
                         placeholder={t('profile.labels.fullName')}
                         value={displayName}
@@ -386,6 +388,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <div className="relative">
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={18} />
                       <input 
+                        id="dashboard-phone-number"
+                        name="phoneNumber"
                         type="tel" 
                         placeholder="0911..."
                         value={phoneNumber}

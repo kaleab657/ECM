@@ -221,7 +221,8 @@
     "errorCarDetails": "Please fill in all required car details",
     "errorPrice": "Please enter a price",
     "errorPhone": "Please enter your phone number",
-    "errorPosting": "Failed to post listing: "
+    "errorPosting": "Failed to post listing: ",
+    "days": "Post Days"
   },
   "sell": {
     "price": "Price (ETB)",
@@ -533,8 +534,7 @@
     "Private Seller": "Private Seller",
     "Broker": "Broker",
     "Dealer": "Dealer",
-    "Import / Export": "Import / Export",
-    "Agent": "Agent"
+    "Import / Export Agent": "Import / Export Agent"
   },
   "dealerships": {
     "title": "Partner Dealerships",
@@ -609,15 +609,15 @@
   "packages": {
     "free": {
       "name": "Free Package",
-      "features": ["15 days listing"]
+      "features": ["15 Post Days"]
     },
     "featured": {
       "name": "Featured Package",
-      "features": ["15 days homepage feature", "30 days listing"]
+      "features": ["15 Days Homepage Feature", "30 Post Days"]
     },
     "premium": {
       "name": "Premium Package",
-      "features": ["Maximum exposure", "Featured everywhere"]
+      "features": ["Maximum Exposure", "Featured Everywhere", "30 Post Days"]
     }
   },
   "colors": {

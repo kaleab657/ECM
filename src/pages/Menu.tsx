@@ -38,52 +38,52 @@ export const Menu: React.FC<MenuProps> = ({ setPage }) => {
   ];
 
   return (
-    <div className="pt-6 pb-20 px-4 max-w-7xl mx-auto min-h-[90vh]">
-      <h1 className="text-2xl font-black text-zinc-900 dark:text-white mb-6 px-2">{t('common.menu') || 'Menu'}</h1>
+    <div className="pt-4 pb-20 px-4 max-w-7xl mx-auto min-h-[90vh]">
+      <h1 className="text-2xl font-black text-zinc-900 dark:text-white mb-4 px-2">{t('common.menu') || 'Menu'}</h1>
       
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={item.action}
-            className="w-full flex items-center gap-4 p-4 bg-white dark:bg-zinc-900/50 rounded-2xl transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-sm border border-black/[0.03] dark:border-white/[0.05]"
+            className="w-full flex items-center gap-3 p-3 bg-white dark:bg-zinc-900/50 rounded-2xl transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-sm border border-black/[0.03] dark:border-white/[0.05]"
           >
-            <div className="w-12 h-12 rounded-[14px] bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-600 dark:text-zinc-400 shrink-0 shadow-sm border border-black/[0.03] dark:border-white/[0.05]">
-              <item.icon size={22} />
+            <div className="w-10 h-10 rounded-xl bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-600 dark:text-zinc-400 shrink-0 shadow-sm border border-black/[0.03] dark:border-white/[0.05]">
+              <item.icon size={18} />
             </div>
             <div className="flex-1 text-left">
-              <div className="text-base font-bold text-zinc-900 dark:text-white">{item.label}</div>
+              <div className="text-sm font-bold text-zinc-900 dark:text-white">{item.label}</div>
               {item.description && (
-                <div className="text-xs font-semibold text-zinc-400 mt-0.5">{item.description}</div>
+                <div className="text-[10px] font-semibold text-zinc-400 mt-0.5">{item.description}</div>
               )}
             </div>
           </button>
         ))}
 
-        <div className="pt-4 mt-4 border-t border-zinc-100 dark:border-zinc-800/50">
+        <div className="pt-3 mt-3 border-t border-zinc-100 dark:border-zinc-800/50">
           {user ? (
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-red-50 dark:hover:bg-red-900/10"
+              className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all hover:bg-red-50 dark:hover:bg-red-900/10"
             >
-              <div className="w-12 h-12 rounded-[14px] bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0 border border-red-100 dark:border-red-900/30">
-                <LogOut size={22} />
+              <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600 dark:text-red-400 shrink-0 border border-red-100 dark:border-red-900/30">
+                <LogOut size={18} />
               </div>
               <div className="flex-1 text-left">
-                <div className="text-base font-bold text-red-600 dark:text-red-400">{t('menu.logout') || 'Logout'}</div>
+                <div className="text-sm font-bold text-red-600 dark:text-red-400">{t('menu.logout') || 'Logout'}</div>
               </div>
             </button>
           ) : (
             <button
               onClick={() => setAuthModalOpen(true)}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl transition-all hover:bg-brand/5"
+              className="w-full flex items-center gap-3 p-3 rounded-2xl transition-all hover:bg-brand/5"
             >
-              <div className="w-12 h-12 rounded-[14px] bg-brand/10 flex items-center justify-center text-brand shrink-0 border border-brand/20">
-                <User size={22} />
+              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand shrink-0 border border-brand/20">
+                <User size={18} />
               </div>
               <div className="flex-1 text-left">
-                <div className="text-base font-bold text-brand">{t('auth.signInBtn') || 'Login / Sign Up'}</div>
-                <div className="text-xs font-semibold text-brand/70 mt-0.5">Access disabled features</div>
+                <div className="text-sm font-bold text-brand">{t('auth.signInBtn') || 'Login / Sign Up'}</div>
+                <div className="text-[10px] font-semibold text-brand/70 mt-0.5">Access disabled features</div>
               </div>
             </button>
           )}

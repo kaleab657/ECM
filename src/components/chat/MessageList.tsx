@@ -69,7 +69,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({ messages, u
   return (
     <div 
       ref={scrollRef}
-      className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-hide"
+      className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-hide min-h-0"
     >
       {messages.map((msg) => (
         <MessageItem 

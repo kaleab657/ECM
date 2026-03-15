@@ -80,7 +80,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [sellerType, setSellerType] = useState(SELLER_TYPES[0]);
+  const [sellerType, setSellerType] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showVerification, setShowVerification] = useState(false);
@@ -157,6 +157,12 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
       setIsLoading(false);
       return;
     }
+
+    if (!isLogin && !sellerType) {
+      setError('Please select a role');
+      setIsLoading(false);
+      return;
+    }
     
     try {
       if (isLogin) {
@@ -186,6 +192,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
       setAuthModalOpen(false);
     } catch (err: any) {
       setError(getAuthErrorMessage(err, t));
+    } finally {
       setIsLoading(false);
     }
   };
@@ -302,7 +309,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           style={{ display: showEmailForm ? 'none' : undefined }}
         >
           <Mail size={18} />
-          {t('auth.emailLogin') || 'Log in with email or phone'}
+          {t('auth.emailLogin') || 'Continue with Email'}
         </button>
 
         {/* Email/Phone Form (shown when clicked) */}
@@ -362,6 +369,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                         onChange={(e) => setSellerType(e.target.value)}
                         className="auth-input appearance-none cursor-pointer pr-10"
                       >
+                        <option value="" disabled>Select Role</option>
                         {SELLER_TYPES.map(type => (
                           <option key={type} value={type}>{type}</option>
                         ))}

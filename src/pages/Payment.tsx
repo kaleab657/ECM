@@ -180,7 +180,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
   }
 
   return (
-    <div className="min-h-screen pt-16 md:pt-24 pb-24 md:pb-12 px-4">
+    <div className="min-h-screen pt-4 md:pt-24 pb-24 md:pb-12 px-4">
       <div className="max-w-3xl mx-auto">
         <button 
           onClick={() => setPage('post')}
@@ -207,7 +207,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
                     <span className="font-bold text-lg dark:text-white">{selectedPackage.name}</span>
                     <span className="text-brand font-bold text-xl">{selectedPackage.price} ETB</span>
                   </div>
-                  <p className="text-zinc-500 text-sm mb-4">{selectedPackage.duration} {t('post.days') || 'days listing'}</p>
+                  <p className="text-zinc-500 text-sm mb-4">{selectedPackage.duration} {t('post.days') || 'Post Days'}</p>
                   <div className="flex flex-wrap gap-2">
                     {selectedPackage.features.map((f, i) => (
                       <span key={i} className="px-3 py-1 bg-white dark:bg-zinc-900 text-xs rounded-full border border-zinc-100 dark:border-zinc-700 dark:text-zinc-300">

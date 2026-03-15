@@ -7,6 +7,7 @@ import { Car, Page, ListingPackage } from '../types';
 import { db } from '../lib/firebase';
 import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
 import { apiFetch, apiUpload } from '../lib/api-client';
+import { compressImage } from '../utils/image-utils';
 
 interface PostCarProps {
   setPage: (page: Page) => void;
@@ -149,23 +150,27 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       const idToken = await user.getIdToken();
 
       // 1. Upload images to R2 via Express server proxy
-      //    The server receives the raw binary and writes it to R2 directly —
-      //    no browser-to-R2 CORS required since frontend and backend share the same Render origin.
+      //    We compress images in the browser first to speed up the process.
       const listingId = Math.random().toString(36).substring(2, 15);
       const imageUrls = await Promise.all(
         images.map(async (image, index) => {
+          const compressedBlob = await compressImage(image).catch(err => {
+            console.warn('Compression failed, using original:', err);
+            return image;
+          });
+
           const imageName = `image-${index + 1}-${Date.now()}`;
           const key = `listings/${user.uid}/${listingId}/${imageName}.jpg`;
 
           const uploadResponse = await apiUpload(
-            `/api/r2/upload-listing?fileName=${encodeURIComponent(imageName)}&fileType=${encodeURIComponent(image.type)}&customKey=${encodeURIComponent(key)}`,
+            `/api/r2/upload-listing?fileName=${encodeURIComponent(imageName)}&fileType=image/jpeg&customKey=${encodeURIComponent(key)}`,
             {
               method: 'POST',
               headers: {
-                'Content-Type': image.type,
+                'Content-Type': 'image/jpeg',
                 'Authorization': `Bearer ${idToken}`
               },
-              body: image
+              body: compressedBlob
             }
           );
 

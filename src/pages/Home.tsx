@@ -185,6 +185,8 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
           <div className="relative group">
             <form onSubmit={handleSearchSubmit}>
               <input 
+                id="home-search-input"
+                name="search"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

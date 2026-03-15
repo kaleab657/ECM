@@ -21,7 +21,7 @@ export const MessageInput: React.FC<MessageInputProps> = React.memo(({
   const { t } = useAppContext();
 
   return (
-    <div className="bg-white dark:bg-zinc-900 p-3 md:p-4 border-t border-zinc-100 dark:border-zinc-800 sticky bottom-0">
+    <div className="bg-white dark:bg-zinc-900 p-3 md:p-4 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
       <form onSubmit={(e) => handleSendMessage(e)} className="flex items-center gap-2 md:gap-3">
         <label htmlFor="chat-file-upload" className="sr-only">Upload images</label>
         <input 

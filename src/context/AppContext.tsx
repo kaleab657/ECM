@@ -2,8 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
-import { doc, onSnapshot, getDoc, setDoc, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, setDoc, serverTimestamp, increment, arrayUnion } from 'firebase/firestore';
 import { UserProfile } from '../types';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import enTranslations from '../locales/english.json';
 import amTranslations from '../locales/amharic.json';
@@ -150,6 +151,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
   
   const setLanguage = (lang: Language) => setLanguageState(lang);
+
+  // Handle Notifications
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => {
+          })
+          .catch(err => {
+            console.error('[SW] Registration failed:', err);
+          });
+      });
+    }
+
+    const requestNotificationPermission = async () => {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted' && user) {
+          // Register for FCM
+          const messaging = getMessaging();
+          const token = await getToken(messaging, { 
+            vapidKey: 'BGHc0_oXh-2R-E7I7vA738pXbY38-6i_V8WfU8P7E1v8W28X4Z4z4w', // Placeholder VAPID key
+            serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          });
+          
+          if (token) {
+            // Save token to user profile
+            await setDoc(doc(db, 'users', user.uid), {
+              fcmTokens: arrayUnion(token),
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+          }
+        }
+      } catch (error) {
+        console.error('[Notifications] Error initializing:', error);
+      }
+    };
+
+    if (user) {
+      requestNotificationPermission();
+    }
+    
+    // Listen for foreground messages
+    const messaging = getMessaging();
+    const unsubscribeOnMessage = onMessage(messaging, (payload) => {
+      new Notification(payload.notification?.title || 'EthioCars', {
+        body: payload.notification?.body,
+        icon: '/assets/logo/logo.png'
+      });
+    });
+
+    return () => unsubscribeOnMessage();
+  }, [user]);
 
   const t = (key: string, params?: Record<string, string | number> | { returnObjects: boolean }): any => {
     const keys = key.split('.');

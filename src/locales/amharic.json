@@ -221,7 +221,8 @@
     "errorCarDetails": "እባክዎ ሁሉንም የመኪና ዝርዝሮች ይሙሉ",
     "errorPrice": "እባክዎ ዋጋ ያስገቡ",
     "errorPhone": "እባክዎ የስልክ ቁጥርዎን ያስገቡ",
-    "errorPosting": "ማስታወቂያውን መለጠፍ አልተቻለም፦ "
+    "errorPosting": "ማስታወቂያውን መለጠፍ አልተቻለም፦ ",
+    "days": "የልጥፍ ቀናት"
   },
   "sell": {
     "price": "ዋጋ (በብር)",
@@ -559,8 +560,7 @@
     "Private Seller": "የግል ሻጭ",
     "Broker": "ደላላ",
     "Dealer": "መኪና ተራ",
-    "Import / Export": "አስመጪ እና ላኪ",
-    "Agent": "ወኪል"
+    "Import / Export Agent": "አስመጪ እና ላኪ ወኪል"
   },
   "dealerships": {
     "title": "የሽያጭ ማዕከላት",
@@ -635,15 +635,15 @@
   "packages": {
     "free": {
       "name": "ነፃ ጥቅል",
-      "features": ["ለ15 ቀናት የሚቆይ"]
+      "features": ["ለ15 የልጥፍ ቀናት የሚቆይ"]
     },
     "featured": {
       "name": "ልዩ ጥቅል",
-      "features": ["ለ15 ቀናት በመነሻ ገጽ ላይ የሚታይ", "ለ30 ቀናት የሚቆይ"]
+      "features": ["ለ15 ቀናት በመነሻ ገጽ ላይ የሚታይ", "ለ30 የልጥፍ ቀናት የሚቆይ"]
     },
     "premium": {
       "name": "ፕሪሚየም ጥቅል",
-      "features": ["ከፍተኛ እይታ", "በሁሉም ቦታ የሚታይ"]
+      "features": ["ከፍተኛ እይታ", "በሁሉም ቦታ የሚታይ", "ለ30 የልጥፍ ቀናት የሚቆይ"]
     }
   },
   "colors": {

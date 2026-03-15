@@ -42,12 +42,20 @@ export default function App() {
   const { showToast } = useToast();
 
   const setCurrentPage = React.useCallback((page: Page) => {
+    if (page === 'menu' && currentPage === 'menu') {
+      const newHistory = [...history];
+      newHistory.pop();
+      const backTo = newHistory[newHistory.length - 1] || 'home';
+      setHistory(newHistory);
+      _setCurrentPage(backTo);
+      return;
+    }
     setHistory(prev => {
       if (prev[prev.length - 1] === page) return prev;
       return [...prev, page];
     });
     _setCurrentPage(page);
-  }, []);
+  }, [currentPage, history]);
 
   const [selectedCar, setSelectedCar] = React.useState<Car | null>(null);
   const [initialFilters, setInitialFilters] = React.useState<any>(null);

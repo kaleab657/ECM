@@ -56,7 +56,7 @@ export const PRICE_TYPES = [
 ];
 
 export const SELLER_TYPES = [
-  'Private Seller', 'Broker', 'Dealer', 'Import / Export', 'Agent'
+  'Private Seller', 'Broker', 'Dealer', 'Import / Export Agent'
 ];
 
 export const BASE_PRICES: Record<string, number> = {

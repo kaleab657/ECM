@@ -97,6 +97,34 @@ async function startServer() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   }));
+
+  // Browser Security Headers (CSP, CORP, HSTS)
+  app.use((req, res, next) => {
+    // Content Security Policy
+    // Allow scripts from self and firebase
+    // Allow images from self, unsplash, Cloudflare R2 domains
+    // Allow connect to firebase, R2, and self
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://www.google-analytics.com https://firebaseinstallations.googleapis.com",
+      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebase.com https://*.cloudflare.com https://*.onrender.com ws://localhost:* http://localhost:*",
+      "img-src 'self' data: blob: https://*.unsplash.com https://*.picsum.photos https://*.googleusercontent.com https://*.gstatic.com https://*.firebasestorage.googleapis.com https://pub-485e9821876543b591b61b8f593bd6c5.r2.dev https://pub-90fb3035306141a0b593f66ec2482e9e.r2.dev",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "frame-src 'self' https://*.firebaseapp.com https://*.google.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "upgrade-insecure-requests"
+    ].join('; ');
+
+    res.setHeader("Content-Security-Policy", csp);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  });
   
   // R2 Upload Routes - MUST be before express.json() to handle raw body correctly
   app.post("/api/r2/upload-listing", authenticate, express.raw({ type: ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"], limit: "10mb" }), async (req, res) => {
