@@ -6,8 +6,7 @@ import { useAppContext } from '../context/AppContext';
 import { Car, Page, ListingPackage } from '../types';
 import { db } from '../lib/firebase';
 import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
-import { apiFetch } from '../lib/api-client';
-import { uploadToR2 } from '../lib/r2-client-utils';
+import { apiFetch, apiUpload } from '../lib/api-client';
 
 interface PostCarProps {
   setPage: (page: Page) => void;
@@ -149,12 +148,39 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       // Get Firebase ID token for authentication
       const idToken = await user.getIdToken();
 
-      // 1. Upload images to R2 using the presigned-URL flow:
-      //    POST /api/r2/presigned-url → PUT directly to R2 → POST /api/r2/confirm-upload
+      // 1. Upload images to R2 via Express server proxy
+      //    The server receives the raw binary and writes it to R2 directly —
+      //    no browser-to-R2 CORS required since frontend and backend share the same Render origin.
       const listingId = Math.random().toString(36).substring(2, 15);
       const imageUrls = await Promise.all(
-        images.map(async (image) => {
-          const { publicUrl } = await uploadToR2(image, `listings/${user.uid}/${listingId}`);
+        images.map(async (image, index) => {
+          const imageName = `image-${index + 1}-${Date.now()}`;
+          const key = `listings/${user.uid}/${listingId}/${imageName}.jpg`;
+
+          const uploadResponse = await apiUpload(
+            `/api/r2/upload-listing?fileName=${encodeURIComponent(imageName)}&fileType=${encodeURIComponent(image.type)}&customKey=${encodeURIComponent(key)}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': image.type,
+                'Authorization': `Bearer ${idToken}`
+              },
+              body: image
+            }
+          );
+
+          if (!uploadResponse.ok) {
+            const contentType = uploadResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await uploadResponse.json();
+              throw new Error(errorData.details
+                ? `${errorData.error}: ${errorData.details}`
+                : (errorData.error || 'Failed to upload image'));
+            }
+            throw new Error(`Upload failed (status ${uploadResponse.status}). Server may be unreachable.`);
+          }
+
+          const { publicUrl } = await uploadResponse.json();
           return publicUrl;
         })
       );

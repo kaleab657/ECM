@@ -1,39 +1,34 @@
 /**
  * API Client Configuration
- * 
+ *
  * Handles the difference between:
- * - Web (Vercel hosted): relative /api/... paths work because Vercel rewrites them
+ * - Web (Render hosted): relative /api/... paths work because frontend + backend are on the same origin
  * - Web (dev server): Vite proxy forwards /api/... to localhost:3000
  * - Android (Capacitor WebView): Must use absolute URLs to the production backend
- * 
- * IMPORTANT: Update PRODUCTION_API_URL to match your actual Vercel deployment URL.
+ *
+ * Backend runs on Render: https://ethiocars-9jsd.onrender.com
  */
 
 // ──────────────────────────────────────────────────────
-// 🔧 SET YOUR PRODUCTION BACKEND URL HERE
-// This is your Vercel deployment URL (the domain where your API is hosted).
-// Example: "https://ethiocars.vercel.app" or "https://your-custom-domain.com"
+// 🔧 Production backend URL (Render)
 // ──────────────────────────────────────────────────────
-const PRODUCTION_API_URL = 'https://ethio-cars.vercel.app';
+const PRODUCTION_API_URL = 'https://ethiocars-9jsd.onrender.com';
 
 /**
  * Detect if the app is running inside a Capacitor native WebView.
- * In Capacitor, the origin is "capacitor://localhost" (iOS) or "http://localhost" (Android),
- * and the window.Capacitor object is injected.
+ * In Capacitor, the origin is "capacitor://localhost" (iOS) or "https://localhost" (Android).
  */
 function isNativeApp(): boolean {
-  // Check for Capacitor bridge
   if (typeof (window as any).Capacitor !== 'undefined') {
     return true;
   }
-  // Fallback: check if served from capacitor:// or local file
   if (typeof window !== 'undefined') {
     const origin = window.location.origin;
     if (
       origin.startsWith('capacitor://') ||
       origin.startsWith('file://') ||
       origin === 'http://localhost' ||  // Android Capacitor default
-      origin === 'https://localhost'    // iOS Capacitor default
+      origin === 'https://localhost'    // Android Capacitor with androidScheme=https
     ) {
       return true;
     }
@@ -43,14 +38,15 @@ function isNativeApp(): boolean {
 
 /**
  * Get the base URL for API requests.
- * - In native apps → full production URL
- * - In web (hosted or dev) → empty string (relative paths work)
+ * - In native apps → full Render production URL (absolute)
+ * - In web (Render or dev server) → empty string (relative paths work)
  */
 function getApiBaseUrl(): string {
   if (isNativeApp()) {
     return PRODUCTION_API_URL;
   }
-  // On web (Vercel or dev server), relative paths work fine
+  // On web, frontend and backend are on the same Render service
+  // so relative /api/... paths work without CORS
   return '';
 }
 
@@ -61,7 +57,6 @@ export const API_BASE = getApiBaseUrl();
 
 /**
  * Default request timeout in milliseconds.
- * Android network requests may take longer, so we use a generous timeout.
  */
 const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
 
@@ -80,16 +75,13 @@ function createTimeoutController(timeoutMs: number = DEFAULT_TIMEOUT_MS): { cont
  */
 async function safeParseJson(response: Response): Promise<any> {
   const contentType = response.headers.get('content-type');
-  
-  // Check if the response is actually JSON
+
   if (contentType && contentType.includes('application/json')) {
     return response.json();
   }
-  
-  // If not JSON, read as text and throw a descriptive error
+
   const text = await response.text();
-  
-  // Check if it's an HTML page (common when API URL resolves incorrectly)
+
   if (text.trim().startsWith('<!') || text.trim().startsWith('<html')) {
     throw new Error(
       'Server returned an HTML page instead of JSON. ' +
@@ -97,8 +89,7 @@ async function safeParseJson(response: Response): Promise<any> {
       `Status: ${response.status}, URL: ${response.url}`
     );
   }
-  
-  // Try to parse as JSON anyway (some servers don't set content-type correctly)
+
   try {
     return JSON.parse(text);
   } catch {
@@ -115,7 +106,7 @@ async function safeParseJson(response: Response): Promise<any> {
  * 1. Prepends the correct API base URL
  * 2. Adds request timeout
  * 3. Validates JSON responses safely
- * 
+ *
  * @param path - The API path (e.g., '/api/listings')
  * @param options - Standard fetch options
  * @param timeoutMs - Request timeout in milliseconds (default: 30s)
@@ -128,40 +119,40 @@ export async function apiFetch(
 ): Promise<any> {
   const url = `${API_BASE}${path}`;
   const { controller, timeoutId } = createTimeoutController(timeoutMs);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     const data = await safeParseJson(response);
-    
+
     if (!response.ok) {
       const errorMsg = data?.error || data?.message || `Request failed with status ${response.status}`;
       throw new Error(errorMsg);
     }
-    
+
     return data;
   } catch (error: any) {
     clearTimeout(timeoutId);
-    
+
     if (error.name === 'AbortError') {
       throw new Error(
         'Request timed out. Please check your internet connection and try again.'
       );
     }
-    
+
     throw error;
   }
 }
 
 /**
  * Enhanced fetch for binary uploads (images, files).
- * Similar to apiFetch but returns the raw Response for custom handling.
- * 
+ * Uploads go through the Express server as a proxy — no CORS issues.
+ *
  * @param path - The API path (e.g., '/api/r2/upload-listing?...')
  * @param options - Standard fetch options (should include body as binary)
  * @param timeoutMs - Request timeout (default: 60s for uploads)
@@ -174,24 +165,24 @@ export async function apiUpload(
 ): Promise<Response> {
   const url = `${API_BASE}${path}`;
   const { controller, timeoutId } = createTimeoutController(timeoutMs);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
     return response;
   } catch (error: any) {
     clearTimeout(timeoutId);
-    
+
     if (error.name === 'AbortError') {
       throw new Error(
         'Upload timed out. Please check your internet connection and try again.'
       );
     }
-    
+
     throw error;
   }
 }
