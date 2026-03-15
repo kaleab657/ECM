@@ -44,7 +44,8 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('firebase.com') ||
-    url.hostname.includes('gstatic.com')
+    url.hostname.includes('gstatic.com') ||
+    url.hostname.includes('r2.dev')
   ) {
     return;
   }

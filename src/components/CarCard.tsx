@@ -25,10 +25,14 @@ export const CarCard = React.memo<CarCardProps>(({ car, onClick, variant = 'sear
         <img 
           src={car.imageURLs[0]} 
           alt={car.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 bg-zinc-100 dark:bg-zinc-800"
           referrerPolicy="no-referrer"
           loading={priority ? 'eager' : 'lazy'}
           fetchPriority={priority ? 'high' : 'auto'}
+          onError={(e) => {
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=800&q=60'; // Safe fallback
+            e.currentTarget.onerror = null; 
+          }}
           decoding="async"
         />
         

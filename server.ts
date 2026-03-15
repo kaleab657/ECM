@@ -114,7 +114,7 @@ async function startServer() {
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.google-analytics.com https://firebaseinstallations.googleapis.com",
       "worker-src 'self' blob:",
       "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebase.com https://*.cloudfunctions.net https://*.cloudflare.com https://*.onrender.com https://fonts.googleapis.com https://fonts.gstatic.com wss://*.firebaseio.com ws://localhost:* http://localhost:*",
-      "img-src 'self' data: blob: https://*.unsplash.com https://*.picsum.photos https://*.googleusercontent.com https://*.gstatic.com https://*.firebasestorage.googleapis.com https://pub-485e9821876543b591b61b8f593bd6c5.r2.dev https://pub-90fb3035306141a0b593f66ec2482e9e.r2.dev https://pub-241e6fed684d40058707e17c356ae538.r2.dev",
+      "img-src 'self' data: blob: https://*.unsplash.com https://*.picsum.photos https://*.googleusercontent.com https://*.gstatic.com https://*.firebasestorage.googleapis.com https://*.r2.dev",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "frame-src 'self' https://*.firebaseapp.com https://*.google.com",

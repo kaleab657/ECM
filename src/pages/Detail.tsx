@@ -139,8 +139,9 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
               <img 
                 src={car.imageURLs[activeImage]} 
                 alt={car.title}
-                className="w-full h-full object-cover cursor-zoom-in"
+                className="w-full h-full object-cover cursor-zoom-in bg-zinc-100 dark:bg-zinc-800"
                 referrerPolicy="no-referrer"
+                onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=800&q=60'; e.currentTarget.onerror = null; }}
                 onClick={() => setIsViewerOpen(true)}
               />
               
@@ -167,7 +168,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     activeImage === idx ? 'border-brand scale-95' : 'border-transparent opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={img} alt="" className="w-full h-full object-cover bg-zinc-100 dark:bg-zinc-800" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=200&q=60'; e.currentTarget.onerror = null; }} />
                 </button>
               ))}
             </div>
@@ -384,6 +385,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                 alt="" 
                 className="max-w-full max-h-full object-contain"
                 referrerPolicy="no-referrer"
+                onError={(e: any) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=800&q=60'; e.currentTarget.onerror = null; }}
               />
 
               <button 
@@ -403,7 +405,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     activeImage === idx ? 'border-brand scale-110' : 'border-transparent opacity-50'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={img} alt="" className="w-full h-full object-cover bg-zinc-100 dark:bg-zinc-800" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=200&q=60'; e.currentTarget.onerror = null; }} />
                 </button>
               ))}
             </div>
