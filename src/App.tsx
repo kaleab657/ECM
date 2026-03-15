@@ -8,10 +8,7 @@ import { Page, Car } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from './context/AppContext';
 import { Loader2 } from 'lucide-react';
-import { App as CapacitorApp } from '@capacitor/app';
-import { SplashScreen } from '@capacitor/splash-screen';
 import { useToast } from './components/Toast';
-import { initPushNotifications, removePushListeners, associateTokenWithUser } from './lib/push-notifications';
 import { PullToRefresh } from './components/PullToRefresh';
 
 // Lazy load non-critical pages
@@ -63,77 +60,9 @@ export default function App() {
   const authModalRef = React.useRef(isAuthModalOpen);
   React.useEffect(() => { authModalRef.current = isAuthModalOpen; }, [isAuthModalOpen]);
 
-  // Hardware Back Button specific for Capacitor
-  React.useEffect(() => {
-    const listener = CapacitorApp.addListener('backButton', () => {
-      // If auth bottom sheet is open, close it first — don't navigate
-      if (authModalRef.current) {
-        setAuthModalOpen(false);
-        return;
-      }
 
-      setHistory(prev => {
-        const current = prev[prev.length - 1];
-        if (current === 'home') {
-          if (backPressCount.current === 0) {
-            backPressCount.current = 1;
-            showToast('Press back again to exit', 'info');
-            setTimeout(() => {
-              backPressCount.current = 0;
-            }, 2000);
-          } else {
-            CapacitorApp.exitApp();
-          }
-          return prev;
-        } else {
-          // Navigate to previous page in history
-          if (prev.length > 1) {
-            const newHistory = [...prev];
-            newHistory.pop(); // Remove current
-            const previousPage = newHistory[newHistory.length - 1];
-            _setCurrentPage(previousPage);
-            return newHistory;
-          } else {
-            // Fallback
-            _setCurrentPage('home');
-            return ['home'];
-          }
-        }
-      });
-    });
 
-    return () => {
-      listener.then(l => l.remove());
-    };
-  }, [showToast, setAuthModalOpen]);
 
-  // Initialize Push Notifications on first app launch
-  React.useEffect(() => {
-    const handleNotificationTap = (data: any) => {
-      // Navigate based on notification type
-      if (data.type === 'chat' && data.chatId) {
-        setActiveChatId(data.chatId);
-        setCurrentPage('chat');
-      } else if (data.type === 'listing' && data.listingId) {
-        setCurrentPage('browse');
-      } else if (data.type === 'announcement') {
-        setCurrentPage('home');
-      }
-    };
-
-    initPushNotifications(handleNotificationTap);
-
-    return () => {
-      removePushListeners();
-    };
-  }, []);
-
-  // Re-associate FCM token when user logs in
-  React.useEffect(() => {
-    if (user) {
-      associateTokenWithUser(user.uid);
-    }
-  }, [user]);
 
   // Auth Guard for protected pages
   React.useEffect(() => {
@@ -157,14 +86,7 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [currentPage]);
 
-  // Hide splash screen when context is loaded
-  React.useEffect(() => {
-    if (!loading) {
-      setTimeout(() => {
-        SplashScreen.hide().catch(() => {});
-      }, 500); // Give it a slight moment to ensure visual DOM is ready
-    }
-  }, [loading]);
+
 
   if (loading) {
     return (

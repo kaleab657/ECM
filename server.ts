@@ -92,9 +92,6 @@ async function startServer() {
       'https://ethiocars-9jsd.onrender.com', // Render production
       'http://localhost:5173',                 // Vite dev server
       'http://localhost:3000',                 // Express dev server
-      'https://localhost',                     // Android Capacitor WebView
-      'http://localhost',                      // Android Capacitor WebView (fallback)
-      'capacitor://localhost',                 // iOS Capacitor WebView
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

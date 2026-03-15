@@ -16,7 +16,6 @@ import { doc, setDoc, getDoc, serverTimestamp, collection, getCountFromServer, i
 import { useAppContext } from '../context/AppContext';
 import { SELLER_TYPES } from '../constants';
 import { Page } from '../types';
-import { Capacitor } from '@capacitor/core';
 
 interface AuthProps {
   setPage: (page: Page) => void;
@@ -104,42 +103,22 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
     setError(null);
     const provider = new GoogleAuthProvider();
 
-    // Strategy: 
-    // - On Capacitor native (Android/iOS): use signInWithPopup — it opens a Chrome Custom Tab
-    //   via BridgeActivity.onActivityResult, NOT a browser popup, so it is never blocked.
-    // - On web: try signInWithPopup first; if blocked, fall back to signInWithRedirect.
-    //
-    // signInWithRedirect CANNOT work in Capacitor because the WebView origin is
-    // https://localhost and Firebase Auth cannot redirect back to that origin.
-
-    const isNative = Capacitor.isNativePlatform();
-
     try {
-      if (isNative) {
-        // Capacitor WebView — popup opens Chrome Custom Tab, always works
+      // Web browser — try popup first
+      try {
         const result = await signInWithPopup(auth, provider);
         await ensureUserDocument(result.user);
         const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
         sessionStorage.removeItem('redirectAfterLogin');
         setPage(redirectTo as any);
         setAuthModalOpen(false);
-      } else {
-        // Web browser — try popup first
-        try {
-          const result = await signInWithPopup(auth, provider);
-          await ensureUserDocument(result.user);
-          const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
-          sessionStorage.removeItem('redirectAfterLogin');
-          setPage(redirectTo as any);
-          setAuthModalOpen(false);
-        } catch (popupErr: any) {
-          // If popup was blocked by browser, fall back to redirect
-          if (popupErr?.code === 'auth/popup-blocked') {
-            await signInWithRedirect(auth, provider);
-            // Page reloads — getRedirectResult in AppContext handles the rest
-          } else {
-            throw popupErr; // Re-throw other errors
-          }
+      } catch (popupErr: any) {
+        // If popup was blocked by browser, fall back to redirect
+        if (popupErr?.code === 'auth/popup-blocked') {
+          await signInWithRedirect(auth, provider);
+          // Page reloads — getRedirectResult in AppContext handles the rest
+        } else {
+          throw popupErr; // Re-throw other errors
         }
       }
     } catch (err: any) {

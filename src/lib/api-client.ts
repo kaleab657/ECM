@@ -4,56 +4,15 @@
  * Handles the difference between:
  * - Web (Render hosted): relative /api/... paths work because frontend + backend are on the same origin
  * - Web (dev server): Vite proxy forwards /api/... to localhost:3000
- * - Android (Capacitor WebView): Must use absolute URLs to the production backend
  *
  * Backend runs on Render: https://ethiocars-9jsd.onrender.com
  */
 
-// ──────────────────────────────────────────────────────
-// 🔧 Production backend URL (Render)
-// ──────────────────────────────────────────────────────
-const PRODUCTION_API_URL = 'https://ethiocars-9jsd.onrender.com';
-
-/**
- * Detect if the app is running inside a Capacitor native WebView.
- * In Capacitor, the origin is "capacitor://localhost" (iOS) or "https://localhost" (Android).
- */
-function isNativeApp(): boolean {
-  if (typeof (window as any).Capacitor !== 'undefined') {
-    return true;
-  }
-  if (typeof window !== 'undefined') {
-    const origin = window.location.origin;
-    if (
-      origin.startsWith('capacitor://') ||
-      origin.startsWith('file://') ||
-      origin === 'http://localhost' ||  // Android Capacitor default
-      origin === 'https://localhost'    // Android Capacitor with androidScheme=https
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 /**
  * Get the base URL for API requests.
- * - In native apps → full Render production URL (absolute)
- * - In web (Render or dev server) → empty string (relative paths work)
+ * Since this is now a pure web app, we always use relative paths.
  */
-function getApiBaseUrl(): string {
-  if (isNativeApp()) {
-    return PRODUCTION_API_URL;
-  }
-  // On web, frontend and backend are on the same Render service
-  // so relative /api/... paths work without CORS
-  return '';
-}
-
-/**
- * The resolved API base URL. Computed once at module load.
- */
-export const API_BASE = getApiBaseUrl();
+export const API_BASE = '';
 
 /**
  * Default request timeout in milliseconds.
