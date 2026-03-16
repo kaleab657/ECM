@@ -110,6 +110,18 @@
           }
         }, 1500);
       });
+      // Service Worker Registration for PWA / TWA Compliance
+      window.addEventListener('load', function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('[SW] Registration successful with scope: ', registration.scope);
+            })
+            .catch(function(err) {
+              console.error('[SW] Registration failed: ', err);
+            });
+        }
+      });
     </script>
   </body>
 </html>
