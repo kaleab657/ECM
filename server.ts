@@ -7,6 +7,7 @@ import cors from "cors";
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
+import compression from "compression";
 import { getR2Client, r2Config, initFirebaseAdmin } from "./src/lib/backend-config";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,6 +22,22 @@ const db = admin?.firestore();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Helper to safely delete images from R2 and prevent orphans
+  const deleteListingImagesFromR2 = async (imageURLs: string[]) => {
+    if (!imageURLs || imageURLs.length === 0) return;
+    const r2 = getR2Client();
+    for (const url of imageURLs) {
+      try {
+        const urlObj = new URL(url);
+        const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+        const bucket = url.includes(r2Config.paymentPublicUrl) ? r2Config.paymentBucket : r2Config.listingBucket;
+        await r2.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      } catch (err: any) {
+        console.error(`Failed to delete image ${url} from R2:`, err.message);
+      }
+    }
+  };
 
   // Middleware: Authenticate requests from logged-in users
   const authenticate = async (req: any, res: any, next: any) => {
@@ -98,6 +115,8 @@ async function startServer() {
     credentials: true,
   }));
 
+  app.use(compression());
+
   // Browser Security Headers (CSP, CORP)
   app.use((req, res, next) => {
     // Skip CSP for API endpoints — they return JSON, not HTML
@@ -114,7 +133,7 @@ async function startServer() {
       "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.google-analytics.com https://firebaseinstallations.googleapis.com",
       "worker-src 'self' blob:",
       "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebase.com https://*.cloudfunctions.net https://*.cloudflare.com https://*.onrender.com https://fonts.googleapis.com https://fonts.gstatic.com wss://*.firebaseio.com ws://localhost:* http://localhost:*",
-      "img-src 'self' data: blob: https://*.unsplash.com https://*.picsum.photos https://*.googleusercontent.com https://*.gstatic.com https://*.firebasestorage.googleapis.com https://*.r2.dev",
+      "img-src 'self' data: blob: https://*.unsplash.com https://unsplash.com https://images.unsplash.com https://*.picsum.photos https://*.googleusercontent.com https://*.gstatic.com https://*.firebasestorage.googleapis.com https://*.r2.dev https://r2.dev https://*.r2.cloudflarestorage.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "frame-src 'self' https://*.firebaseapp.com https://*.google.com",
@@ -370,26 +389,9 @@ async function startServer() {
       }
 
       const listingData = listingDoc.data();
-      const imageURLs = listingData?.imageURLs || [];
-
       // 1. Delete images from R2
-      const r2 = getR2Client();
-      for (const url of imageURLs) {
-        try {
-          const urlObj = new URL(url);
-          const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
-          
-          // Determine bucket from URL
-          const bucket = url.includes(r2Config.paymentPublicUrl) ? r2Config.paymentBucket : r2Config.listingBucket;
-          
-          await r2.send(new DeleteObjectCommand({
-            Bucket: bucket,
-            Key: key
-          }));
-        } catch (err: any) {
-          console.error(`Failed to delete image ${url} from R2:`, err.message);
-        }
-      }
+      const imageURLs = listingData?.imageURLs || [];
+      await deleteListingImagesFromR2(imageURLs);
 
       // 2. Delete from Firestore
       await listingRef.delete();
@@ -541,14 +543,22 @@ async function startServer() {
       });
 
       if (status === 'verified') {
-        // Set expiration date for the paid package (30 days from now)
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 30);
+        const paymentDoc = await paymentRef.get();
+        const packageType = paymentDoc.data()?.packageType;
+
+        // Set expiration date dynamically based on package
+        let expiresAt: Date | null = new Date();
+        if (packageType === 'premium') {
+          expiresAt = null;
+        } else {
+          // Featured defaults to 30 days
+          expiresAt.setDate(expiresAt.getDate() + 30);
+        }
 
         batch.update(listingRef, { 
           status: 'active',
           featured: true,
-          expiresAt: admin.firestore.Timestamp.fromDate(expiresAt)
+          expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null
         });
         
         // Increment global count
@@ -591,14 +601,21 @@ async function startServer() {
       
       const status = listing.status || 'active';
       
-      // Set expiration date (30 days from now)
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      // Set expiration date dynamically based on package
+      let expiresAt: Date | null = new Date();
+      if (listing.packageType === 'premium') {
+        expiresAt = null;
+      } else if (listing.packageType === 'featured') {
+        expiresAt.setDate(expiresAt.getDate() + 30);
+      } else {
+        // Standard / free package is 15 days
+        expiresAt.setDate(expiresAt.getDate() + 15);
+      }
 
       batch.set(docRef, {
         ...listing,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+        expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
         status: status
       });
       
@@ -645,26 +662,8 @@ async function startServer() {
       }
 
       // 1. Delete images from R2 (if applicable)
-      // Note: We are using Firebase Storage for new listings, but old ones might have R2 URLs
       const imageURLs = carData?.imageURLs || [];
-      const r2 = getR2Client();
-
-      for (const url of imageURLs) {
-        try {
-          const urlObj = new URL(url);
-          const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
-          
-          // Determine bucket from URL
-          const bucket = url.includes(r2Config.paymentPublicUrl) ? r2Config.paymentBucket : r2Config.listingBucket;
-          
-          await r2.send(new DeleteObjectCommand({
-            Bucket: bucket,
-            Key: key
-          }));
-        } catch (err: any) {
-          // Silent error
-        }
-      }
+      await deleteListingImagesFromR2(imageURLs);
 
       // 2. Delete from Firestore and decrement global count atomically
       const batch = db.batch();
@@ -744,26 +743,31 @@ async function startServer() {
       if (snapshot.empty) return;
 
       const batch = db.batch();
-      snapshot.docs.forEach(doc => {
+      let deletedCount = 0;
+      
+      for (const doc of snapshot.docs) {
         const data = doc.data();
-        if (data.packageType === 'free') {
-          // Delete expired free listings
-          batch.delete(doc.ref);
-        } else {
-          // Downgrade paid listings to free
-          // Reset expiration for another 30 days as free
-          const newExpiresAt = new Date();
-          newExpiresAt.setDate(newExpiresAt.getDate() + 30);
-          
-          batch.update(doc.ref, {
-            packageType: 'free',
-            expiresAt: admin.firestore.Timestamp.fromDate(newExpiresAt)
-          });
+        const imageURLs = data.imageURLs || [];
+        
+        // Delete orphaned images before database removal
+        if (imageURLs.length > 0) {
+          await deleteListingImagesFromR2(imageURLs);
         }
-      });
+        
+        batch.delete(doc.ref);
+        deletedCount++;
+      }
+
+      // Update global listings count correctly
+      if (deletedCount > 0) {
+        const statsRef = db.collection('stats').doc('global');
+        batch.set(statsRef, {
+          listingsCount: admin.firestore.FieldValue.increment(-deletedCount)
+        }, { merge: true });
+      }
 
       await batch.commit();
-      console.log(`Cleaned up ${snapshot.size} expired listings.`);
+      console.log(`Cleaned up ${deletedCount} expired listings.`);
     } catch (error) {
       console.error('Error cleaning up expired listings:', error);
     }
