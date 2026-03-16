@@ -241,9 +241,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       case 1:
         return (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
-              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 dark:text-white">
-                <Info size={18} className="text-brand" /> {t('post.basicInfo') || 'Basic Information'}
+            <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-8 border border-black/[0.03] dark:border-white/[0.05] shadow-sm space-y-6">
+              <h2 className="text-sm font-black flex items-center gap-2 text-zinc-400 uppercase tracking-[0.2em]">
+                <Info size={16} className="text-brand" strokeWidth={2.5} /> {t('post.basicInfo') || 'Basic Information'}
               </h2>
               
               <div className="space-y-4">
@@ -327,9 +327,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       case 2:
         return (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
-              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 dark:text-white">
-                <CarIcon size={18} className="text-brand" /> {t('post.vehicleDetails') || 'Vehicle Details'}
+            <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-8 border border-black/[0.03] dark:border-white/[0.05] shadow-sm space-y-6">
+              <h2 className="text-sm font-black flex items-center gap-2 text-zinc-400 uppercase tracking-[0.2em]">
+                <CarIcon size={16} className="text-brand" strokeWidth={2.5} /> {t('post.vehicleDetails') || 'Vehicle Details'}
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -459,9 +459,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       case 3:
         return (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
-              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 dark:text-white">
-                <DollarSign size={18} className="text-brand" /> {t('post.pricingDetails') || 'Pricing Details'}
+            <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-8 border border-black/[0.03] dark:border-white/[0.05] shadow-sm space-y-6">
+              <h2 className="text-sm font-black flex items-center gap-2 text-zinc-400 uppercase tracking-[0.2em]">
+                <DollarSign size={16} className="text-brand" strokeWidth={2.5} /> {t('post.pricingDetails') || 'Pricing Details'}
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -523,9 +523,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       case 4:
         return (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
-              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 dark:text-white">
-                <User size={18} className="text-brand" /> {t('detail.sellerInfo') || 'Seller Information'}
+            <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-8 border border-black/[0.03] dark:border-white/[0.05] shadow-sm space-y-6">
+              <h2 className="text-sm font-black flex items-center gap-2 text-zinc-400 uppercase tracking-[0.2em]">
+                <User size={16} className="text-brand" strokeWidth={2.5} /> {t('detail.sellerInfo') || 'Seller Information'}
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -618,9 +618,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       case 6:
         return (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
-              <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 dark:text-white">
-                <Package size={18} className="text-brand" /> {t('post.selectPackage') || 'Select Package'}
+            <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-8 border border-black/[0.03] dark:border-white/[0.05] shadow-sm space-y-6">
+              <h2 className="text-sm font-black flex items-center gap-2 text-zinc-400 uppercase tracking-[0.2em]">
+                <Package size={16} className="text-brand" strokeWidth={2.5} /> {t('post.selectPackage') || 'Select Package'}
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -664,18 +664,19 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 md:py-12 pb-24 md:pb-12">
-      <div className="mb-6 md:mb-10 text-center">
-        <h1 className="text-xl md:text-4xl font-black text-zinc-900 dark:text-white mb-4 italic uppercase tracking-tight">{t('post.title') || 'Post Your Car'}</h1>
-        <div className="flex items-center justify-center gap-1.5 md:gap-2 mb-4 md:mb-8">
+      <div className="mb-8 md:mb-12 text-center">
+        <h1 className="text-xl md:text-4xl font-black text-zinc-900 dark:text-white mb-6 italic uppercase tracking-tight">{t('post.title') || 'Post Your Car'}</h1>
+        <div className="flex items-center justify-center gap-1.5 md:gap-2 mb-2">
           {[1, 2, 3, 4, 5, 6].map((step) => (
             <div 
               key={step}
               className={`h-1.5 md:h-2 rounded-full transition-all duration-500 ${
-                step === currentStep ? 'w-6 md:w-8 bg-brand' : step < currentStep ? 'w-3 md:w-4 bg-brand/40' : 'w-3 md:w-4 bg-zinc-200 dark:bg-zinc-800'
+                step === currentStep ? 'w-8 md:w-12 bg-brand' : step < currentStep ? 'w-3 md:w-4 bg-brand/30' : 'w-3 md:w-4 bg-zinc-200 dark:bg-zinc-800'
               }`}
             />
           ))}
         </div>
+        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{t('post.step') || 'Step'} {currentStep} {t('post.of') || 'of'} 6</p>
       </div>
 
       <div className="min-h-[400px]">

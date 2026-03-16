@@ -178,10 +178,10 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
   };
 
   return (
-    <div className="flex flex-col gap-6 pb-20">
+    <div className="flex flex-col gap-4 md:gap-6 pb-20">
       {/* Smart Search Section */}
-      <section className="pt-2 pb-1 px-4 max-w-7xl mx-auto w-full">
-        <div className="flex flex-col gap-3">
+      <section className="pt-1 pb-1 px-4 max-w-7xl mx-auto w-full">
+        <div className="flex flex-col gap-2.5">
           <div className="relative group">
             <form onSubmit={handleSearchSubmit}>
               <input 
@@ -237,7 +237,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
           </div>
           
           <div className="relative">
-            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
+            <div className="flex gap-2.5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
               {featuredCars.map((car, index) => (
                 <div 
                   key={car.id} 
@@ -260,7 +260,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
 
       {/* Latest Listings */}
       <section className="max-w-7xl mx-auto px-4 w-full">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-black text-zinc-900 dark:text-white tracking-tight uppercase italic">
             {t('home.latestTitle')}
           </h2>

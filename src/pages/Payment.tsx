@@ -191,27 +191,27 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
           <span>{t('payment.back')}</span>
         </button>
 
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-8 dark:text-white">{t('payment.title')}</h1>
+        <h1 className="text-xl md:text-3xl font-black text-zinc-900 dark:text-white mb-6 uppercase tracking-tight italic">{t('payment.title')}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
           {/* Left Column: Package Summary & Payment Methods */}
           <div className="lg:col-span-2 space-y-4 md:space-y-8">
             {/* Package Summary */}
-            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
-                <CreditCard className="text-brand" size={24} />
+            <section className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-6 shadow-sm border border-black/[0.03] dark:border-white/[0.05]">
+              <h2 className="text-sm font-black mb-4 flex items-center gap-2 text-zinc-400 uppercase tracking-widest">
+                <CreditCard className="text-brand" size={18} strokeWidth={2.5} />
                 {t('payment.packageSummary')}
               </h2>
               {selectedPackage && (
-                <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-bold text-lg dark:text-white">{selectedPackage.name}</span>
-                    <span className="text-brand font-bold text-xl">{selectedPackage.price} ETB</span>
+                <div className="p-4 bg-brand/[0.03] dark:bg-brand/5 rounded-2xl border border-brand/10">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-black text-zinc-900 dark:text-white uppercase tracking-tight">{selectedPackage.name}</span>
+                    <span className="text-brand font-black text-lg">{selectedPackage.price} ETB</span>
                   </div>
-                  <p className="text-zinc-500 text-sm mb-4">{selectedPackage.duration} {t('post.days') || 'Post Days'}</p>
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-zinc-500 text-[10px] font-bold mb-3 uppercase tracking-widest">{selectedPackage.duration} {t('post.days') || 'Post Days'}</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {selectedPackage.features.map((f, i) => (
-                      <span key={i} className="px-3 py-1 bg-white dark:bg-zinc-900 text-xs rounded-full border border-zinc-100 dark:border-zinc-700 dark:text-zinc-300">
+                      <span key={i} className="px-2 py-1 bg-white dark:bg-zinc-800 text-[9px] font-black uppercase tracking-tight rounded-lg border border-black/[0.03] dark:border-white/[0.05] dark:text-zinc-300">
                         {f}
                       </span>
                     ))}
@@ -240,46 +240,46 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
             </section>
 
             {/* Payment Methods */}
-            <section className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-100 dark:border-zinc-800">
-              <h2 className="text-xl font-bold mb-6 dark:text-white">{t('payment.method')}</h2>
+            <section className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-6 shadow-sm border border-black/[0.03] dark:border-white/[0.05]">
+              <h2 className="text-sm font-black mb-6 text-zinc-400 uppercase tracking-widest">{t('payment.method')}</h2>
               
-              <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-8">
+              <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                   onClick={() => setPaymentMethod('CBE')}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
+                  className={`flex flex-col items-center gap-3 p-4 rounded-3xl border-2 transition-all ${
                     paymentMethod === 'CBE'
-                      ? 'border-brand bg-brand/5'
-                      : 'border-zinc-100 dark:border-zinc-800'
+                      ? 'border-brand bg-brand/[0.02]'
+                      : 'border-zinc-50 dark:border-zinc-800'
                   }`}
                 >
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-zinc-100">
-                    <img src="/assets/logos/cbe_logo.png" alt="CBE Bank" className="w-full h-full object-contain" />
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center overflow-hidden border border-black/[0.05] shadow-sm">
+                    <img src="/assets/logos/cbe_logo.png" alt="CBE Bank" className="w-9 h-9 object-contain" />
                   </div>
-                  <div className="text-left">
-                    <p className="font-bold dark:text-white">CBE Transfer</p>
-                    <p className="text-xs text-zinc-500">{t('payment.bankTransfer') || 'Bank Transfer'}</p>
+                  <div className="text-center">
+                    <p className="font-black text-xs text-zinc-900 dark:text-white uppercase tracking-tight">CBE</p>
+                    <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none mt-1">{t('payment.bankTransfer') || 'Transfer'}</p>
                   </div>
                 </button>
 
                 <button
                   onClick={() => setPaymentMethod('Telebirr')}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
+                  className={`flex flex-col items-center gap-3 p-4 rounded-3xl border-2 transition-all ${
                     paymentMethod === 'Telebirr'
-                      ? 'border-brand bg-brand/5'
-                      : 'border-zinc-100 dark:border-zinc-800'
+                      ? 'border-brand bg-brand/[0.02]'
+                      : 'border-zinc-50 dark:border-zinc-800'
                   }`}
                 >
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-zinc-100">
-                    <img src="/assets/logos/telebirr_logo.png" alt="Telebirr" className="w-full h-full object-contain" />
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center overflow-hidden border border-black/[0.05] shadow-sm">
+                    <img src="/assets/logos/telebirr_logo.png" alt="Telebirr" className="w-9 h-9 object-contain" />
                   </div>
-                  <div className="text-left">
-                    <p className="font-bold dark:text-white">Telebirr</p>
-                    <p className="text-xs text-zinc-500">{t('payment.mobileMoney') || 'Mobile Money'}</p>
+                  <div className="text-center">
+                    <p className="font-black text-xs text-zinc-900 dark:text-white uppercase tracking-tight">Telebirr</p>
+                    <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest leading-none mt-1">{t('payment.mobileMoney') || 'Mobile'}</p>
                   </div>
                 </button>
               </div>
 
-              <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-700">
+              <div className="p-5 bg-zinc-50 dark:bg-zinc-800/80 rounded-[28px] border border-dashed border-zinc-200 dark:border-zinc-700">
                 {paymentMethod === 'CBE' ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-3 text-brand">

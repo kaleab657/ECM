@@ -71,12 +71,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
   }
 
   return (
-    <div className={`flex-1 flex flex-col bg-zinc-50/30 dark:bg-zinc-900/30 ${!activeChatId && 'hidden md:flex'}`}>
+    <div className={`flex-1 flex flex-col bg-zinc-50/30 dark:bg-zinc-900/30 h-full ${!activeChatId && 'hidden md:flex'}`}>
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 p-3 md:p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2 md:gap-4 shrink-0 z-10">
+      <div className="bg-white dark:bg-zinc-900 p-3 md:p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2 md:gap-4 shrink-0 z-10 pt-[max(env(safe-area-inset-top),12px)] md:pt-4">
         <button 
           onClick={() => setActiveChatId(null)}
-          className="md:hidden p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+          className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
         >
           <ChevronLeft size={18} />
         </button>
@@ -99,10 +99,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
       </div>
 
       {/* Messages Area */}
-      <MessageList messages={messages} user={user} />
+      <div className="flex-1 overflow-hidden">
+        <MessageList messages={messages} user={user} />
+      </div>
 
       {/* Input Area */}
-      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-0 bg-white dark:bg-zinc-900 w-full z-20 shrink-0">
+      <div className="bg-white dark:bg-zinc-900 w-full z-20 shrink-0 pb-[env(safe-area-inset-bottom)] md:pb-0">
         <MessageInput 
           inputText={inputText}
           setInputText={setInputText}

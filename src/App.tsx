@@ -162,11 +162,13 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-[100dvh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 selection:bg-brand/10 selection:text-brand transition-colors duration-500 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0`}>
+    <div className={`min-h-[100dvh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 selection:bg-brand/10 selection:text-brand transition-colors duration-500 ${currentPage === 'chat' && activeChatId ? '' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0'}`}>
       <NetworkStatus />
-      <Header currentPage={currentPage} setPage={setCurrentPage} />
+      <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
+        <Header currentPage={currentPage} setPage={setCurrentPage} />
+      </div>
       
-      <main>
+      <main className={currentPage === 'chat' && activeChatId ? 'h-[100dvh]' : ''}>
         <PullToRefresh disabled={currentPage === 'menu' || currentPage === 'chat'}>
             <React.Suspense fallback={
               <div className="min-h-[60vh] flex items-center justify-center">
@@ -179,7 +181,9 @@ export default function App() {
       </main>
 
       {currentPage === 'dashboard' && <Footer setPage={setCurrentPage} />}
-      <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+      <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
+        <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+      </div>
 
       {isAuthModalOpen && (
         <React.Suspense fallback={null}>

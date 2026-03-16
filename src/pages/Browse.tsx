@@ -190,48 +190,52 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
   );
 
   const SidebarContent = () => (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10">
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-zinc-900 flex items-center gap-2">
-          <Filter size={18} className="text-brand" /> {t('browse.filters')}
+        <h3 className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-2 italic uppercase tracking-tight">
+          <Filter size={20} className="text-brand" /> {t('browse.filters')}
         </h3>
         <button 
           onClick={resetFilters}
-          className="text-xs font-bold text-brand hover:text-brand-hover flex items-center gap-1"
+          className="text-[10px] font-black text-brand hover:text-brand-hover flex items-center gap-1 uppercase tracking-widest"
         >
           <RotateCcw size={12} /> {t('browse.clearAll')}
         </button>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         <FilterSection title={t('search.make')}>
-          <div className="space-y-3">
-            <label htmlFor="browse-filter-brand" className="sr-only">{t('search.make')}</label>
-            <select 
-              id="browse-filter-brand"
-              name="brand"
-              value={filters.brand}
-              onChange={(e) => handleFilterChange('brand', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand/20 focus:outline-none appearance-none cursor-pointer dark:text-white"
-            >
-              <option value="">{t('search.anyMake')}</option>
-              {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+          <div className="grid grid-cols-1 gap-3">
+            <div className="relative">
+              <select 
+                id="browse-filter-brand"
+                name="brand"
+                value={filters.brand}
+                onChange={(e) => handleFilterChange('brand', e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:ring-2 focus:ring-brand/20 focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
+              >
+                <option value="">{t('search.anyMake')}</option>
+                {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+            </div>
             
-            <label htmlFor="browse-filter-model" className="sr-only">{t('search.model')}</label>
-            <select 
-              id="browse-filter-model"
-              name="model"
-              disabled={!filters.brand}
-              value={filters.model}
-              onChange={(e) => handleFilterChange('model', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand/20 focus:outline-none appearance-none cursor-pointer disabled:opacity-50 dark:text-white"
-            >
-              <option value="">{t('search.anyModel')}</option>
-              {filters.brand && MODELS_BY_MAKE[filters.brand]?.map(m => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select 
+                id="browse-filter-model"
+                name="model"
+                disabled={!filters.brand}
+                value={filters.model}
+                onChange={(e) => handleFilterChange('model', e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:ring-2 focus:ring-brand/20 focus:outline-none appearance-none cursor-pointer disabled:opacity-50 dark:text-white transition-all italic"
+              >
+                <option value="">{t('search.anyModel')}</option>
+                {filters.brand && MODELS_BY_MAKE[filters.brand]?.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+            </div>
           </div>
         </FilterSection>
 
@@ -241,10 +245,10 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
               <button
                 key={type}
                 onClick={() => handleFilterChange('listingType', filters.listingType === type ? '' : type)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase transition-all ${
+                className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all italic border ${
                   filters.listingType === type 
-                    ? 'bg-brand text-white' 
-                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                    ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20' 
+                    : 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-700/50 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700'
                 }`}
               >
                 {type === 'sell' ? (t('browse.sale') || 'Sale') : (t('browse.rent') || 'Rent')}
@@ -254,8 +258,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
         </FilterSection>
 
         <FilterSection title={t('sell.price')}>
-          <div className="grid grid-cols-2 gap-2">
-            <label htmlFor="browse-filter-min-price" className="sr-only">{t('search.minPrice')}</label>
+          <div className="grid grid-cols-2 gap-3">
             <input 
               id="browse-filter-min-price"
               name="minPrice"
@@ -263,9 +266,8 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
               placeholder={t('search.minPrice')} 
               value={filters.minPrice}
               onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-3 py-2 text-sm focus:outline-none dark:text-white" 
+              className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none dark:text-white italic focus:ring-2 focus:ring-brand/20 transition-all" 
             />
-            <label htmlFor="browse-filter-max-price" className="sr-only">{t('search.maxPrice')}</label>
             <input 
               id="browse-filter-max-price"
               name="maxPrice"
@@ -273,32 +275,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
               placeholder={t('search.maxPrice')} 
               value={filters.maxPrice}
               onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-3 py-2 text-sm focus:outline-none dark:text-white" 
-            />
-          </div>
-        </FilterSection>
-
-        <FilterSection title={t('search.yearRange')}>
-          <div className="grid grid-cols-2 gap-2">
-            <label htmlFor="browse-filter-min-year" className="sr-only">{t('search.fromYear') || 'From Year'}</label>
-            <input 
-              id="browse-filter-min-year"
-              name="minYear"
-              type="number" 
-              placeholder={t('search.from') || 'From'} 
-              value={filters.minYear}
-              onChange={(e) => handleFilterChange('minYear', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-3 py-2 text-sm focus:outline-none dark:text-white" 
-            />
-            <label htmlFor="browse-filter-max-year" className="sr-only">{t('search.toYear') || 'To Year'}</label>
-            <input 
-              id="browse-filter-max-year"
-              name="maxYear"
-              type="number" 
-              placeholder={t('search.to') || 'To'} 
-              value={filters.maxYear}
-              onChange={(e) => handleFilterChange('maxYear', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-3 py-2 text-sm focus:outline-none dark:text-white" 
+              className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none dark:text-white italic focus:ring-2 focus:ring-brand/20 transition-all" 
             />
           </div>
         </FilterSection>
@@ -309,10 +286,10 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
               <button
                 key={f}
                 onClick={() => handleFilterChange('fuel', filters.fuel === f ? '' : f)}
-                className={`py-2 rounded-xl text-[10px] font-bold transition-all ${
+                className={`py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all italic border ${
                   filters.fuel === f 
-                    ? 'bg-brand text-white' 
-                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                    ? 'bg-brand border-brand text-white shadow-md shadow-brand/10' 
+                    : 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-100 dark:border-zinc-700/50 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
                 }`}
               >
                 {f}
@@ -321,52 +298,36 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
           </div>
         </FilterSection>
 
-        <FilterSection title={t('search.transmission')}>
-          <div className="flex gap-2">
-            {['Automatic', 'Manual'].map(t_type => (
-              <button
-                key={t_type}
-                onClick={() => handleFilterChange('transmission', filters.transmission === t_type ? '' : t_type)}
-                className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                  filters.transmission === t_type 
-                    ? 'bg-brand text-white' 
-                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-                }`}
-              >
-                {t_type}
-              </button>
-            ))}
-          </div>
-        </FilterSection>
-
         <FilterSection title={t('search.location')}>
           <div className="space-y-3">
-            <label htmlFor="browse-filter-city" className="sr-only">{t('search.location')}</label>
-            <select 
-              id="browse-filter-city"
-              name="city"
-              value={filters.city}
-              onChange={(e) => handleFilterChange('city', e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-3 text-sm focus:outline-none appearance-none cursor-pointer dark:text-white"
-            >
-              <option value="">{t('search.anyLocation')}</option>
-              {LOCATIONS.map(l => <option key={l} value={l}>{t(`locations.${l}`) || l}</option>)}
-            </select>
+            <div className="relative">
+              <select 
+                id="browse-filter-city"
+                name="city"
+                value={filters.city}
+                onChange={(e) => handleFilterChange('city', e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
+              >
+                <option value="">{t('search.anyLocation')}</option>
+                {LOCATIONS.map(l => <option key={l} value={l}>{t(`locations.${l}`) || l}</option>)}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+            </div>
 
             {filters.city === 'Addis Ababa' && (
-              <>
-                <label htmlFor="browse-filter-subcity" className="sr-only">{t('search.subCity')}</label>
+              <div className="relative">
                 <select 
                   id="browse-filter-subcity"
                   name="subCity"
                   value={filters.subCity}
                   onChange={(e) => handleFilterChange('subCity', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-3 text-sm focus:outline-none appearance-none cursor-pointer dark:text-white"
+                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
                 >
                   <option value="">{t('search.anySubCity')}</option>
                   {ADDIS_ABABA_SUB_CITIES.map(sc => <option key={sc} value={sc}>{t(`subcities.${sc}`) || sc}</option>)}
                 </select>
-              </>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+              </div>
             )}
           </div>
         </FilterSection>
@@ -375,57 +336,54 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      {/* Top Search Bar */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex-1 relative">
-          <label htmlFor="browse-search-input" className="sr-only">{t('search.search')}</label>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
-          <input 
-            id="browse-search-input"
-            name="search"
-            type="text" 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t('home.searchPlaceholder') || 'Search cars...'}
-            className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:border-brand transition-all shadow-sm dark:text-white"
-          />
-        </div>
-        <button 
-          onClick={() => setIsFilterOpen(true)}
-          className="p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-white shadow-sm"
-        >
-          <SlidersHorizontal size={16} />
-        </button>
-      </div>
-
-      {/* Sorting Pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-3 scrollbar-hide mb-4 -mx-4 px-4">
-        {[
-          { id: 'newest', label: t('browse.newest') },
-          { id: 'oldest', label: t('browse.oldest') || 'Oldest' },
-          { id: 'price-low', label: t('browse.priceLow') },
-          { id: 'price-high', label: t('browse.priceHigh') },
-          { id: 'mileage-low', label: t('browse.lowestMileage') || 'Lowest Mileage' },
-          { id: 'year-newest', label: t('browse.newestModelYear') || 'Newest Model Year' },
-        ].map((pill) => (
-          <button
-            key={pill.id}
-            onClick={() => {
-              setSortBy(pill.id);
-            }}
-            className={`whitespace-nowrap px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${
-              sortBy === pill.id 
-                ? 'bg-brand border-brand text-white shadow-md shadow-brand/20' 
-                : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
-            }`}
+    <div className="max-w-7xl mx-auto px-0 md:px-4 py-0 md:py-6">
+      {/* Search & Sort Bar - Sticky on Mobile */}
+      <div className="sticky top-0 md:relative z-40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md md:bg-transparent border-b md:border-none border-zinc-100 dark:border-zinc-800 pt-[env(safe-area-inset-top)] px-4 md:px-0">
+        <div className="flex items-center gap-2 py-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
+            <input 
+              id="browse-search-input"
+              name="search"
+              type="text" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('home.searchPlaceholder') || 'Search cars...'}
+              className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl pl-10 pr-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all shadow-sm dark:text-white italic"
+            />
+          </div>
+          <button 
+            onClick={() => setIsFilterOpen(true)}
+            className="p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl text-zinc-900 dark:text-white shadow-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95"
           >
-            {pill.label}
+            <SlidersHorizontal size={18} />
           </button>
-        ))}
+        </div>
+
+        {/* Sorting Pills */}
+        <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide px-0">
+          {[
+            { id: 'newest', label: t('browse.newest') },
+            { id: 'price-low', label: t('browse.priceLow') },
+            { id: 'price-high', label: t('browse.priceHigh') },
+            { id: 'year-new', label: t('browse.newestModelYear') || 'Newest Year' },
+          ].map((pill) => (
+            <button
+              key={pill.id}
+              onClick={() => setSortBy(pill.id)}
+              className={`whitespace-nowrap px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border italic ${
+                sortBy === pill.id 
+                  ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20' 
+                  : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row gap-8 px-4 md:px-0 mt-4">
         {/* Sidebar Filters - Desktop */}
         <aside className="hidden lg:block w-64 shrink-0">
           <div className="sticky top-24 bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm">
@@ -444,33 +402,35 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
           {/* Mobile Filters Overlay */}
           <AnimatePresence>
             {isFilterOpen && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="lg:hidden fixed inset-0 z-[100] bg-zinc-900/40 backdrop-blur-sm p-4"
-              >
+              <>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsFilterOpen(false)}
+                  className="lg:hidden fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+                />
                 <motion.div 
                   initial={{ y: '100%' }}
                   animate={{ y: 0 }}
                   exit={{ y: '100%' }}
-                  className="bg-white dark:bg-zinc-900 w-full h-full rounded-3xl p-6 overflow-y-auto relative"
+                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                  className="lg:hidden fixed bottom-0 left-0 right-0 z-[110] bg-white dark:bg-zinc-950 rounded-t-[40px] max-h-[90vh] overflow-y-auto px-6 pt-2 pb-10 shadow-2xl"
                 >
-                  <button 
-                    onClick={() => setIsFilterOpen(false)} 
-                    className="absolute top-4 right-4 p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full dark:text-white"
-                  >
-                    <X size={18} />
-                  </button>
+                  <div className="w-12 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-auto mb-6 mt-2" />
+                  
                   <SidebarContent />
-                  <button 
-                    onClick={() => setIsFilterOpen(false)}
-                    className="w-full bg-brand text-white py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs mt-8 shadow-xl shadow-brand/20"
-                  >
-                    {t('browse.showResults')} ({filteredCars.length})
-                  </button>
+
+                  <div className="sticky bottom-0 left-0 right-0 pt-4 bg-white dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900 -mx-6 px-6">
+                    <button 
+                      onClick={() => setIsFilterOpen(false)}
+                      className="w-full bg-brand text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-brand/20 active:scale-95 transition-all mb-[env(safe-area-inset-bottom)]"
+                    >
+                      {t('browse.showResults')} ({filteredCars.length})
+                    </button>
+                  </div>
                 </motion.div>
-              </motion.div>
+              </>
             )}
           </AnimatePresence>
 
@@ -504,17 +464,17 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
                 </div>
               </>
             ) : (
-              <div className="col-span-full py-20 text-center">
-                <div className="bg-zinc-50 dark:bg-zinc-800 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="col-span-full py-20 text-center animate-in fade-in zoom-in duration-500">
+                <div className="bg-zinc-100 dark:bg-zinc-900/50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 border border-zinc-200 dark:border-zinc-800">
                   <Search className="text-zinc-300" size={40} />
                 </div>
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">{t('browse.noResults')}</h3>
-                <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
-                  {t('browse.noResultsDesc')}
+                <h3 className="text-2xl font-black text-zinc-900 dark:text-white mb-3 italic uppercase tracking-tight">{t('browse.noResults')}</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto text-sm font-medium leading-relaxed">
+                  {t('browse.noResultsDesc') || 'Try adjusting your filters or search term to find what you are looking for.'}
                 </p>
                 <button 
                   onClick={resetFilters}
-                  className="mt-8 text-brand font-bold hover:underline"
+                  className="mt-8 px-8 py-3 bg-brand text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-brand/20 active:scale-95 transition-all"
                 >
                   {t('browse.clearAll')}
                 </button>
