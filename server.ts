@@ -415,37 +415,126 @@ async function startServer() {
     const { title, message } = req.body;
 
     try {
-      if (!admin) throw new Error("Firebase Admin not initialized");
+      if (!admin || !db) throw new Error("Firebase Admin not initialized");
 
       if (!title || !message) {
         return res.status(400).json({ success: false, error: "Title and message are required" });
       }
 
-      // Send to 'all_users' topic - works for both web and Android
-      const response = await admin.messaging().send({
-        topic: 'all_users',
-        notification: {
-          title,
-          body: message
-        },
-        android: {
-          priority: 'high' as const,
-          notification: {
-            icon: 'ic_launcher',
-            color: '#6C5CE7',
-            channelId: 'default',
-            sound: 'default'
+      // Collect all unique FCM tokens from all user documents
+      const usersSnapshot = await db.collection('users').where('fcmTokens', '!=', []).get();
+      const allTokens: string[] = [];
+      const tokenToUserMap = new Map<string, string>(); // token -> userId for cleanup
+
+      usersSnapshot.docs.forEach(userDoc => {
+        const tokens: string[] = userDoc.data().fcmTokens || [];
+        tokens.forEach(token => {
+          if (token && !allTokens.includes(token)) {
+            allTokens.push(token);
+            tokenToUserMap.set(token, userDoc.id);
           }
-        },
-        data: {
-          type: 'announcement',
-          title,
-          message
-        }
+        });
       });
 
-      res.json({ success: true, messageId: response });
+      if (allTokens.length === 0) {
+        return res.json({ success: true, sent: false, reason: "No registered device tokens found" });
+      }
+
+      console.log(`[Push Broadcast] Sending to ${allTokens.length} device(s)...`);
+
+      // Firebase Admin supports sendEachForMulticast for up to 500 tokens at a time
+      const batchSize = 500;
+      let successCount = 0;
+      let failureCount = 0;
+      const invalidTokens: { token: string; userId: string }[] = [];
+
+      for (let i = 0; i < allTokens.length; i += batchSize) {
+        const tokenBatch = allTokens.slice(i, i + batchSize);
+
+        const response = await admin.messaging().sendEachForMulticast({
+          tokens: tokenBatch,
+          notification: {
+            title,
+            body: message
+          },
+          android: {
+            priority: 'high' as const,
+            notification: {
+              icon: 'ic_launcher',
+              color: '#6C5CE7',
+              channelId: 'default',
+              sound: 'default'
+            }
+          },
+          webpush: {
+            notification: {
+              icon: '/favicon.ico',
+              badge: '/favicon.ico'
+            }
+          },
+          data: {
+            type: 'announcement',
+            title,
+            message
+          }
+        });
+
+        successCount += response.successCount;
+        failureCount += response.failureCount;
+
+        // Identify invalid/expired tokens for cleanup
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success && resp.error) {
+            const errorCode = resp.error.code;
+            if (
+              errorCode === 'messaging/invalid-registration-token' ||
+              errorCode === 'messaging/registration-token-not-registered'
+            ) {
+              const badToken = tokenBatch[idx];
+              const userId = tokenToUserMap.get(badToken);
+              if (userId) {
+                invalidTokens.push({ token: badToken, userId });
+              }
+            }
+          }
+        });
+      }
+
+      // Silently clean up invalid tokens from Firestore
+      if (invalidTokens.length > 0) {
+        console.log(`[Push Broadcast] Cleaning up ${invalidTokens.length} invalid token(s)...`);
+        const cleanupBatch = db.batch();
+        const processedUsers = new Set<string>();
+        
+        for (const { token, userId } of invalidTokens) {
+          // Group removals by user to avoid multiple writes per user
+          if (!processedUsers.has(userId)) {
+            processedUsers.add(userId);
+          }
+          cleanupBatch.update(db.collection('users').doc(userId), {
+            fcmTokens: admin.firestore.FieldValue.arrayRemove(token)
+          });
+        }
+        
+        await cleanupBatch.commit().catch(err => {
+          console.error('[Push Broadcast] Token cleanup error:', err.message);
+        });
+      }
+
+      console.log(`[Push Broadcast] Done: ${successCount} delivered, ${failureCount} failed, ${invalidTokens.length} tokens cleaned.`);
+
+      res.json({
+        success: true,
+        sent: true,
+        stats: {
+          totalTokens: allTokens.length,
+          delivered: successCount,
+          failed: failureCount,
+          invalidTokensCleaned: invalidTokens.length
+        }
+      });
     } catch (error: any) {
+      console.error('[Push Broadcast] Error:', error.message);
       res.status(500).json({ success: false, error: error.message });
     }
   });

@@ -1,5 +1,6 @@
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+/* eslint-disable no-undef */
+importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
   apiKey: "AIzaSyAGloaibYUVnqUVXIo3-7qi4-e3m2YhWu0",
@@ -12,14 +13,39 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Handle background push messages (when the app/tab is not focused)
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification.title;
+  console.log('[firebase-messaging-sw.js] Background message received:', payload);
+
+  // Use notification data from the payload, falling back to data fields
+  const title = payload.notification?.title || payload.data?.title || 'EthioCars';
+  const body = payload.notification?.body || payload.data?.message || 'You have a new notification';
+
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/assets/logo/logo.png',
-    data: payload.data
+    body,
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    data: payload.data || {},
+    tag: payload.data?.type || 'ethiocars-notification',
+    renotify: true,
+    vibrate: [100, 50, 100]
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(title, notificationOptions);
+});
+
+// Handle notification click — open or focus the app
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(event.notification.data?.url || '/');
+    })
+  );
 });
