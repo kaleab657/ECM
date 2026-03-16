@@ -104,10 +104,10 @@ export default function App() {
     );
   }
 
-  const handleSearch = (filters: any) => {
+  const handleSearch = React.useCallback((filters: any) => {
     setInitialFilters(filters);
     setCurrentPage('browse');
-  };
+  }, [setCurrentPage]);
 
   const renderPage = () => {
     switch (currentPage) {

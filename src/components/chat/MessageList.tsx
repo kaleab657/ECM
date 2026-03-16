@@ -52,13 +52,12 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({ messages, u
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    if (scrollRef.current) {
-      const { scrollHeight, clientHeight } = scrollRef.current;
-      scrollRef.current.scrollTo({
-        top: scrollHeight - clientHeight,
+    setTimeout(() => {
+      window.scrollTo({
+        top: document.body.scrollHeight,
         behavior
       });
-    }
+    }, 100);
   };
 
   useEffect(() => {
@@ -68,8 +67,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(({ messages, u
 
   return (
     <div 
-      ref={scrollRef}
-      className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-hide min-h-0"
+      className="flex-1 p-4 md:p-6 space-y-4 pb-20"
     >
       {messages.map((msg) => (
         <MessageItem 

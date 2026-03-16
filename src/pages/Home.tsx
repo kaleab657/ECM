@@ -39,7 +39,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
       }
     });
     if (node) observer.current.observe(node);
-  }, [loading, loadingMore, hasMore]);
+  }, [loading, loadingMore, hasMore]); // fetchMoreCars added below
 
   const tabs = [
     { id: 'All', label: t('browse.filter.all') },
@@ -79,7 +79,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
     }
   };
 
-  const fetchMoreCars = async () => {
+  const fetchMoreCars = useCallback(async () => {
     if (!lastDoc || loadingMore) return;
     setLoadingMore(true);
     try {
@@ -109,7 +109,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
     } finally {
       setLoadingMore(false);
     }
-  };
+  }, [lastDoc, loadingMore, activeTab]);
 
   useEffect(() => {
     fetchInitialCars();

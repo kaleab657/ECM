@@ -115,33 +115,34 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
       }
       const { publicUrl } = await uploadResponse.json();
 
-      // 2. If listing data is in sessionStorage, create it now
-      if (listingPayload) {
-        await apiFetch('/api/listings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ listing: listingPayload })
-        });
+      // 2 & 3. Create listing and payment record in parallel to reduce delay
+      const promises: Promise<any>[] = [
+        addDoc(collection(db, 'payments'), {
+          userId: user.uid,
+          listingId: finalListingId,
+          packageType: selectedPackage.id,
+          price: selectedPackage.price,
+          paymentMethod: paymentMethod,
+          screenshotURL: publicUrl,
+          status: 'pending',
+          createdAt: serverTimestamp()
+        })
+      ];
 
-        sessionStorage.removeItem('pendingListing');
+      if (listingPayload) {
+        promises.push(
+          apiFetch('/api/listings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({ listing: listingPayload })
+          }).then(() => sessionStorage.removeItem('pendingListing'))
+        );
       }
 
-      if (!finalListingId) throw new Error('Listing ID not found');
-
-      // 3. Create payment record
-      await addDoc(collection(db, 'payments'), {
-        userId: user.uid,
-        listingId: finalListingId,
-        packageType: selectedPackage.id,
-        price: selectedPackage.price,
-        paymentMethod: paymentMethod,
-        screenshotURL: publicUrl,
-        status: 'pending',
-        createdAt: serverTimestamp()
-      });
+      await Promise.all(promises);
 
       setSuccess(true);
       setTimeout(() => setPage('dashboard'), 3000);

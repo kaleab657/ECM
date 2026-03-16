@@ -44,8 +44,7 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('googleapis.com') ||
     url.hostname.includes('firebase.com') ||
-    url.hostname.includes('gstatic.com') ||
-    url.hostname.includes('r2.dev')
+    url.hostname.includes('gstatic.com')
   ) {
     return;
   }
@@ -86,7 +85,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cross-origin requests (fonts, images from R2) → just fetch, no caching to avoid CORS issues
+  // Cross-origin requests (fonts, images from R2) → stale-while-revalidate or cache-first
+  if (url.hostname.includes('r2.dev') || url.hostname.includes('unsplash.com')) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open('ethiocars-images-v1').then((cache) => {
+              cache.put(event.request, clone).catch(() => {});
+            });
+          }
+          return response;
+        }).catch((err) => {
+          console.warn('[SW] Image fetch failed:', err);
+          return new Response('', { status: 408 });
+        });
+      })
+    );
+    return;
+  }
 });
 
 // Push Notification Event

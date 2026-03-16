@@ -25,6 +25,8 @@ export const CarCard = React.memo<CarCardProps>(({ car, onClick, variant = 'sear
         <img 
           src={car.imageURLs[0]} 
           alt={car.title}
+          width={800}
+          height={533}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 bg-zinc-100 dark:bg-zinc-800"
           referrerPolicy="no-referrer"
           loading={priority ? 'eager' : 'lazy'}

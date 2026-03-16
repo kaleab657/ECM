@@ -281,7 +281,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   if (!user) return <div className="text-center py-24"><h2 className="text-2xl font-bold">{t('chatPage.loginRequired') || 'Please login to view messages'}</h2></div>;
 
   return (
-    <div className="max-w-7xl mx-auto h-[calc(100dvh-5rem-56px)] md:h-[calc(100vh-10rem)] bg-white dark:bg-zinc-900 md:rounded-[40px] shadow-xl shadow-black/5 border border-zinc-100 dark:border-zinc-800 overflow-hidden flex flex-col md:flex-row">
+    <div className="max-w-7xl mx-auto bg-white dark:bg-zinc-900 md:rounded-[40px] shadow-xl shadow-black/5 border border-zinc-100 dark:border-zinc-800 flex flex-col md:flex-row min-h-[70vh]">
       <ChatSidebar 
         sessions={sessions}
         activeChatId={activeChatId}
