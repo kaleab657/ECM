@@ -85,8 +85,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cross-origin requests (fonts, images from R2) → stale-while-revalidate or cache-first
-  if (url.hostname.includes('r2.dev') || url.hostname.includes('unsplash.com')) {
+  // Cross-origin requests (images from R2) → cache-first
+  if (url.hostname.includes('r2.dev')) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) return cached;

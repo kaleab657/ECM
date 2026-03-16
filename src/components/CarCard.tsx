@@ -32,7 +32,7 @@ export const CarCard = React.memo<CarCardProps>(({ car, onClick, variant = 'sear
           loading={priority ? 'eager' : 'lazy'}
           fetchPriority={priority ? 'high' : 'auto'}
           onError={(e) => {
-            e.currentTarget.src = 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=800&q=60'; // Safe fallback
+            e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='533' viewBox='0 0 800 533'%3E%3Crect fill='%23e4e4e7' width='800' height='533'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%23a1a1aa'%3ENo Image%3C/text%3E%3C/svg%3E";
             e.currentTarget.onerror = null; 
           }}
           decoding="async"
