@@ -15,29 +15,42 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, setPage }) =>
   const { user, t } = useAppContext();
   const [unreadCount, setUnreadCount] = React.useState(0);
 
-  // Listen for unread messages
+  // Listen for unread messages — deferred to avoid blocking initial render
   React.useEffect(() => {
     if (!user) {
       setUnreadCount(0);
       return;
     }
-    const q = query(
-      collection(db, 'chats'),
-      where('participants', 'array-contains', user.uid)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      let total = 0;
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.unreadCount > 0 && data.lastMessageSenderId !== user.uid) {
-          total += data.unreadCount;
-        }
+    
+    let unsubscribe: (() => void) | null = null;
+
+    const init = () => {
+      const q = query(
+        collection(db, 'chats'),
+        where('participants', 'array-contains', user.uid)
+      );
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        let total = 0;
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.unreadCount > 0 && data.lastMessageSenderId !== user.uid) {
+            total += data.unreadCount;
+          }
+        });
+        setUnreadCount(total);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'chats');
       });
-      setUnreadCount(total);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'chats');
-    });
-    return () => unsubscribe();
+    };
+
+    // Defer until browser is idle to avoid blocking paint
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => init(), { timeout: 4000 });
+    } else {
+      setTimeout(init, 2000);
+    }
+
+    return () => { if (unsubscribe) unsubscribe(); };
   }, [user]);
 
   const navItems = [

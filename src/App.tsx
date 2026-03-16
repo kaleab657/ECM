@@ -3,15 +3,14 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { BottomNav } from './components/BottomNav';
 import { NetworkStatus } from './components/NetworkStatus';
-import { Home } from './pages/Home';
 import { Page, Car } from './types';
-import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from './context/AppContext';
 import { Loader2 } from 'lucide-react';
 import { useToast } from './components/Toast';
 import { PullToRefresh } from './components/PullToRefresh';
 
 // Lazy load non-critical pages
+const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
 const Browse = React.lazy(() => import('./pages/Browse').then(m => ({ default: m.Browse })));
 const Detail = React.lazy(() => import('./pages/Detail').then(m => ({ default: m.Detail })));
 const PostCar = React.lazy(() => import('./pages/PostCar').then(m => ({ default: m.PostCar })));
@@ -169,36 +168,24 @@ export default function App() {
       
       <main>
         <PullToRefresh disabled={currentPage === 'menu' || currentPage === 'chat'}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentPage}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              <React.Suspense fallback={
-                <div className="min-h-[60vh] flex items-center justify-center">
-                  <Loader2 className="animate-spin text-brand" size={32} />
-                </div>
-              }>
-                {renderPage()}
-              </React.Suspense>
-            </motion.div>
-          </AnimatePresence>
+            <React.Suspense fallback={
+              <div className="min-h-[60vh] flex items-center justify-center">
+                <Loader2 className="animate-spin text-brand" size={32} />
+              </div>
+            }>
+              {renderPage()}
+            </React.Suspense>
         </PullToRefresh>
       </main>
 
       {currentPage === 'dashboard' && <Footer setPage={setCurrentPage} />}
       <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
 
-      <AnimatePresence>
-        {isAuthModalOpen && (
-          <React.Suspense fallback={null}>
-            <Auth setPage={setCurrentPage} />
-          </React.Suspense>
-        )}
-      </AnimatePresence>
+      {isAuthModalOpen && (
+        <React.Suspense fallback={null}>
+          <Auth setPage={setCurrentPage} />
+        </React.Suspense>
+      )}
     </div>
   );
 }
