@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EthioCars</string>
+    <string name="title_activity_main">EthioCars</string>
+    <string name="package_name">com.ethiocars.app</string>
+    <string name="custom_url_scheme">com.ethiocars.app</string>
+    <string name="server_client_id">533268030508-vjkn0hhrc9to8e1oov0a5ohcu0ucrdkj.apps.googleusercontent.com</string>
+</resources>

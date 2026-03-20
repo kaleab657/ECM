@@ -18,6 +18,12 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
+// Catch unhandled promise rejections that escape React — prevents ErrorBoundary crash
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[Unhandled Rejection]', event.reason);
+  event.preventDefault(); // Prevent default browser error behavior
+});
+
 // Remove splash screen after first render with a smooth transition
 window.addEventListener('load', () => {
   setTimeout(() => {

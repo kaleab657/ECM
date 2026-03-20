@@ -1,6 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -26,6 +26,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 5000);
   };
+
+  // Listen for push notifications received in foreground
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { title, body } = (e as CustomEvent).detail;
+      showToast(`${title}: ${body}`, 'info');
+    };
+    window.addEventListener('app-notification', handler);
+    return () => window.removeEventListener('app-notification', handler);
+  }, []);
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));

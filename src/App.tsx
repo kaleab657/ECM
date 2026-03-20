@@ -37,6 +37,9 @@ const MenuPage = React.lazy(() => import('./pages/Menu').then(m => ({ default: m
 export default function App() {
   const [currentPage, _setCurrentPage] = React.useState<Page>('home');
   const [history, setHistory] = React.useState<Page[]>(['home']);
+  const historyRef = React.useRef(history);
+  React.useEffect(() => { historyRef.current = history; }, [history]);
+
   const backPressCount = React.useRef(0);
   const { showToast } = useToast();
 
@@ -61,32 +64,70 @@ export default function App() {
   const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
   const [pendingListingId, setPendingListingId] = React.useState<string | null>(null);
   const { loading, user, isAuthModalOpen, setAuthModalOpen } = useAppContext();
-  const [isRedirecting, setIsRedirecting] = React.useState(false);
 
   // Ref to track auth modal state inside the backButton listener (avoids stale closure)
   const authModalRef = React.useRef(isAuthModalOpen);
   React.useEffect(() => { authModalRef.current = isAuthModalOpen; }, [isAuthModalOpen]);
 
-
-
-
-
-  // Auth Guard for protected pages
+  // Hardware back button listener — registers once, reads fresh state via refs
   React.useEffect(() => {
-    if (loading || isRedirecting) return;
+    let cleanup: (() => void) | undefined;
+
+    import('@capacitor/app').then(({ App }) => {
+      const listener = App.addListener('backButton', () => {
+        // If auth modal is open, close it first
+        if (authModalRef.current) {
+          setAuthModalOpen(false);
+          return;
+        }
+
+        const h = historyRef.current;
+        if (h.length > 1) {
+          const newHistory = h.slice(0, -1);
+          const backTo = newHistory[newHistory.length - 1] || 'home';
+          setHistory(newHistory);
+          _setCurrentPage(backTo);
+          backPressCount.current = 0;
+        } else {
+          // Already at root — double-press to exit
+          backPressCount.current += 1;
+          if (backPressCount.current >= 2) {
+            App.exitApp();
+          } else {
+            showToast('Press back again to exit', 'info');
+            setTimeout(() => { backPressCount.current = 0; }, 2000);
+          }
+        }
+      });
+
+      listener.then(l => { cleanup = () => l.remove(); });
+    }).catch(() => {});
+
+    return () => { cleanup?.(); };
+  }, []);
+
+
+
+
+
+  // Auth Guard for protected pages — uses a ref to avoid re-render loops
+  const redirectingRef = React.useRef(false);
+  React.useEffect(() => {
+    if (loading) return;
+    if (redirectingRef.current) return;
 
     const protectedPages: Page[] = ['post', 'dashboard', 'chat', 'payment'];
     if (protectedPages.includes(currentPage) && !user) {
+      redirectingRef.current = true;
       sessionStorage.setItem('redirectAfterLogin', currentPage);
-      setIsRedirecting(true);
       setAuthModalOpen(true);
-      // If they were trying to access a protected page, maybe we send them 'home' underneath until they auth
       if (currentPage !== 'home') {
          setCurrentPage('home');
       }
-      setTimeout(() => setIsRedirecting(false), 100);
+      // Reset the ref after a tick so future navigations are still guarded
+      setTimeout(() => { redirectingRef.current = false; }, 200);
     }
-  }, [currentPage, user, loading, isRedirecting]);
+  }, [currentPage, user, loading]);
 
   // Scroll to top on page change
   React.useEffect(() => {
@@ -95,6 +136,11 @@ export default function App() {
 
 
 
+  const handleSearch = React.useCallback((filters: any) => {
+    setInitialFilters(filters);
+    setCurrentPage('browse');
+  }, [setCurrentPage]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-zinc-950">
@@ -102,11 +148,6 @@ export default function App() {
       </div>
     );
   }
-
-  const handleSearch = React.useCallback((filters: any) => {
-    setInitialFilters(filters);
-    setCurrentPage('browse');
-  }, [setCurrentPage]);
 
   const renderPage = () => {
     switch (currentPage) {
@@ -168,7 +209,7 @@ export default function App() {
         <Header currentPage={currentPage} setPage={setCurrentPage} />
       </div>
       
-      <main className={currentPage === 'chat' && activeChatId ? 'h-[100dvh]' : ''}>
+      <main className={currentPage === 'chat' && activeChatId ? 'h-[100dvh]' : ''} style={currentPage === 'chat' && activeChatId ? undefined : { paddingTop: 'var(--header-h)' }}>
         <PullToRefresh disabled={currentPage === 'menu' || currentPage === 'chat'}>
             <React.Suspense fallback={
               <div className="min-h-[60vh] flex items-center justify-center">

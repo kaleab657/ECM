@@ -15,20 +15,9 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-        (request.auth.token.email == "kaleabepherem@gmail.com" && request.auth.token.email_verified == true)
+        (request.auth.token.email == "kaleabepherem@gmail.com" && request.auth.token.email_verified == true) ||
+        (request.auth.token.email == "kaleabepherem98@gmail.com" && request.auth.token.email_verified == true)
       );
-    }
-
-    function isValidUser(data) {
-      return data.keys().hasOnly(['role', 'email', 'displayName', 'phoneNumber', 'photoURL', 'updatedAt', 'createdAt']) &&
-             (!('role' in data) || data.role in ['admin', 'user']);
-    }
-
-    function isValidCar(data) {
-      return data.keys().hasAll(['title', 'brand', 'model', 'year', 'price', 'ownerId', 'status']) &&
-             data.title is string && data.title.size() < 200 &&
-             data.price is number && data.price >= 0 &&
-             data.ownerId == request.auth.uid;
     }
 
     // ===============================================================
@@ -38,17 +27,17 @@ service cloud.firestore {
     // User Profiles
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
-      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
     // Car Listings
     match /cars/{carId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isValidCar(request.resource.data);
+      allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (
-        (request.auth.uid == resource.data.ownerId && request.resource.data.ownerId == resource.data.ownerId) || 
+        request.auth.uid == resource.data.ownerId || 
         isAdmin()
       );
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || isAdmin());
@@ -56,8 +45,8 @@ service cloud.firestore {
 
     // Payments
     match /payments/{paymentId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -65,7 +54,7 @@ service cloud.firestore {
     // Stats
     match /stats/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
     // Chat sessions and messages

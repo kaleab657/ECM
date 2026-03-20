@@ -1,6 +1,6 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore, doc, getDocFromCache, getDocFromServer } from "firebase/firestore";
+import { indexedDBLocalPersistence, initializeAuth, browserLocalPersistence, type Auth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -15,22 +15,57 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+// CRITICAL: Use initializeAuth() — NEVER getAuth().
+//
+// getAuth() automatically registers browserPopupRedirectResolver, which
+// internally calls getRedirectResult() on every startup. In a Capacitor
+// Android WebView, signInWithRedirect is not supported, so getRedirectResult
+// throws auth/argument-error. This error fires onAuthStateChanged callbacks
+// rapidly → React sees too many setState calls → #310 crash.
+//
+// initializeAuth() with explicit persistence and NO popup/redirect resolver
+// avoids this entirely. We provide both indexedDB and browserLocal as a
+// fallback chain so persistence works regardless of WebView capabilities.
+//
+// The catch handles Vite HMR: when this module re-evaluates during dev,
+// initializeAuth throws "already initialized". We recover by extracting
+// the existing auth instance from Firebase's internal service container.
+// This does NOT register any resolver — safe for Capacitor.
 
-// Test connection to Firestore
-async function testConnection() {
+function getOrCreateAuth(): Auth {
   try {
-    // Try to fetch a non-existent doc to test connectivity
-    await getDocFromServer(doc(db, '_connection_test_', 'ping'));
-  } catch (error: any) {
-    if (error.message && error.message.includes('the client is offline')) {
-      console.error("Firestore connection failed: The client is offline. Check your Firebase configuration.");
+    return initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+    });
+  } catch {
+    // Already initialized (Vite HMR or duplicate module load).
+    // Retrieve existing instance from Firebase's internal container.
+    // This avoids getAuth() which would add the redirect resolver.
+    try {
+      const container = (app as any).container;
+      if (container) {
+        const provider = container.getProvider('auth');
+        if (provider) {
+          return provider.getImmediate() as Auth;
+        }
+      }
+    } catch {
+      // container API failed — fall through
     }
-    // Ignore other errors (like permission denied for this test path)
+
+    // Last resort: create a minimal auth instance.
+    // This path should only be hit during dev HMR in rare edge cases.
+    console.warn('[Firebase] Auth recovery: re-initializing with initializeAuth');
+    return initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+    });
   }
 }
-testConnection();
+
+const auth = getOrCreateAuth();
+
+export { auth };
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export default app;

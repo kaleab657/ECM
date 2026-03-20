@@ -20,32 +20,24 @@ export default defineConfig(({mode}) => {
       minify: 'esbuild',
       cssMinify: true,
       sourcemap: false,
-      // Reduce bundle bloat
       modulePreload: {
-        polyfill: false, // Modern browsers support this natively
+        polyfill: false,
       },
       rollupOptions: {
         output: {
-          // Aggressive code splitting for better caching
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              // Core React — smallest chunk, cached permanently
               if (id.includes('react-dom') || id.includes('react/')) {
                 return 'react-vendor';
               }
-              // Firebase — large, rarely changes 
-              if (id.includes('firebase')) {
-                return 'firebase';
-              }
-              // Animation library — only loaded when animations render
+              // ⚠️ Firebase intentionally NOT split into its own chunk
+              // Splitting Firebase causes circular init errors on Android WebView
               if (id.includes('motion')) {
                 return 'motion';
               }
-              // Icons — only the tree-shaken subset
               if (id.includes('lucide-react')) {
                 return 'lucide';
               }
-              // Everything else from node_modules
               return 'vendor';
             }
           },

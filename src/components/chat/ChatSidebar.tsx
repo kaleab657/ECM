@@ -69,10 +69,13 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = React.memo(({
               <div className="flex-1 text-left min-w-0">
                 <div className="flex justify-between items-start mb-0.5">
                   <h3 className="font-black text-zinc-900 dark:text-white truncate text-xs md:text-sm tracking-tight">
-                    {session.participants.find(p => p !== user?.uid) ? 
-                      (participantProfiles[session.participants.find(p => p !== user?.uid)!]?.displayName || session.participantNames[session.participants.find(p => p !== user?.uid)!] || 'User') : 
-                      'User'
-                    }
+                    {(() => {
+                      const otherId = session.participants.find(p => p !== user?.uid);
+                      if (!otherId) return 'User';
+                      const pName = participantProfiles[otherId]?.displayName;
+                      const sName = session.participantNames[otherId];
+                      return (pName !== 'Anonymous' ? pName : undefined) || (sName !== 'Anonymous' ? sName : undefined) || participantProfiles[otherId]?.email?.split('@')[0] || 'User';
+                    })()}
                   </h3>
                   <span className="text-[9px] font-black text-zinc-400 whitespace-nowrap ml-2 uppercase tracking-widest">
                     {session.updatedAt?.toDate?.()?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || 'Just now'}

@@ -1,5 +1,5 @@
 import { auth } from './firebase';
-import { API_BASE, apiFetch } from './api-client';
+import { API_BASE } from './api-client';
 
 export interface UploadResult {
   publicUrl: string;
@@ -53,10 +53,13 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
   }
 
   // 2. Upload the file directly to Cloudflare R2
+  // On Android, files from the gallery are content:// URIs.
+  // Reading as ArrayBuffer first ensures the WebView can send the bytes.
   try {
+    const fileBuffer = await file.arrayBuffer();
     const uploadResponse = await fetch(uploadUrl, {
       method: 'PUT',
-      body: file,
+      body: fileBuffer,
       headers: {
         'Content-Type': file.type
       }

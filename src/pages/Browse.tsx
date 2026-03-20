@@ -19,7 +19,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
   const { t } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialFilters?.keyword || '');
   const [filters, setFilters] = useState({
     brand: initialFilters?.brand || '',
     model: initialFilters?.model || '',
@@ -39,6 +39,13 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
   const [cars, setCars] = useState<Car[]>([]);
   const [displayLimit, setDisplayLimit] = useState(12);
   const [hasMore, setHasMore] = useState(true);
+
+  // Sync keyword from Home page search
+  useEffect(() => {
+    if (initialFilters?.keyword) {
+      setSearchTerm(initialFilters.keyword);
+    }
+  }, [initialFilters?.keyword]);
 
   const filteredCars = useMemo(() => {
     let result = cars.filter(car => {
@@ -100,7 +107,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
   useEffect(() => {
     setLoading(true);
     
-    let q = query(collection(db, 'cars'), where('status', '==', 'active'));
+    let q = query(collection(db, 'cars'), where('status', '==', 'approved'));
 
     // Apply Firestore filters for exact matches
     if (filters.brand) {
@@ -338,7 +345,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
   return (
     <div className="max-w-7xl mx-auto px-0 md:px-4 py-0 md:py-6">
       {/* Search & Sort Bar - Sticky on Mobile */}
-      <div className="sticky top-0 md:relative z-40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md md:bg-transparent border-b md:border-none border-zinc-100 dark:border-zinc-800 pt-[env(safe-area-inset-top)] px-4 md:px-0">
+      <div className="sticky md:relative z-40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md md:bg-transparent border-b md:border-none border-zinc-100 dark:border-zinc-800 px-4 md:px-0" style={{ top: 'var(--header-h)' }}>
         <div className="flex items-center gap-2 py-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
@@ -386,7 +393,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
       <div className="flex flex-col lg:flex-row gap-8 px-4 md:px-0 mt-4">
         {/* Sidebar Filters - Desktop */}
         <aside className="hidden lg:block w-64 shrink-0">
-          <div className="sticky top-24 bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm">
+          <div className="sticky bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm" style={{ top: 'calc(var(--header-h) + 1rem)' }}>
             <SidebarContent />
           </div>
         </aside>
@@ -453,15 +460,17 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
                   />
                 ))}
                 
-                {/* Infinite Scroll Trigger */}
-                <div id="browse-infinite-scroll-trigger" className="col-span-full h-20 flex items-center justify-center mt-8">
-                  {hasMore && (
+                {/* Infinite Scroll Trigger — only takes space when loading */}
+                {hasMore ? (
+                  <div id="browse-infinite-scroll-trigger" className="col-span-full h-20 flex items-center justify-center mt-4">
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 className="animate-spin text-brand" size={32} />
                       <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('browse.loadingMore')}</p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div id="browse-infinite-scroll-trigger" className="col-span-full h-2" />
+                )}
               </>
             ) : (
               <div className="col-span-full py-20 text-center animate-in fade-in zoom-in duration-500">

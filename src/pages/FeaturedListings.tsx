@@ -3,7 +3,7 @@ import { Car, Page } from '../types';
 import { Star, ChevronLeft, Loader2, Car as CarIcon } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
 import { CarCard, CarCardSkeleton } from '../components/CarCard';
 
 interface FeaturedListingsProps {
@@ -17,26 +17,24 @@ export const FeaturedListings: React.FC<FeaturedListingsProps> = ({ setPage, set
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchFeatured = async () => {
-      setLoading(true);
-      try {
-        const q = query(
-          collection(db, 'cars'),
-          where('status', '==', 'active'),
-          where('featured', '==', true),
-          limit(50)
-        );
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Car[];
-        setCars(data);
-      } catch (err) {
-        console.error('Error fetching featured cars:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
+    const q = query(
+      collection(db, 'cars'),
+      where('status', '==', 'approved'),
+      where('featured', '==', true),
+      limit(50)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Car[];
+      setCars(data);
+      setLoading(false);
+    }, (err) => {
+      console.error('Error fetching featured cars:', err);
+      setLoading(false);
+    });
 
-    fetchFeatured();
+    return () => unsubscribe();
   }, []);
 
   return (

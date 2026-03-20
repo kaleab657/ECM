@@ -3,16 +3,21 @@
  *
  * Handles the difference between:
  * - Web (Render hosted): relative /api/... paths work because frontend + backend are on the same origin
- * - Web (dev server): Vite proxy forwards /api/... to localhost:3000
+ * - Android (Capacitor): must use absolute URL to the Render backend
  *
  * Backend runs on Render: https://ethiocars-9jsd.onrender.com
  */
 
+import { Capacitor } from '@capacitor/core';
+
 /**
  * Get the base URL for API requests.
- * Since this is now a pure web app, we always use relative paths.
+ * - On native (Capacitor): use the absolute Render backend URL
+ * - On web: use relative paths (same origin)
  */
-export const API_BASE = '';
+export const API_BASE = Capacitor.isNativePlatform()
+  ? 'https://ethiocars-9jsd.onrender.com'
+  : '';
 
 /**
  * Default request timeout in milliseconds.
@@ -80,6 +85,7 @@ export async function apiFetch(
   retries: number = 2
 ): Promise<any> {
   const url = `${API_BASE}${path}`;
+  console.log('[apiFetch] URL:', url, 'Method:', options.method || 'GET');
   let lastError;
 
   for (let i = 0; i <= retries; i++) {
@@ -131,6 +137,7 @@ export async function apiUpload(
   retries: number = 1
 ): Promise<Response> {
   const url = `${API_BASE}${path}`;
+  console.log('[apiUpload] URL:', url);
   let lastError;
 
   for (let i = 0; i <= retries; i++) {

@@ -21,42 +21,41 @@ export const MessageInput: React.FC<MessageInputProps> = React.memo(({
   const { t } = useAppContext();
 
   return (
-    <div className="bg-white dark:bg-zinc-900 p-3 md:p-4 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
-      <form onSubmit={(e) => handleSendMessage(e)} className="flex items-center gap-2 md:gap-3">
-        <label htmlFor="chat-file-upload" className="sr-only">Upload images</label>
-        <input 
-          id="chat-file-upload"
-          name="chatFiles"
-          type="file" 
+    <div className="px-3 py-2 h-[60px] flex items-center">
+      <form
+        onSubmit={(e) => handleSendMessage(e)}
+        className="flex items-center gap-2 w-full"
+      >
+        <input
+          type="file"
           ref={fileInputRef}
           onChange={handleImageUpload}
           multiple
           accept="image/*"
           className="hidden"
         />
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="p-2.5 text-zinc-400 hover:text-brand transition-colors disabled:opacity-50"
+          className="p-2 text-zinc-400 hover:text-brand transition-colors disabled:opacity-50 shrink-0"
         >
-          {isUploading ? <Loader2 className="animate-spin" size={20} /> : <ImageIcon size={20} />}
+          {isUploading
+            ? <Loader2 className="animate-spin" size={24} />
+            : <ImageIcon size={24} />}
         </button>
-        <label htmlFor="chat-message-input" className="sr-only">Type a message</label>
-        <input 
-          id="chat-message-input"
-          name="message"
-          type="text" 
+        <input
+          type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder={t('chatPage.windowPlaceholder') || 'Type a message...'}
           autoComplete="off"
-          className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all font-bold dark:text-white"
+          className="flex-1 bg-zinc-100 dark:bg-zinc-800 rounded-full px-4 py-2.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all dark:text-white placeholder:text-zinc-400"
         />
-        <button 
+        <button
           type="submit"
           disabled={!inputText.trim() && !isUploading}
-          className="bg-brand text-white p-2.5 rounded-xl shadow-lg shadow-brand/20 hover:bg-brand/90 transition-all disabled:opacity-50 disabled:shadow-none"
+          className="bg-brand text-white p-2.5 rounded-full shadow-md shadow-brand/20 hover:bg-brand/90 transition-all disabled:opacity-40 disabled:shadow-none shrink-0"
         >
           <Send size={20} />
         </button>

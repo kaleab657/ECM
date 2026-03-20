@@ -65,9 +65,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 <Home size={20} /> Go to Home
               </button>
             </div>
-            {process.env.NODE_ENV !== 'production' && this.state.error && (
+            {this.state.error && (
               <div className="mt-8 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl text-left overflow-auto max-h-40">
-                <code className="text-xs text-red-500 font-mono">{this.state.error.toString()}</code>
+                <code className="text-xs text-red-500 font-mono break-all">{this.state.error.toString()}</code>
               </div>
             )}
           </div>

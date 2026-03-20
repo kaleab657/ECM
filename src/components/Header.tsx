@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, setPage }) => {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800 transition-colors duration-300 pt-[env(safe-area-inset-top)]">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-zinc-100 dark:border-zinc-800 transition-colors duration-300 pt-[env(safe-area-inset-top)]">
       <div className="max-w-7xl mx-auto px-4 h-14 md:h-16 flex items-center justify-between">
         {/* Logo */}
         <Logo onClick={() => handleNavClick('home')} />

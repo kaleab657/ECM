@@ -10,14 +10,44 @@
   --shadow-cool: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
 }
 
+/* Fullscreen viewer: hard-hide header + bottom nav.
+   MUST live outside @layer so it beats Tailwind utility classes. */
+body.viewer-open header,
+body.viewer-open nav {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body.viewer-open {
+  overflow: hidden !important;
+}
+
+/* Global font unification — outside @layer to beat all Tailwind utilities */
+*, *::before, *::after,
+body, button, input, select, textarea {
+  font-family: var(--font-sans) !important;
+}
+
 @layer base {
   :root {
     color-scheme: light;
+    /* Header height = bar height + status-bar inset.
+       Every element that offsets below the fixed header must use this. */
+    --header-h: calc(3.5rem + env(safe-area-inset-top, 0px));
   }
 
   :root.dark {
-    color-scheme: dark;
   }
+
+  /* On md+ the header bar is h-16 (4rem) instead of h-14 (3.5rem) */
+  @media (min-width: 768px) {
+    :root {
+      --header-h: calc(4rem + env(safe-area-inset-top, 0px));
+    }
+  }
+
+
+
 
   body {
     @apply bg-[#FDFDFD] text-zinc-900 antialiased transition-colors duration-500 dark:bg-zinc-950 dark:text-zinc-100;

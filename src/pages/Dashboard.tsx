@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { LayoutDashboard, Car as CarIcon, MessageSquare, PlusCircle, Settings, LogOut, MoreVertical, Loader2, User, Phone, Briefcase, ShieldCheck } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db, auth } from '../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { signOut } from 'firebase/auth';
 import { Car, Page } from '../types';
 import { SELLER_TYPES } from '../constants';
-import { apiFetch } from '../lib/api-client';
 
 import { useToast } from '../components/Toast';
 
@@ -24,6 +24,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [carToDelete, setCarToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Lock body scroll when delete modal is open
+  useEffect(() => {
+    if (carToDelete) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [carToDelete]);
 
   const isAdmin = profile?.role?.toLowerCase() === 'admin' || user?.email === 'kaleabepherem@gmail.com' || user?.email === 'kaleabepherem98@gmail.com';
   
@@ -112,7 +122,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
     }
   };
 
-  const handleDeleteListing = async () => {
+  const handleDeleteListing = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (!carToDelete) return;
     
     setIsDeleting(true);
@@ -120,18 +135,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
       if (!user) {
         throw new Error('You must be logged in to delete listings');
       }
-      
-      const idToken = await user.getIdToken();
-      
-      const response = await apiFetch(`/api/listings?id=${carToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      // apiFetch already validates response.ok and parses JSON
+
+      // Try backend API first (handles R2 image cleanup + Firestore delete)
+      try {
+        const idToken = await user.getIdToken();
+        const { apiFetch } = await import('../lib/api-client');
+        await apiFetch(`/api/listings?id=${encodeURIComponent(carToDelete)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${idToken}`
+          }
+        });
+      } catch (apiErr: any) {
+        console.warn('Backend delete failed, falling back to direct Firestore:', apiErr.message);
+        // Fallback: delete directly from Firestore
+        const carRef = doc(db, 'cars', carToDelete);
+        await deleteDoc(carRef);
+      }
       
       // Update local state immediately for better perceived performance
       setListings(prev => prev.filter(car => car.id !== carToDelete));
@@ -181,8 +201,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
             <User size={28} />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-black text-zinc-900 dark:text-white truncate leading-tight">{profile?.displayName || 'Anonymous'}</h2>
-            <p className="text-[10px] font-bold text-zinc-400 truncate uppercase tracking-wider">{profile?.phoneNumber || 'No phone number'}</p>
+            <h2 className="text-base font-black text-zinc-900 dark:text-white truncate leading-tight">{profile?.displayName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'User')}</h2>
+            <p className="text-[10px] font-bold text-zinc-400 truncate uppercase tracking-wider">{profile?.phoneNumber || user?.email || ''}</p>
           </div>
           <button 
             onClick={handleLogout}
@@ -193,7 +213,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
         </div>
 
         {/* Mobile Tabs - Sticky & Compact */}
-        <div className="sticky top-0 z-10 bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md -mx-4 px-4 py-2">
+        <div className="sticky z-10 bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md -mx-4 px-4 py-2" style={{ top: 'var(--header-h)' }}>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {menuItems.map((item) => (
               <button
@@ -244,7 +264,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                   </div>
                   <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{t('dashboard.active')}</p>
                   <p className="text-xl font-black text-zinc-900 dark:text-white">
-                    {listings.filter(l => l.status === 'active').length}
+                    {listings.filter(l => l.status === 'approved' || l.status === 'pending_payment_verification' || l.status === 'pending').length}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 p-4 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
@@ -277,19 +297,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                         <p className="text-xs font-black text-brand mb-2">{car.price.toLocaleString()} ETB</p>
                         <div className="mb-2">
                           <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${
-                            car.status === 'active' 
+                            car.status === 'approved' 
                               ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500'
                               : car.status === 'pending_payment_verification'
                                 ? 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-500'
                                 : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                           }`}>
                             <span className="whitespace-normal text-left break-words">
-                              {car.status === 'active' ? t('dashboard.active') : car.status === 'pending_payment_verification' ? 'Payment Pending' : t('dashboard.sold')}
+                              {car.status === 'approved' ? t('dashboard.active') : car.status === 'pending_payment_verification' ? 'Payment Pending' : t('dashboard.sold')}
                             </span>
                           </span>
                         </div>
                         <div className="flex gap-2">
-                          {car.status === 'active' && (
+                          {car.status === 'approved' && (
                             <button 
                               onClick={async () => {
                                 const carRef = doc(db, 'cars', car.id);
@@ -468,8 +488,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
         </main>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {carToDelete && (
+      {/* Delete Confirmation Modal — rendered via portal to escape scroll container */}
+      {carToDelete && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">
             <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6">
@@ -496,7 +516,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
 

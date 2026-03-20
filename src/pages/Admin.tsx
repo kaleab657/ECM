@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { Car, Page } from '../types';
 import { apiFetch } from '../lib/api-client';
@@ -61,39 +61,64 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
   useEffect(() => {
     if (!user || !isAdmin) return;
 
-    // Fetch Stats
-    const fetchStats = async () => {
-      try {
-        const idToken = await user.getIdToken();
-        const data = await apiFetch('/api/admin/stats', {
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        });
-        if (data.success) {
-          setStats(data.stats);
-        }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      }
-    };
+    const unsubscribers: (() => void)[] = [];
 
-    fetchStats();
+    // Real-time stats from Firestore
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      setStats(prev => ({ ...prev, totalUsers: snapshot.size }));
+    }, (error) => {
+      console.error('ERROR: Failed to fetch users count:', error);
+    });
+    unsubscribers.push(unsubUsers);
 
-    // Fetch Listings
-    const fetchListings = async () => {
+    const unsubAllCars = onSnapshot(collection(db, 'cars'), (snapshot) => {
+      const allCars = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Car[];
+      setStats(prev => ({
+        ...prev,
+        totalListings: allCars.length,
+        pendingApprovals: allCars.filter(c => c.status === 'pending' || c.status === 'pending_payment_verification').length,
+        featuredListings: allCars.filter(c => c.featured).length
+      }));
+    }, (error) => {
+      console.error('ERROR: Failed to fetch cars stats:', error);
+    });
+    unsubscribers.push(unsubAllCars);
+
+    // Fetch listings (with optional status filter) from Firestore
+    const fetchListings = () => {
       setLoading(true);
-      try {
-        const idToken = await user.getIdToken();
-        const data = await apiFetch(`/api/admin/listings?status=${statusFilter}`, {
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        });
-        if (data.success) {
-          setListings(data.listings);
-        }
-      } catch (error) {
-        console.error('Error fetching listings:', error);
-      } finally {
-        setLoading(false);
+      let q;
+      if (statusFilter === 'all') {
+        q = query(collection(db, 'cars'), orderBy('createdAt', 'desc'), limit(100));
+      } else {
+        q = query(collection(db, 'cars'), where('status', '==', statusFilter), orderBy('createdAt', 'desc'), limit(100));
       }
+      const unsubListings = onSnapshot(q, (snapshot) => {
+        const cars = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Car[];
+        setListings(cars);
+        setLoading(false);
+      }, (error) => {
+        console.error('ERROR: Failed to fetch admin listings:', error);
+        // Fallback: try without ordering if composite index is missing
+        const fallbackQ = statusFilter === 'all'
+          ? query(collection(db, 'cars'), limit(100))
+          : query(collection(db, 'cars'), where('status', '==', statusFilter), limit(100));
+        onSnapshot(fallbackQ, (snapshot) => {
+          const cars = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Car[];
+          // Sort client-side
+          cars.sort((a, b) => {
+            const dateA = a.createdAt?.toDate?.() ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime();
+            const dateB = b.createdAt?.toDate?.() ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime();
+            return dateB - dateA;
+          });
+          setListings(cars);
+          setLoading(false);
+        }, (fallbackError) => {
+          console.error('ERROR: Fallback listings query also failed:', fallbackError);
+          setLoading(false);
+        });
+      });
+      unsubscribers.push(unsubListings);
     };
 
     fetchListings();
@@ -106,32 +131,25 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     const unsubscribePayments = onSnapshot(qPayments, (snapshot) => {
       const payments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPendingPayments(payments);
+    }, (error) => {
+      console.error('ERROR: Failed to fetch pending payments:', error);
     });
+    unsubscribers.push(unsubscribePayments);
 
-    return () => unsubscribePayments();
+    return () => unsubscribers.forEach(u => u());
   }, [user, isAdmin, statusFilter]);
 
   const handleUpdateStatus = async (carId: string, newStatus: string) => {
     if (!user) return;
     setIsProcessing(carId);
     try {
-      const idToken = await user.getIdToken();
-      const data = await apiFetch(`/api/admin/listings/${carId}`, {
-        method: 'PATCH',
-        headers: { 
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (data.success) {
-        setListings(prev => prev.map(c => c.id === carId ? { ...c, status: newStatus as any } : c));
-        showToast(`Listing ${newStatus} successfully!`, 'success');
-      } else {
-        showToast(data.error, 'error');
-      }
+      const carRef = doc(db, 'cars', carId);
+      await updateDoc(carRef, { status: newStatus });
+      setListings(prev => prev.map(c => c.id === carId ? { ...c, status: newStatus as any } : c));
+      showToast(`Listing ${newStatus} successfully!`, 'success');
     } catch (error) {
       console.error('Error updating status:', error);
+      showToast('Failed to update listing status', 'error');
     } finally {
       setIsProcessing(null);
     }
@@ -141,23 +159,13 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     if (!user) return;
     setIsProcessing(carId);
     try {
-      const idToken = await user.getIdToken();
-      const data = await apiFetch(`/api/admin/listings/${carId}`, {
-        method: 'PATCH',
-        headers: { 
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ featured: !currentFeatured })
-      });
-      if (data.success) {
-        setListings(prev => prev.map(c => c.id === carId ? { ...c, featured: !currentFeatured } : c));
-        showToast(`Listing ${!currentFeatured ? 'featured' : 'unfeatured'} successfully!`, 'success');
-      } else {
-        showToast(data.error, 'error');
-      }
+      const carRef = doc(db, 'cars', carId);
+      await updateDoc(carRef, { featured: !currentFeatured });
+      setListings(prev => prev.map(c => c.id === carId ? { ...c, featured: !currentFeatured } : c));
+      showToast(`Listing ${!currentFeatured ? 'featured' : 'unfeatured'} successfully!`, 'success');
     } catch (error) {
       console.error('Error toggling featured:', error);
+      showToast('Failed to toggle featured status', 'error');
     } finally {
       setIsProcessing(null);
     }
@@ -168,18 +176,11 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsDeleting(true);
     setIsProcessing(carToDelete);
     try {
-      const idToken = await user.getIdToken();
-      const data = await apiFetch(`/api/admin/listings/${carToDelete}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${idToken}` }
-      });
-      if (data.success) {
-        setListings(prev => prev.filter(c => c.id !== carToDelete));
-        showToast('Listing deleted successfully', 'success');
-        setCarToDelete(null);
-      } else {
-        showToast(data.error, 'error');
-      }
+      const carRef = doc(db, 'cars', carToDelete);
+      await deleteDoc(carRef);
+      setListings(prev => prev.filter(c => c.id !== carToDelete));
+      showToast('Listing deleted successfully', 'success');
+      setCarToDelete(null);
     } catch (error) {
       console.error('Error deleting listing:', error);
       showToast('Failed to delete listing', 'error');
@@ -194,26 +195,27 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsProcessing(payment.id);
     try {
       const idToken = await user.getIdToken();
-      const data = await apiFetch('/api/admin/verify-payment', {
+      
+      const response = await apiFetch('/api/admin/verify-payment', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           paymentId: payment.id,
           listingId: payment.listingId,
-          status: status
+          status
         })
       });
-      if (data.success) {
-        setPendingPayments(prev => prev.filter(p => p.id !== payment.id));
-        showToast(`Payment ${status} successfully!`, 'success');
-      } else {
-        showToast(data.error, 'error');
-      }
+
+      if (!response.success) throw new Error(response.error || 'API failed');
+
+      setPendingPayments(prev => prev.filter(p => p.id !== payment.id));
+      showToast(`Payment ${status} successfully!`, 'success');
     } catch (error) {
       console.error('Error verifying payment:', error);
+      showToast('Failed to verify payment', 'error');
     } finally {
       setIsProcessing(null);
     }
@@ -225,23 +227,27 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     setIsSendingNotif(true);
     try {
       const idToken = await user.getIdToken();
+      // Use backend API which has real FCM push notification logic
       const data = await apiFetch('/api/admin/notifications', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${idToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ title: notifTitle, message: notifMessage })
       });
       if (data.success) {
-        showToast('Notification sent successfully!', 'success');
+        const stats = data.stats;
+        const detail = stats ? ` (${stats.delivered}/${stats.totalTokens} devices)` : '';
+        showToast(`Notification sent successfully!${detail}`, 'success');
         setNotifTitle('');
         setNotifMessage('');
       } else {
-        showToast(data.error, 'error');
+        showToast(data.error || 'Failed to send notification', 'error');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending notification:', error);
+      showToast(`Failed to send notification: ${error.message}`, 'error');
     } finally {
       setIsSendingNotif(false);
     }
@@ -400,7 +406,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                   />
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                  {['all', 'active', 'pending', 'sold', 'rejected', 'pending_payment_verification'].map((status) => (
+                  {['all', 'approved', 'pending', 'sold', 'rejected', 'pending_payment_verification'].map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
@@ -437,7 +443,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                         <div className="flex-1 min-w-0 py-1">
                           <div className="flex items-center justify-between mb-1">
                             <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                              car.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' :
+                              car.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500' :
                               car.status === 'pending' ? 'bg-amber-500/10 text-amber-500' :
                               'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
                             }`}>
@@ -458,13 +464,13 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                         {car.status === 'pending' && (
                           <button 
                             disabled={isProcessing === car.id}
-                            onClick={() => handleUpdateStatus(car.id, 'active')}
+                            onClick={() => handleUpdateStatus(car.id, 'approved')}
                             className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1 shadow-lg shadow-emerald-500/20"
                           >
                             {isProcessing === car.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />} Approve
                           </button>
                         )}
-                        {car.status === 'active' && (
+                        {car.status === 'approved' && (
                           <button 
                             disabled={isProcessing === car.id}
                             onClick={() => handleToggleFeatured(car.id, !!car.featured)}

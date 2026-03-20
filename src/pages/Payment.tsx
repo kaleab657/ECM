@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { CreditCard, Upload, CheckCircle2, AlertCircle, Loader2, ArrowLeft, Building2, Smartphone } from 'lucide-react';
 import { db, storage } from '../lib/firebase';
-import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAppContext } from '../context/AppContext';
 import { LISTING_PACKAGES } from '../constants';
 import { Page, Car, ListingPackage } from '../types';
-import { apiUpload, apiFetch } from '../lib/api-client';
+import { apiUpload } from '../lib/api-client';
 
 interface PaymentProps {
   listingId: string | null;
@@ -84,71 +84,97 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
         finalListingId = listingPayload.id;
       }
 
-      if (!finalListingId) throw new Error('Listing ID not found');
+      if (!finalListingId) {
+        throw new Error('Listing ID not found. Please try posting the car again.');
+      }
 
       // 1. Upload screenshot to R2 (payment-proof bucket)
       const timestamp = Date.now();
       const customKey = `payments/${user.uid}/${finalListingId}/${timestamp}.jpg`;
       const fileName = `payment-${timestamp}.jpg`;
       
-      // Upload to R2 via Backend Proxy (Bypasses CORS)
-      const uploadResponse = await apiUpload(`/api/r2/upload-payment?fileName=${fileName}&fileType=${screenshot.type}&customKey=${customKey}`, {
+      // Use ArrayBuffer for Capacitor Android compatibility (Blob/File natively fails in fetch on older webviews)
+      const screenshotData = screenshot.arrayBuffer ? await screenshot.arrayBuffer() : screenshot;
+      
+      const fileType = screenshot.type || 'image/jpeg';
+      
+      const uploadResponse = await apiUpload(`/api/r2/upload-payment?fileName=${fileName}&fileType=${fileType}&customKey=${customKey}`, {
         method: 'POST',
         headers: {
-          'Content-Type': screenshot.type,
+          'Content-Type': fileType,
           'Authorization': `Bearer ${idToken}`
         },
-        body: screenshot
+        body: screenshotData
       });
 
       if (!uploadResponse.ok) {
         const contentType = uploadResponse.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const errorData = await uploadResponse.json();
-          const errorMessage = errorData.details 
-            ? `${errorData.error}: ${errorData.details}` 
-            : (errorData.error || 'Failed to upload screenshot to R2');
-          throw new Error(errorMessage);
+          throw new Error(errorData.details || errorData.error || 'Failed to upload screenshot');
         } else {
-          throw new Error(`Upload failed (status ${uploadResponse.status}). Server may be unreachable.`);
+          throw new Error(`Upload failed (status ${uploadResponse.status}).`);
         }
       }
+      
       const { publicUrl } = await uploadResponse.json();
 
-      // 2 & 3. Create listing and payment record in parallel to reduce delay
-      const promises: Promise<any>[] = [
-        addDoc(collection(db, 'payments'), {
-          userId: user.uid,
-          listingId: finalListingId,
-          packageType: selectedPackage.id,
-          price: selectedPackage.price,
-          paymentMethod: paymentMethod,
-          screenshotURL: publicUrl,
-          status: 'pending',
-          createdAt: serverTimestamp()
-        })
-      ];
+      // 2. Use a writeBatch to ensure both listing & payment are saved atomically
+      const batch = writeBatch(db);
+      
+      // Payment Record
+      const paymentRef = doc(collection(db, 'payments'));
+      batch.set(paymentRef, {
+        userId: user.uid,
+        listingId: finalListingId,
+        packageType: selectedPackage.id,
+        price: selectedPackage.price,
+        paymentMethod: paymentMethod,
+        screenshotURL: publicUrl,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
 
+      // Update Listing status to pending and attach payment proof
+      const carRef = doc(db, 'cars', finalListingId);
+      
       if (listingPayload) {
-        promises.push(
-          apiFetch('/api/listings', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${idToken}`
-            },
-            body: JSON.stringify({ listing: listingPayload })
-          }).then(() => sessionStorage.removeItem('pendingListing'))
+        // Strip any undefined values that might have snuck in to prevent Firestore crash
+        const sanitizedPayload = Object.fromEntries(
+          Object.entries({
+            ...listingPayload,
+            status: 'pending',
+            paymentProof: publicUrl,
+            createdAt: serverTimestamp()
+          }).filter(([_, v]) => v !== undefined)
         );
+        
+        // Option A: Full save (if coming from PostCar where it wasn't saved yet)
+        batch.set(carRef, sanitizedPayload);
+      } else {
+        // Option B: Partial update (if redirect happened but payload lost, or car already exists)
+        // We ensure it definitely exists or at least the status is updated
+        batch.update(carRef, {
+          status: 'pending',
+          paymentProof: publicUrl,
+          updatedAt: serverTimestamp()
+        });
       }
 
-      await Promise.all(promises);
-
+      await batch.commit();
+      
+      // Success!
+      sessionStorage.removeItem('pendingListing');
       setSuccess(true);
       setTimeout(() => setPage('dashboard'), 3000);
     } catch (err: any) {
-      console.error('Payment submission error:', err);
-      setError(err.message || 'Failed to submit payment. Please try again.');
+      console.error('Payment submission failed:', err);
+      // Give more specific error message if possible
+      const message = err.message?.includes('not-found') 
+        ? 'Listing record not found. Please try re-posting the car.'
+        : (err.message || 'Submission failed. Please check your connection.');
+      setError(`Error: ${message}`);
+      alert(`Submission Error: ${message}`); // Alert to ensure the user sees the actual error blocking submission
     } finally {
       setIsSubmitting(false);
     }

@@ -65,7 +65,7 @@ export const SafetyGuidelines: React.FC = () => {
           <p className="text-red-700 dark:text-red-500/80 text-sm font-medium">{t('safetyPage.bewareScamsDesc')}</p>
         </div>
         <button 
-          onClick={() => window.location.href = 'tel:+251911223344'}
+          onClick={() => window.location.href = 'tel:+251942712410'}
           className="bg-red-600 text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
         >
           {t('safetyPage.reportScam') || 'Report a Scam'}

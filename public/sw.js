@@ -54,6 +54,13 @@ const isImageResponse = (response) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Skip ALL service worker interception inside Capacitor WebView
+  // Capacitor serves from https://localhost — let it load natively
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    return;
+  }
+
+
   // 1. Never intercept Firebase APIs, Auth endpoints, or external core services
   if (
     !url.protocol.startsWith('http') ||

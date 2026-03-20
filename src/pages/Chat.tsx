@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useToast } from '../components/Toast';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db, auth } from '../lib/firebase';
@@ -38,6 +39,7 @@ interface ChatProps {
 
 export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   const { user, t } = useAppContext();
+  const { showToast } = useToast();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -53,7 +55,6 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
     if (onChatChange) onChatChange(id);
   }, [onChatChange]);
 
-  // Fetch chat sessions
   useEffect(() => {
     if (!user) return;
 
@@ -87,7 +88,6 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
     return () => unsubscribe();
   }, [user, activeChatId]);
 
-  // Reset unread count when chat is opened
   useEffect(() => {
     if (!activeChatId || !user) return;
 
@@ -95,13 +95,10 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
     const session = sessions.find(s => s.id === activeChatId);
     
     if (session && session.unreadCount && session.unreadCount > 0 && session.lastMessageSenderId !== user.uid) {
-      updateDoc(chatRef, {
-        unreadCount: 0
-      });
+      updateDoc(chatRef, { unreadCount: 0 });
     }
   }, [activeChatId, user, sessions]);
 
-  // Fetch messages for active chat
   useEffect(() => {
     if (!activeChatId || !user) {
       setMessages([]);
@@ -128,7 +125,6 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
     return () => unsubscribe();
   }, [activeChatId, user]);
 
-  // Resolve participant names
   useEffect(() => {
     if (sessions.length === 0 || !user) return;
 
@@ -186,10 +182,11 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
         unreadCount: currentUnread + 1
       });
 
-      // Send push notification to the other participant
       const recipientId = session?.participants.find(p => p !== user.uid);
       if (recipientId) {
-        const senderName = session?.participantNames[user.uid] || user.displayName || 'Someone';
+        const profileName = session?.participantNames[user.uid];
+        const userName = user.displayName;
+        const senderName = (profileName !== 'Anonymous' ? profileName : undefined) || (userName !== 'Anonymous' ? userName : undefined) || user.email?.split('@')[0] || 'User';
         try {
           const idToken = await auth.currentUser?.getIdToken();
           if (idToken) {
@@ -206,14 +203,14 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
                 chatId: activeChatId,
                 carTitle: session?.carTitle || ''
               })
-            }).catch(() => {}); // Fire-and-forget, don't block chat
+            }).catch(() => {});
           }
         } catch {
-          // Silent - push notification is best-effort
+          // Silent
         }
       }
     } catch (error) {
-      // Silent error
+      // Silent
     }
   }, [inputText, activeChatId, user, sessions]);
 
@@ -222,7 +219,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
     if (!files || files.length === 0 || !activeChatId || !user) return;
 
     if (files.length > 3) {
-      alert(t('chatPage.maxImages') || 'Maximum 3 images allowed per message');
+      showToast(t('chatPage.maxImages') || 'Maximum 3 images allowed per message', 'warning');
       return;
     }
 
@@ -238,7 +235,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
 
       await handleSendMessage(undefined, urls);
     } catch (error: any) {
-      alert(t('chatPage.uploadFailed') || 'Failed to upload images');
+      showToast(t('chatPage.uploadFailed') || 'Failed to upload images', 'error');
     } finally {
       setIsUploading(false);
       if (e.target) e.target.value = '';
@@ -264,7 +261,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
       setActiveChatId(null);
       setShowDeleteConfirm(false);
     } catch (error) {
-      alert(t('chatPage.deleteFailed') || 'Failed to delete conversation');
+      showToast(t('chatPage.deleteFailed') || 'Failed to delete conversation', 'error');
     } finally {
       setIsDeletingChat(false);
     }
@@ -275,13 +272,15 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   const otherParticipantName = useMemo(() => {
     const otherId = activeChat?.participants.find(p => p !== user?.uid);
     if (!otherId) return 'User';
-    return participantProfiles[otherId]?.displayName || activeChat?.participantNames[otherId] || 'User';
+    const profileName = participantProfiles[otherId]?.displayName;
+    const sessionName = activeChat?.participantNames[otherId];
+    return (profileName !== 'Anonymous' ? profileName : undefined) || (sessionName !== 'Anonymous' ? sessionName : undefined) || participantProfiles[otherId]?.email?.split('@')[0] || 'User';
   }, [activeChat, user, participantProfiles]);
 
   if (!user) return <div className="text-center py-24"><h2 className="text-2xl font-bold">{t('chatPage.loginRequired') || 'Please login to view messages'}</h2></div>;
 
   return (
-    <div className="max-w-7xl mx-auto bg-white dark:bg-zinc-900 md:rounded-[40px] shadow-xl shadow-black/5 border border-zinc-100 dark:border-zinc-800 flex flex-col md:flex-row min-h-[70vh]">
+    <div className="w-full h-[100dvh] bg-white dark:bg-zinc-900 flex flex-col md:flex-row md:max-w-7xl md:mx-auto md:rounded-[40px] md:shadow-xl md:shadow-black/5 md:border md:border-zinc-100 md:dark:border-zinc-800 md:min-h-[70vh] md:h-auto">
       <ChatSidebar 
         sessions={sessions}
         activeChatId={activeChatId}
@@ -306,7 +305,6 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
         isUploading={isUploading}
       />
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">

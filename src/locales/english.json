@@ -223,7 +223,12 @@
     "errorPrice": "Please enter a price",
     "errorPhone": "Please enter your phone number",
     "errorPosting": "Failed to post listing: ",
-    "days": "Post Days"
+    "days": "Post Days",
+    "step": "Step",
+    "of": "of",
+    "uploading": "Uploading images...",
+    "redirectingPayment": "Redirecting to payment...",
+    "errorNotLoggedIn": "You must be logged in to post a listing"
   },
   "sell": {
     "price": "Price (ETB)",
@@ -312,6 +317,9 @@
   "detail": {
     "back": "Back to Browse",
     "callSeller": "Call Seller",
+    "callBtn": "Call Seller",
+    "messageBtn": "Send Message",
+    "detailsTitle": "Vehicle Details",
     "sendMessage": "Send Message",
     "description": "Description",
     "features": "Features",
@@ -610,15 +618,24 @@
   "packages": {
     "free": {
       "name": "Free Package",
-      "features": ["15 Post Days"]
+      "features": [
+        "15 Post Days"
+      ]
     },
     "featured": {
       "name": "Featured Package",
-      "features": ["15 Days Homepage Feature", "30 Post Days"]
+      "features": [
+        "15 Days Homepage Feature",
+        "30 Post Days"
+      ]
     },
     "premium": {
       "name": "Premium Package",
-      "features": ["Maximum Exposure", "Featured Everywhere", "30 Post Days"]
+      "features": [
+        "Maximum Exposure",
+        "Featured Everywhere",
+        "30 Post Days"
+      ]
     }
   },
   "colors": {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../components/Toast';
 import { MapPin, Phone, ExternalLink, Award, Loader2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
@@ -16,6 +17,7 @@ interface Dealer {
 
 export const Dealerships: React.FC = () => {
   const { t } = useAppContext();
+  const { showToast } = useToast();
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +81,7 @@ export const Dealerships: React.FC = () => {
                     if (dealer.inventoryUrl) {
                       window.open(dealer.inventoryUrl, '_blank');
                     } else {
-                      alert(t('dealerships.comingSoon'));
+                      showToast(t('dealerships.comingSoon'), 'info');
                     }
                   }}
                   className="w-full py-3 bg-zinc-50 dark:bg-zinc-800 rounded-2xl text-zinc-900 dark:text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all"

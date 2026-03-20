@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Mail, Lock, User, ArrowRight, AlertCircle, Loader2, CheckCircle2, Phone, ChevronDown, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { Capacitor } from '@capacitor/core';
 import { Logo } from '../components/Logo';
 import { auth, db } from '../lib/firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  sendEmailVerification, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect
+  signInWithRedirect,
+  signInWithCredential
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, collection, getCountFromServer, increment } from 'firebase/firestore';
 import { useAppContext } from '../context/AppContext';
@@ -21,7 +24,6 @@ interface AuthProps {
   setPage: (page: Page) => void;
 }
 
-// Map Firebase error codes to user-friendly messages
 function getAuthErrorMessage(error: any, t: (key: string) => string): string {
   const code = error?.code || '';
   switch (code) {
@@ -54,21 +56,42 @@ function getAuthErrorMessage(error: any, t: (key: string) => string): string {
   }
 }
 
-/** After a successful Google sign-in, ensure user doc exists in Firestore */
 async function ensureUserDocument(user: any) {
-  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  const userRef = doc(db, 'users', user.uid);
+  const userDoc = await getDoc(userRef);
+  
+  // Safely fallback to email prefix if no exact display name exists
+  const fallbackName = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
+
   if (!userDoc.exists()) {
-    await setDoc(doc(db, 'users', user.uid), {
+    await setDoc(userRef, {
       uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || 'Anonymous',
+      email: user.email || '',
+      displayName: fallbackName,
       createdAt: serverTimestamp(),
-      phoneNumber: '',
+      phoneNumber: user.phoneNumber || '',
       sellerType: SELLER_TYPES[0]
     });
     await setDoc(doc(db, 'stats', 'global'), {
       usersCount: increment(1)
     }, { merge: true });
+  } else {
+    // Sync Google data into existing profile if the profile is lacking it
+    const data = userDoc.data();
+    const updates: any = {};
+    
+    if (!data.email && user.email) updates.email = user.email;
+    if (!data.phoneNumber && user.phoneNumber) updates.phoneNumber = user.phoneNumber;
+    
+    // If current displayName is missing or a generic fallback, overwrite it with real data
+    const isGenericName = !data.displayName || data.displayName.toLowerCase() === 'anonymous' || data.displayName.toLowerCase() === 'unknown' || data.displayName.toLowerCase() === 'user';
+    if (isGenericName && fallbackName && fallbackName.toLowerCase() !== 'user') {
+      updates.displayName = fallbackName;
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      await setDoc(userRef, updates, { merge: true });
+    }
   }
 }
 
@@ -87,7 +110,6 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
 
-  // Auto-redirect if already logged in
   React.useEffect(() => {
     if (user && !isLoading) {
       const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
@@ -97,34 +119,44 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
     }
   }, [user, isLoading, setPage, setAuthModalOpen]);
 
-
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError(null);
-    const provider = new GoogleAuthProvider();
-
     try {
-      // Web browser — try popup first
-      try {
-        const result = await signInWithPopup(auth, provider);
-        await ensureUserDocument(result.user);
+      if (Capacitor.isNativePlatform()) {
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        const idToken = result.credential?.idToken;
+        if (!idToken) throw new Error('No ID Token received');
+        const credential = GoogleAuthProvider.credential(idToken);
+        const firebaseResult = await signInWithCredential(auth, credential);
+        await ensureUserDocument(firebaseResult.user);
         const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
         sessionStorage.removeItem('redirectAfterLogin');
         setPage(redirectTo as any);
         setAuthModalOpen(false);
-      } catch (popupErr: any) {
-        // If popup was blocked by browser, fall back to redirect
-        if (popupErr?.code === 'auth/popup-blocked') {
-          await signInWithRedirect(auth, provider);
-          // Page reloads — getRedirectResult in AppContext handles the rest
-        } else {
-          throw popupErr; // Re-throw other errors
+      } else {
+        const provider = new GoogleAuthProvider();
+        try {
+          const result = await signInWithPopup(auth, provider);
+          await ensureUserDocument(result.user);
+          const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
+          sessionStorage.removeItem('redirectAfterLogin');
+          setPage(redirectTo as any);
+          setAuthModalOpen(false);
+        } catch (popupErr: any) {
+          if (popupErr?.code === 'auth/popup-blocked') {
+            await signInWithRedirect(auth, provider);
+          } else {
+            throw popupErr;
+          }
         }
       }
     } catch (err: any) {
+      console.error('ERROR: Google sign-in failed:', err);
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
         setError(getAuthErrorMessage(err, t));
       }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -163,14 +195,12 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
       setIsLoading(false);
       return;
     }
-    
+
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        
-        // Create user document in Firestore
         await setDoc(doc(db, 'users', userCredential.user.uid), {
           uid: userCredential.user.uid,
           email: email.trim(),
@@ -179,13 +209,11 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           sellerType: sellerType,
           createdAt: serverTimestamp(),
         });
-
-        // Increment global user count
         await setDoc(doc(db, 'stats', 'global'), {
           usersCount: increment(1)
         }, { merge: true });
       }
-      
+
       const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
       sessionStorage.removeItem('redirectAfterLogin');
       setPage(redirectTo as any);
@@ -235,35 +263,31 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
 
   return (
     <div className="auth-bottomsheet-overlay z-[200]">
-      {/* Backdrop */}
-      <motion.div 
-        className="auth-bottomsheet-backdrop" 
+      <motion.div
+        className="auth-bottomsheet-backdrop"
         onClick={() => setAuthModalOpen(false)}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
       />
-      
-      {/* Bottom Sheet */}
-      <motion.div 
+
+      <motion.div
         className="auth-bottomsheet"
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       >
-        {/* Drag Handle */}
         <div className="auth-bottomsheet-handle-wrap">
           <div className="auth-bottomsheet-handle" />
         </div>
 
-        {/* Header: Title + Close */}
         <div className="flex items-center justify-between mb-4 px-1">
           <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
             {isLogin ? (t('auth.welcomeBack') || 'Welcome Back') : (t('auth.createAccount') || 'Create Account')}
           </h2>
-          <button 
+          <button
             onClick={() => setAuthModalOpen(false)}
             className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-full transition-colors"
           >
@@ -271,7 +295,6 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           </button>
         </div>
 
-        {/* Error */}
         <AnimatePresence mode="wait">
           {error && (
             <motion.div
@@ -286,23 +309,21 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           )}
         </AnimatePresence>
 
-        {/* Google Sign In */}
-        <button 
+        <button
           onClick={handleGoogleSignIn}
           disabled={isLoading}
           className="w-full flex items-center justify-center gap-3 py-3.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all font-bold text-sm text-zinc-700 dark:text-zinc-200 shadow-sm disabled:opacity-50 mb-3"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
           </svg>
           {t('auth.googleSignIn') || 'Continue with Google'}
         </button>
 
-        {/* Email/Phone login button */}
-        <button 
+        <button
           onClick={() => setShowEmailForm(true)}
           disabled={isLoading}
           className="w-full flex items-center justify-center gap-2 py-3.5 bg-brand hover:bg-brand-hover text-white rounded-2xl transition-all font-bold text-sm shadow-lg shadow-brand/20 disabled:opacity-50 mb-4"
@@ -312,7 +333,6 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           {t('auth.emailLogin') || 'Continue with Email'}
         </button>
 
-        {/* Email/Phone Form (shown when clicked) */}
         <AnimatePresence>
           {showEmailForm && (
             <motion.div
@@ -322,7 +342,6 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
               transition={{ duration: 0.25 }}
               className="overflow-hidden"
             >
-              {/* Divider */}
               <div className="relative flex items-center justify-center mb-3">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-zinc-100 dark:border-zinc-800"></div>
@@ -335,10 +354,10 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                   <>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-                      <input 
+                      <input
                         id="auth-signup-fullname"
                         name="fullname"
-                        type="text" 
+                        type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder={t('profile.labels.fullName') || 'Full Name'}
@@ -349,10 +368,10 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
 
                     <div className="relative">
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-                      <input 
+                      <input
                         id="auth-signup-phone"
                         name="phone"
-                        type="tel" 
+                        type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="+251 912 345 678"
@@ -362,7 +381,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                     </div>
 
                     <div className="relative">
-                      <select 
+                      <select
                         id="auth-signup-seller-type"
                         name="sellerType"
                         value={sellerType}
@@ -381,11 +400,11 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
 
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-                  <input 
+                  <input
                     id="auth-email"
                     name="email"
                     required
-                    type="email" 
+                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={t('profile.labels.email') || 'Email'}
@@ -396,11 +415,11 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
 
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-                  <input 
+                  <input
                     id="auth-password"
                     name="password"
                     required
-                    type="password" 
+                    type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t('auth.password') || 'Password'}
@@ -412,11 +431,11 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                 {!isLogin && (
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600" size={18} />
-                    <input 
+                    <input
                       id="auth-signup-confirm-password"
                       name="confirmPassword"
                       required
-                      type="password" 
+                      type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder={t('auth.confirmPassword') || 'Confirm Password'}
@@ -426,7 +445,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                   </div>
                 )}
 
-                <button 
+                <button
                   disabled={isLoading}
                   className="w-full btn-primary py-3 text-base shadow-lg shadow-brand/20 disabled:opacity-70 disabled:shadow-none rounded-2xl mt-1"
                 >
@@ -444,10 +463,9 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           )}
         </AnimatePresence>
 
-        {/* Toggle Login / Sign Up */}
         <p className="mt-4 text-center text-[11px] font-bold text-zinc-500">
           {isLogin ? (t('auth.noAccount') || "Don't have an account?") : (t('auth.hasAccount') || 'Already have an account?')}
-          <button 
+          <button
             type="button"
             onClick={() => { setIsLogin(!isLogin); setError(null); setShowEmailForm(true); }}
             className="ml-1 text-brand hover:underline"
@@ -456,7 +474,6 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           </button>
         </p>
 
-        {/* Terms footer */}
         <p className="mt-3 text-center text-[10px] text-zinc-400 leading-relaxed px-2">
           By continuing, you agree to our{' '}
           <button type="button" onClick={() => { setAuthModalOpen(false); setPage('terms'); }} className="text-brand hover:underline">Terms & Conditions</button>

@@ -48,7 +48,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
   
-  const errorString = JSON.stringify(errInfo);
-  console.error('Firestore Error: ', errorString);
-  throw new Error(errorString);
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  // Do NOT throw here — this function is called from onSnapshot error callbacks
+  // and throwing from there creates uncaught exceptions that crash the entire app.
 }

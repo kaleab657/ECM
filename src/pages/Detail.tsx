@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../components/Toast';
 import { Car, Page, UserProfile } from '../types';
 import { MapPin, Calendar, Gauge, Fuel, Settings, ShieldCheck, Phone, MessageCircle, ChevronLeft, User, X, ChevronRight, Maximize2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
@@ -16,6 +17,7 @@ interface DetailProps {
 
 export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, setSelectedCar }) => {
   const { user, profile, t } = useAppContext();
+  const { showToast } = useToast();
   const [activeImage, setActiveImage] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [sellerProfile, setSellerProfile] = useState<UserProfile | null>(null);
@@ -28,7 +30,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
         const q = query(
           collection(db, 'cars'),
           where('brand', '==', car.brand),
-          where('status', '==', 'active'),
+          where('status', '==', 'approved'),
           limit(7)
         );
         const snapshot = await getDocs(q);
@@ -69,16 +71,31 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
     }
   }, [car.id]);
 
+  // Fullscreen viewer: lock scroll + hide header/nav via body class
+  React.useEffect(() => {
+    if (isViewerOpen) {
+      document.body.classList.add('viewer-open');
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.classList.remove('viewer-open');
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.classList.remove('viewer-open');
+      document.body.style.overflow = '';
+    };
+  }, [isViewerOpen]);
+
   const handleSendMessage = async () => {
     if (!user) {
       sessionStorage.setItem('redirectAfterLogin', 'detail');
-      alert(t('dashboard.loginRequired') || 'Please login to access dashboard');
+      showToast(t('dashboard.loginRequired') || 'Please login to access dashboard', 'warning');
       setPage('auth');
       return;
     }
 
     if (user.uid === car.ownerId) {
-      alert(t('detail.cannotMessageSelf') || 'You cannot message yourself');
+      showToast(t('detail.cannotMessageSelf') || 'You cannot message yourself', 'warning');
       return;
     }
 
@@ -102,8 +119,8 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
           carImage: car.imageURLs[0],
           participants: [user.uid, car.ownerId],
           participantNames: {
-            [user.uid]: profile?.displayName || user.displayName || 'User',
-            [car.ownerId]: car.ownerName || 'Seller'
+            [user.uid]: (profile?.displayName !== 'Anonymous' ? profile?.displayName : undefined) || user.displayName || (user.email ? user.email?.split('@')[0] : 'User'),
+            [car.ownerId]: (car.ownerName !== 'Anonymous' ? car.ownerName : undefined) || sellerProfile?.email?.split('@')[0] || 'User'
           },
           lastMessage: '',
           updatedAt: serverTimestamp(),
@@ -118,25 +135,27 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
       setActiveChatId(chatId);
       setPage('chat');
     } catch (error) {
-      alert(t('detail.chatError') || 'Failed to start chat');
+      showToast(t('detail.chatError') || 'Failed to start chat', 'error');
     }
   };
 
   return (
     <div className="bg-[#FDFDFD] dark:bg-zinc-950 min-h-screen pb-32">
-      {/* Mobile Top Bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-[60] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-black/[0.03] dark:border-white/[0.05] h-14 px-4 flex items-center justify-between pt-[env(safe-area-inset-top)]">
-        <button 
-          onClick={() => setPage('home')}
-          className="p-2 -ml-2 text-zinc-900 dark:text-white"
-        >
-          <ChevronLeft size={20} strokeWidth={2.5} />
-        </button>
-        <div className="font-black text-[10px] uppercase tracking-[0.2em]">{t('detail.detailsTitle') || 'Vehicle Details'}</div>
-        <div className="w-10"></div>
-      </div>
+      {/* Mobile Top Bar — hidden when fullscreen viewer is active */}
+      {!isViewerOpen && (
+        <div className="md:hidden fixed top-0 left-0 right-0 z-[60] bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-black/[0.03] dark:border-white/[0.05] h-14 px-4 flex items-center justify-between pt-[env(safe-area-inset-top)]">
+          <button 
+            onClick={() => setPage('home')}
+            className="p-2 -ml-2 text-zinc-900 dark:text-white"
+          >
+            <ChevronLeft size={20} strokeWidth={2.5} />
+          </button>
+          <div className="font-black text-[10px] uppercase tracking-[0.2em] truncate max-w-[180px]">{car.title}</div>
+          <div className="w-10"></div>
+        </div>
+      )}
 
-      <div className="max-w-7xl mx-auto pt-14 md:pt-8 px-0 md:px-4">
+      <div className="max-w-7xl mx-auto md:pt-8 px-0 md:px-4" style={{ paddingTop: 'var(--header-h)' }}>
         {/* Desktop Back Button */}
         <button 
           onClick={() => setPage('browse')}
@@ -188,22 +207,39 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
               </div>
             </div>
 
-            {/* Mobile Title & Price */}
-            <div className="md:hidden px-4 mb-4">
-              <div className="flex flex-wrap gap-2 mb-2">
-                <span className="px-2 py-0.5 bg-brand/10 text-brand text-[9px] font-black uppercase tracking-widest rounded-md border border-brand/20">
-                  {car.condition}
-                </span>
-                {car.bankLoan && (
-                  <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest rounded-md border border-emerald-500/20">
-                    {t('detail.bankLoan')}
+            {/* Mobile Title, Price & Info */}
+            <div className="md:hidden px-4 mb-4 space-y-4">
+              <div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <span className="px-2 py-0.5 bg-brand/10 text-brand text-[9px] font-black uppercase tracking-widest rounded-md border border-brand/20">
+                    {car.condition}
                   </span>
-                )}
+                  {car.bankLoan && (
+                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest rounded-md border border-emerald-500/20">
+                      {t('detail.bankLoan')}
+                    </span>
+                  )}
+                  <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[9px] font-black uppercase tracking-widest rounded-md border border-black/5 dark:border-white/5">
+                    {car.listingType === 'sale' ? t('sell.forSale') || 'For Sale' : t('sell.forRent') || 'For Rent'}
+                  </span>
+                </div>
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight leading-tight uppercase italic">{car.title}</h1>
+                <p className="text-3xl font-black text-brand tracking-tighter mt-1">
+                  {car.price.toLocaleString()} <span className="text-sm font-bold opacity-70">ETB</span>
+                </p>
               </div>
-              <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight leading-tight uppercase italic">{car.brand} {car.model} {car.year}</h1>
-              <p className="text-3xl font-black text-brand tracking-tighter mt-1">
-                {car.price.toLocaleString()} <span className="text-sm font-bold opacity-70">ETB</span>
-              </p>
+
+              <div className="flex items-center gap-4 text-xs font-bold text-zinc-500 uppercase tracking-widest bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={14} className="text-brand" />
+                  <span>{t(`locations.${car.city}`) || car.city}</span>
+                </div>
+                <div className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+                <div className="flex items-center gap-1.5">
+                  <Gauge size={14} className="text-brand" />
+                  <span>{car.views || 0} {t('common.views') || 'Views'}</span>
+                </div>
+              </div>
             </div>
 
             <div className="bg-white dark:bg-zinc-900 md:rounded-[32px] p-6 md:p-8 border-y md:border border-zinc-100 dark:border-zinc-800 shadow-sm">
@@ -282,6 +318,38 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                 )}
               </div>
             </div>
+
+            {/* Mobile Seller Info (In-flow before Similar Cars) */}
+            <div className="md:hidden bg-white dark:bg-zinc-900 md:rounded-[32px] p-6 border-y border-zinc-100 dark:border-zinc-800 shadow-sm mt-4">
+              <h2 className="text-sm font-black text-zinc-900 dark:text-white mb-6 uppercase tracking-widest italic">{t('detail.sellerInfo') || 'Seller Info'}</h2>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-400">
+                  <User size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.sellerInfo') || 'Seller'}</p>
+                  <p className="font-bold text-zinc-900 dark:text-white text-sm">
+                    {(sellerProfile?.displayName !== 'Anonymous' ? sellerProfile?.displayName : undefined) || (car.ownerName !== 'Anonymous' ? car.ownerName : undefined) || sellerProfile?.email?.split('@')[0] || 'User'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <button 
+                  onClick={() => car.ownerPhone && (window.location.href = `tel:${car.ownerPhone}`)}
+                  className="w-full bg-brand text-white py-3.5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-brand/20 active:scale-95 transition-all text-xs"
+                >
+                  <Phone size={18} fill="currentColor" /> {t('detail.callSeller') || 'Call Seller'}
+                </button>
+                
+                <button 
+                  onClick={handleSendMessage}
+                  className="w-full bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white py-3.5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all text-xs"
+                >
+                  <MessageCircle size={18} fill="currentColor" /> {t('detail.messageBtn') || 'Send Message'}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Right Column: Pricing & Seller (Desktop) */}
@@ -315,7 +383,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                   <div>
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.sellerInfo')}</p>
                     <p className="font-bold text-zinc-900 dark:text-white text-sm">
-                      {sellerProfile?.displayName || car.ownerName}
+                      {(sellerProfile?.displayName !== 'Anonymous' ? sellerProfile?.displayName : undefined) || (car.ownerName !== 'Anonymous' ? car.ownerName : undefined) || sellerProfile?.email?.split('@')[0] || 'User'}
                     </p>
                   </div>
                 </div>
@@ -338,23 +406,6 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
           </div>
         </div>
 
-        {/* Sticky Mobile Action Buttons */}
-        <div className="md:hidden fixed bottom-6 left-4 right-4 z-[55] flex gap-3 pb-[env(safe-area-inset-bottom)]">
-          <a 
-            href={`tel:${car.ownerPhone}`}
-            className="flex-1 h-14 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-all text-xs"
-          >
-            <Phone size={18} fill="currentColor" />
-            {t('detail.callBtn')}
-          </a>
-          <button 
-            onClick={handleSendMessage}
-            className="flex-1 h-14 bg-brand text-white rounded-2xl flex items-center justify-center gap-2 font-black uppercase tracking-widest shadow-2xl shadow-brand/20 active:scale-95 transition-all text-xs"
-          >
-            <MessageCircle size={18} fill="currentColor" />
-            {t('detail.messageBtn')}
-          </button>
-        </div>
 
         {/* Similar Cars Section */}
         <section className="max-w-7xl mx-auto px-4 w-full mt-12 mb-20">
@@ -387,45 +438,59 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
 
       <AnimatePresence>
         {isViewerOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+            className="fixed inset-0 z-[100] bg-black flex flex-col h-[100dvh] w-screen overflow-hidden"
+            style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
-            <div className="p-4 flex justify-between items-center text-white">
-              <span className="font-black text-xs tracking-widest">{activeImage + 1} / {car.imageURLs.length}</span>
-              <button 
+            {/* Header */}
+            <div className="flex justify-between items-center px-4 py-3 shrink-0">
+              <span className="font-black text-xs tracking-widest text-white">{activeImage + 1} / {car.imageURLs.length}</span>
+              <button
                 onClick={() => setIsViewerOpen(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                className="p-2 bg-white/10 rounded-full text-white"
               >
-                <X size={28} />
+                <X size={24} />
               </button>
             </div>
-            
-            <div className="flex-1 relative flex items-center justify-center p-4">
-              <button 
-                onClick={(e) => { e.stopPropagation(); setActiveImage(prev => (prev > 0 ? prev - 1 : car.imageURLs.length - 1)); }}
-                className="absolute left-4 z-10 p-4 bg-white/5 hover:bg-white/10 text-white rounded-full transition-colors hidden md:block"
-              >
-                <ChevronLeft size={32} />
-              </button>
-              
-              <motion.img 
+
+            {/* Image — fills remaining space */}
+            <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden px-2">
+              <motion.img
                 key={activeImage}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                src={car.imageURLs[activeImage]} 
-                alt="" 
-                className="max-w-full max-h-full object-contain"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                src={car.imageURLs[activeImage]}
+                alt=""
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
                 referrerPolicy="no-referrer"
               />
+            </div>
 
-              <button 
-                onClick={(e) => { e.stopPropagation(); setActiveImage(prev => (prev < car.imageURLs.length - 1 ? prev + 1 : 0)); }}
-                className="absolute right-4 z-10 p-4 bg-white/5 hover:bg-white/10 text-white rounded-full transition-colors hidden md:block"
+            {/* Navigation dots + arrows */}
+            <div className="shrink-0 flex items-center justify-center gap-4 py-4">
+              <button
+                onClick={() => setActiveImage(prev => (prev > 0 ? prev - 1 : car.imageURLs.length - 1))}
+                className="p-3 bg-white/10 text-white rounded-full"
               >
-                <ChevronRight size={32} />
+                <ChevronLeft size={24} />
+              </button>
+              <div className="flex gap-2">
+                {car.imageURLs.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveImage(i)}
+                    className={`rounded-full transition-all ${i === activeImage ? 'w-4 h-2 bg-brand' : 'w-2 h-2 bg-white/40'}`}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() => setActiveImage(prev => (prev < car.imageURLs.length - 1 ? prev + 1 : 0))}
+                className="p-3 bg-white/10 text-white rounded-full"
+              >
+                <ChevronRight size={24} />
               </button>
             </div>
           </motion.div>

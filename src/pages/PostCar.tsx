@@ -1,13 +1,88 @@
 import React, { useState, useRef } from 'react';
+import { useToast } from '../components/Toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Upload, Info, X, Loader2, ChevronRight, ChevronLeft, CheckCircle2, DollarSign, MapPin, Car as CarIcon, User, Package } from 'lucide-react';
+import { Camera, Upload, Info, X, Loader2, ChevronRight, ChevronLeft, CheckCircle2, DollarSign, MapPin, Car as CarIcon, User, Package, ChevronDown } from 'lucide-react';
 import { MAKES, MODELS_BY_MAKE, LOCATIONS, ADDIS_ABABA_SUB_CITIES, BODY_TYPES, PRICE_TYPES, SELLER_TYPES, LISTING_PACKAGES } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { Car, Page, ListingPackage } from '../types';
 import { db } from '../lib/firebase';
-import { collection, serverTimestamp, doc, writeBatch } from 'firebase/firestore';
-import { apiFetch, apiUpload } from '../lib/api-client';
+import { collection, serverTimestamp, doc, writeBatch, setDoc } from 'firebase/firestore';
+import { apiUpload } from '../lib/api-client';
 import { compressImage } from '../utils/image-utils';
+
+// Custom dropdown — replaces native <select> to avoid Android WebView white popup
+interface CustomSelectProps {
+  id?: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  disabled?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}
+
+const CustomSelect: React.FC<CustomSelectProps> = ({ id, name, value, onChange, disabled, children }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Parse options from children
+  const options: { value: string; label: string }[] = [];
+  React.Children.forEach(children, (child: any) => {
+    if (child?.type === 'option') {
+      options.push({ value: child.props.value ?? '', label: child.props.children ?? '' });
+    }
+  });
+
+  const selected = options.find(o => o.value === value);
+
+  // Close on outside click
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleSelect = (opt: { value: string; label: string }) => {
+    const syntheticEvent = {
+      target: { name, value: opt.value, type: 'select-one' },
+      currentTarget: { name, value: opt.value }
+    } as React.ChangeEvent<HTMLSelectElement>;
+    onChange(syntheticEvent);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(o => !o)}
+        className={`w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-left flex items-center justify-between gap-2 disabled:opacity-50 ${!selected?.value ? 'text-zinc-400' : 'text-zinc-900 dark:text-white'}`}
+      >
+        <span className="truncate">{selected?.label || options[0]?.label || 'Select...'}</span>
+        <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+          {options.map((opt, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleSelect(opt)}
+              className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-colors ${opt.value === value ? 'bg-brand text-white' : 'text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700'} ${!opt.value ? 'text-zinc-400' : ''}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface PostCarProps {
   setPage: (page: Page) => void;
@@ -16,6 +91,7 @@ interface PostCarProps {
 
 export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }) => {
   const { user, profile, t } = useAppContext();
+  const { showToast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [images, setImages] = useState<File[]>([]);
@@ -67,14 +143,14 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       const newFiles = Array.from(e.target.files);
       
       if (images.length + newFiles.length > 4) {
-        alert(t('post.errorMaxImages') || 'Maximum 4 images allowed');
+        showToast(t('post.errorMaxImages') || 'Maximum 4 images allowed', 'warning');
         return;
       }
 
       // Validate file size (5MB)
       const oversized = newFiles.some(file => file.size > 5 * 1024 * 1024);
       if (oversized) {
-        alert(t('post.errorImageSize') || 'Each image must be less than 5MB');
+        showToast(t('post.errorImageSize') || 'Each image must be less than 5MB', 'warning');
         return;
       }
 
@@ -89,14 +165,22 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const nextStep = () => {
+  const nextStep = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (validateStep(currentStep)) {
       setCurrentStep(prev => prev + 1);
       window.scrollTo(0, 0);
     }
   };
 
-  const prevStep = () => {
+  const prevStep = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setCurrentStep(prev => prev - 1);
     window.scrollTo(0, 0);
   };
@@ -104,33 +188,44 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
   const validateStep = (step: number) => {
     switch (step) {
       case 1:
-        if (!formData.title || !formData.city || !formData.condition || !formData.listingType) {
-          alert(t('post.errorMissingFields') || 'Please fill in all required fields');
-          return false;
+        if (!formData.title) {
+          showToast('Listing title is required', 'warning'); return false;
+        }
+        if (!formData.city) {
+          showToast('City is required', 'warning'); return false;
+        }
+        if (!formData.condition) {
+          showToast('Condition is required', 'warning'); return false;
+        }
+        if (!formData.listingType) {
+          showToast('Listing type is required', 'warning'); return false;
         }
         return true;
       case 2:
-        if (!formData.brand || !formData.model || !formData.year || !formData.mileage || !formData.transmission || !formData.fuel || !formData.bodyType) {
-          alert(t('post.errorCarDetails') || 'Please complete all required vehicle details.');
-          return false;
-        }
+        if (!formData.brand) { showToast('Make is required', 'warning'); return false; }
+        if (!formData.model) { showToast('Model is required', 'warning'); return false; }
+        if (!formData.year) { showToast('Year is required', 'warning'); return false; }
+        if (!formData.mileage) { showToast('Mileage is required', 'warning'); return false; }
+        if (!formData.transmission) { showToast('Transmission is required', 'warning'); return false; }
+        if (!formData.fuel) { showToast('Fuel type is required', 'warning'); return false; }
+        if (!formData.bodyType) { showToast('Body type is required', 'warning'); return false; }
         // Color and engineSize are optional — no validation needed
         return true;
       case 3:
         if (!formData.price) {
-          alert(t('post.errorPrice') || 'Please enter a price');
+          showToast(t('post.errorPrice') || 'Please enter a price', 'warning');
           return false;
         }
         return true;
       case 4:
         if (!formData.sellerPhone) {
-          alert(t('post.errorPhone') || 'Please enter your phone number');
+          showToast(t('post.errorPhone') || 'Please enter your phone number', 'warning');
           return false;
         }
         return true;
       case 5:
         if (images.length === 0) {
-          alert(t('post.errorImageRequired') || 'Please upload at least one image');
+          showToast(t('post.errorImageRequired') || 'Please upload at least one image', 'warning');
           return false;
         }
         return true;
@@ -139,9 +234,23 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
     if (isSubmitting) return;
-    if (!user) return;
+    if (!user) {
+      showToast(t('post.errorNotLoggedIn') || 'You must be logged in to post a listing', 'error');
+      return;
+    }
+
+    // Final validation
+    if (images.length === 0) {
+      showToast(t('post.errorImageRequired') || 'Please upload at least one image', 'warning');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -149,17 +258,21 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       // Get Firebase ID token for authentication
       const idToken = await user.getIdToken();
 
-      // 1. Upload images to R2 via Express server proxy
-      //    We compress images in the browser first to speed up the process.
+      showToast(t('post.uploading') || 'Uploading images...', 'info');
+
+      // 1. Upload images to R2 via Express server proxy (SEQUENTIAL to prevent OOM on Android)
       const listingId = Math.random().toString(36).substring(2, 15);
-      const imageUrls = await Promise.all(
-        images.map(async (image, index) => {
+      const imageUrls: string[] = [];
+      
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        try {
           const compressedBlob = await compressImage(image).catch(err => {
             console.warn('Compression failed, using original:', err);
             return image;
           });
 
-          const imageName = `image-${index + 1}-${Date.now()}`;
+          const imageName = `image-${i + 1}-${Date.now()}`;
           const key = `listings/${user.uid}/${listingId}/${imageName}.jpg`;
 
           const uploadResponse = await apiUpload(
@@ -170,67 +283,69 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                 'Content-Type': 'image/jpeg',
                 'Authorization': `Bearer ${idToken}`
               },
-              body: compressedBlob
+              body: await compressedBlob.arrayBuffer()
             }
           );
 
           if (!uploadResponse.ok) {
             const contentType = uploadResponse.headers.get('content-type');
+            let errorMsg = 'Failed to upload image';
             if (contentType && contentType.includes('application/json')) {
               const errorData = await uploadResponse.json();
-              throw new Error(errorData.details
-                ? `${errorData.error}: ${errorData.details}`
-                : (errorData.error || 'Failed to upload image'));
+              errorMsg = errorData.details ? `${errorData.error}: ${errorData.details}` : (errorData.error || errorMsg);
             }
-            throw new Error(`Upload failed (status ${uploadResponse.status}). Server may be unreachable.`);
+            throw new Error(errorMsg);
           }
 
           const { publicUrl } = await uploadResponse.json();
-          return publicUrl;
-        })
-      );
+          imageUrls.push(publicUrl);
+        } catch (uploadErr: any) {
+          console.error(`ERROR: Image ${i + 1} upload failed:`, uploadErr);
+          throw new Error(`Image ${i + 1} upload failed: ${uploadErr.message}`);
+        }
+      }
 
       const isPaid = formData.packageType !== 'free';
       
       const listingPayload = {
         id: listingId,
         ownerId: user.uid,
-        ownerName: profile?.displayName || user.displayName || 'Anonymous',
+        ownerName: profile?.displayName || user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
         ownerPhone: formData.sellerPhone,
         ownerSellerType: formData.saleType,
         ...formData,
-        year: parseInt(formData.year),
-        price: parseFloat(formData.price),
-        mileage: parseFloat(formData.mileage),
-        bankLoanAmount: formData.bankLoanAmount ? parseFloat(formData.bankLoanAmount) : undefined,
+        year: parseInt(formData.year.toString().replace(/[^0-9]/g, '')) || new Date().getFullYear(),
+        price: parseFloat(formData.price.toString().replace(/[^0-9.]/g, '')) || 0,
+        mileage: parseFloat(formData.mileage.toString().replace(/[^0-9.]/g, '')) || 0,
+        bankLoanAmount: formData.bankLoanAmount ? (parseFloat(formData.bankLoanAmount.toString().replace(/[^0-9.]/g, '')) || 0) : undefined,
         imageURLs: imageUrls,
-        status: isPaid ? 'pending_payment_verification' : 'active',
+        status: isPaid ? 'pending_payment_verification' : 'pending',
         views: 0,
-        createdAt: new Date().toISOString() // Fallback for local use
+        createdAt: new Date().toISOString()
       };
 
       if (isPaid) {
         // Store temporary listing data
         sessionStorage.setItem('pendingListing', JSON.stringify(listingPayload));
         setPendingListingId(listingId);
+        showToast(t('post.redirectingPayment') || 'Redirecting to payment...', 'info');
         setPage('payment');
       } else {
-        // 2. Save car data via Backend API
-        await apiFetch('/api/listings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ listing: listingPayload })
+        // 2. Save car data directly to Firestore
+        const carRef = doc(db, 'cars', listingId);
+        await setDoc(carRef, {
+          ...listingPayload,
+          createdAt: serverTimestamp()
         });
 
-        alert(t('post.success') || 'Listing posted successfully!');
+        showToast(t('post.success') || 'Listing posted successfully!', 'success');
         setPage('home');
       }
     } catch (error: any) {
-      console.error('Error posting listing:', error);
-      alert((t('post.errorPosting') || 'Failed to post listing: ') + error.message);
+      console.error('ERROR: Post listing failed:', error);
+      const msg = (t('post.errorPosting') || 'Failed to post listing: ') + error.message;
+      showToast(msg, 'error');
+      alert(`Submission Error: ${msg}`); // Explicit alert so user doesn't miss the failure reason
     } finally {
       setIsSubmitting(false);
     }
@@ -255,68 +370,68 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     value={formData.title}
                     onChange={handleInputChange}
                     placeholder={t('post.titlePlaceholder') || 'e.g. 2020 Toyota Corolla - Excellent Condition'}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-brand focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="condition" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.condition') || 'Condition'}</label>
-                    <select 
+                    <CustomSelect 
                       id="condition"
                       name="condition"
                       value={formData.condition}
                       onChange={handleInputChange}
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                     >
                       <option value="">{t('post.selectCondition') || 'Select Condition'}</option>
                       <option value="Used">{t('search.used')}</option>
                       <option value="New">{t('search.new')}</option>
-                    </select>
+                    </CustomSelect>
                   </div>
                   <div>
                     <label htmlFor="listingType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.listingType') || 'Listing Type'}</label>
-                    <select 
+                    <CustomSelect 
                       id="listingType"
                       name="listingType"
                       value={formData.listingType}
                       onChange={handleInputChange}
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                     >
                       <option value="">{t('post.selectListingType') || 'Select Listing Type'}</option>
                       <option value="sale">{t('nav.sell')}</option>
                       <option value="rent">{t('nav.rent')}</option>
-                    </select>
+                    </CustomSelect>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="city" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.location') || 'City'}</label>
-                    <select 
+                    <CustomSelect 
                       id="city"
                       name="city"
                       value={formData.city}
                       onChange={handleInputChange}
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                     >
                       <option value="">{t('post.selectCity') || 'Select City'}</option>
                       {LOCATIONS.map(l => <option key={l} value={l}>{t(`locations.${l}`) || l}</option>)}
-                    </select>
+                    </CustomSelect>
                   </div>
                   {formData.city === 'Addis Ababa' && (
                     <div>
                       <label htmlFor="subCity" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.subCity') || 'Sub City'}</label>
-                      <select 
+                      <CustomSelect 
                         id="subCity"
                         name="subCity"
                         value={formData.subCity}
                         onChange={handleInputChange}
-                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                        className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                       >
                         <option value="">{t('search.anySubCity') || 'Select Sub City'}</option>
                         {ADDIS_ABABA_SUB_CITIES.map(sc => <option key={sc} value={sc}>{t(`subcities.${sc}`) || sc}</option>)}
-                      </select>
+                      </CustomSelect>
                     </div>
                   )}
                 </div>
@@ -335,32 +450,32 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label htmlFor="brand" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.make') || 'Make'}</label>
-                  <select 
+                  <CustomSelect 
                     id="brand"
                     name="brand"
                     value={formData.brand}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   >
                     <option value="">{t('search.anyMake') || 'Select Make'}</option>
                     {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div>
                   <label htmlFor="model" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.model') || 'Model'}</label>
-                  <select 
+                  <CustomSelect 
                     id="model"
                     name="model"
                     value={formData.model}
                     onChange={handleInputChange}
                     disabled={!formData.brand}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white disabled:opacity-50"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none disabled:opacity-50"
                   >
                     <option value="">{t('search.anyModel') || 'Select Model'}</option>
                     {formData.brand && MODELS_BY_MAKE[formData.brand]?.map(m => (
                       <option key={m} value={m}>{m}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div>
                   <label htmlFor="year" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.year') || 'Year'}</label>
@@ -370,7 +485,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     type="number"
                     value={formData.year}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
                 <div>
@@ -382,51 +497,51 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     value={formData.mileage}
                     onChange={handleInputChange}
                     placeholder="e.g. 45000"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
                 <div>
                   <label htmlFor="transmission" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.transmission') || 'Transmission'}</label>
-                  <select 
+                  <CustomSelect 
                     id="transmission"
                     name="transmission"
                     value={formData.transmission}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   >
                     <option value="">{t('post.selectTransmission') || 'Select Transmission'}</option>
                     <option value="Automatic">{t('common.automatic')}</option>
                     <option value="Manual">{t('common.manual')}</option>
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div>
                   <label htmlFor="fuel" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.fuel') || 'Fuel Type'}</label>
-                  <select 
+                  <CustomSelect 
                     id="fuel"
                     name="fuel"
                     value={formData.fuel}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   >
                     <option value="">{t('post.selectFuelType') || 'Select Fuel Type'}</option>
                     <option value="Petrol">{t('common.petrol')}</option>
                     <option value="Diesel">{t('common.diesel')}</option>
                     <option value="Hybrid">{t('common.hybrid')}</option>
                     <option value="Electric">{t('common.electric')}</option>
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div>
                   <label htmlFor="bodyType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.bodyType') || 'Body Type'}</label>
-                  <select 
+                  <CustomSelect 
                     id="bodyType"
                     name="bodyType"
                     value={formData.bodyType}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   >
                     <option value="">{t('post.selectBodyType') || 'Select Body Type'}</option>
                     {BODY_TYPES.map(type => <option key={type} value={type}>{t(`bodyTypes.${type}`) || type}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div>
                   <label htmlFor="engineSize" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.engineSize') || 'Engine Size'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
@@ -436,21 +551,21 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     value={formData.engineSize}
                     onChange={handleInputChange}
                     placeholder="e.g. 1.6L"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
                 <div>
                   <label htmlFor="color" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.color') || 'Color'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
-                  <select
+                  <CustomSelect
                     id="color"
                     name="color"
                     value={formData.color}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   >
                     <option value="">{t('post.selectColor') || 'Select Color'}</option>
                     {CAR_COLORS.map(c => <option key={c} value={c}>{t(`colors.${c}`) || c}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
               </div>
             </div>
@@ -474,20 +589,20 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     value={formData.price}
                     onChange={handleInputChange}
                     placeholder="e.g. 1500000"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
                 <div>
                   <label htmlFor="priceType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.priceType') || 'Price Type'}</label>
-                  <select 
+                  <CustomSelect 
                     id="priceType"
                     name="priceType"
                     value={formData.priceType}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   >
                     {PRICE_TYPES.map(type => <option key={type} value={type}>{t(`priceTypes.${type}`) || type}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700">
                   <input 
@@ -512,7 +627,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                       value={formData.bankLoanAmount}
                       onChange={handleInputChange}
                       placeholder={t('post.loanPlaceholder') || 'Enter remaining loan amount (ETB)'}
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                     />
                   </div>
                 )}
@@ -531,15 +646,15 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label htmlFor="saleType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.iAmA') || 'I am a'}</label>
-                  <select 
+                  <CustomSelect 
                     id="saleType"
                     name="saleType"
                     value={formData.saleType}
                     onChange={handleInputChange}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   >
                     {SELLER_TYPES.map(type => <option key={type} value={type}>{t(`sellerTypes.${type}`) || type}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div>
                   <label htmlFor="sellerPhone" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('auth.phone') || 'Phone Number'}</label>
@@ -549,7 +664,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     value={formData.sellerPhone}
                     onChange={handleInputChange}
                     placeholder="e.g. 0912345678"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none dark:text-white"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
               </div>
@@ -627,6 +742,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                 {LISTING_PACKAGES.map((pkg) => (
                   <button
                     key={pkg.id}
+                    type="button"
                     onClick={() => setFormData(prev => ({ ...prev, packageType: pkg.id }))}
                     className={`p-5 rounded-3xl border-2 text-left transition-all relative overflow-hidden ${
                       formData.packageType === pkg.id 
@@ -676,7 +792,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
             />
           ))}
         </div>
-        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">{t('post.step') || 'Step'} {currentStep} {t('post.of') || 'of'} 6</p>
+        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Step {currentStep} of 6</p>
       </div>
 
       <div className="min-h-[400px]">
@@ -688,6 +804,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       <div className="mt-8 md:mt-12 flex justify-between items-center">
         {currentStep > 1 ? (
           <button 
+            type="button"
             onClick={prevStep}
             className="flex items-center gap-1.5 md:gap-2 px-4 md:px-6 py-2.5 md:py-3 text-zinc-500 font-black text-xs md:text-sm hover:text-brand transition-colors uppercase tracking-widest"
           >
@@ -698,6 +815,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
 
         {currentStep < 6 ? (
           <button 
+            type="button"
             onClick={nextStep}
             className="flex items-center gap-1.5 md:gap-2 px-6 md:px-8 py-3 md:py-4 bg-brand text-white rounded-xl md:rounded-2xl font-black text-xs md:text-sm shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all uppercase tracking-widest"
           >
@@ -706,6 +824,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
           </button>
         ) : (
           <button 
+            type="button"
             disabled={isSubmitting}
             onClick={handleSubmit}
             className="flex items-center gap-1.5 md:gap-2 px-8 md:px-12 py-3 md:py-4 bg-brand text-white rounded-xl md:rounded-2xl font-black text-xs md:text-sm shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 uppercase tracking-widest"

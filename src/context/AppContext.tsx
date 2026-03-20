@@ -1,13 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, User, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
-import { doc, onSnapshot, getDoc, setDoc, serverTimestamp, increment, arrayUnion } from 'firebase/firestore';
+import { onAuthStateChanged, User, GoogleAuthProvider } from 'firebase/auth';
+import { doc, onSnapshot, setDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { UserProfile } from '../types';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+// NOTE: firebase/messaging is NOT imported here — it crashes on Android Capacitor WebView.
+// It is dynamically imported inside the web-only notification useEffect below.
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import enTranslations from '../locales/english.json';
 import amTranslations from '../locales/amharic.json';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 const translations = {
   en: enTranslations,
@@ -34,6 +38,14 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const mounted = useRef(true);
+  
+  useEffect(() => {
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme');
     return (saved as Theme) || 'light';
@@ -46,29 +58,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  // Start with loading false to allow initial UI shell to render immediately
-  // This improves First Meaningful Paint and avoids blocking Lighthouse
-  const [loading, setLoading] = useState(false);
-  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isAuthModalOpen, setAuthModalOpenState] = useState(false);
+
+  const setAuthModalOpen = (isOpen: boolean) => {
+    if (mounted.current) setAuthModalOpenState(isOpen);
+  };
+
+  // Native push notification permission — runs once on first launch
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const initNativeNotifications = async () => {
+      try {
+        const { receive } = await PushNotifications.checkPermissions();
+
+        if (receive === 'prompt') {
+          const { receive: result } = await PushNotifications.requestPermissions();
+          if (result !== 'granted') return;
+        } else if (receive !== 'granted') {
+          return;
+        }
+
+        await PushNotifications.register();
+
+        PushNotifications.addListener('registration', async (token) => {
+          const currentUser = auth.currentUser;
+          if (currentUser && token.value) {
+            await setDoc(doc(db, 'users', currentUser.uid), {
+              fcmTokens: arrayUnion(token.value),
+              updatedAt: serverTimestamp()
+            }, { merge: true });
+          }
+        });
+
+        PushNotifications.addListener('registrationError', (error) => {
+          console.warn('[PushNotifications] Registration error:', error);
+        });
+
+        // Handle push notifications received while app is in foreground
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('[PushNotifications] Foreground notification:', notification);
+          // Display as in-app notification using a native alert-style approach
+          const title = notification.title || 'EthioCars';
+          const body = notification.body || '';
+          if (body) {
+            // Dispatch a custom event that the Toast system can pick up
+            window.dispatchEvent(new CustomEvent('app-notification', {
+              detail: { title, body }
+            }));
+          }
+        });
+
+      } catch (error) {
+        console.warn('[PushNotifications] Init error:', error);
+      }
+    };
+
+    setTimeout(initNativeNotifications, 2000);
+  }, []);
 
   useEffect(() => {
     let profileUnsubscribe: (() => void) | null = null;
-    let authUnsubscribe: (() => void) | null = null;
-    
-    // We only set loading to true if we are actually waiting for an auth check
-    // but we do it inside the idle callback to avoid blocking the initial render
-    const initAuth = () => {
-      authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        // Cleanup previous profile listener if it exists
+
+    const authUnsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      // CRITICAL: onAuthStateChanged can fire synchronously during useEffect
+      // execution (before React finishes the commit phase). Calling setState
+      // at that point triggers React #310 "too many re-renders".
+      // queueMicrotask defers these updates to after the commit completes.
+      queueMicrotask(() => {
+        if (!mounted.current) return;
+
         if (profileUnsubscribe) {
           profileUnsubscribe();
           profileUnsubscribe = null;
         }
 
         setUser(currentUser);
-        
+
         if (currentUser) {
           profileUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (snapshot) => {
+            if (!mounted.current) return;
             if (snapshot.exists()) {
               setProfile(snapshot.data() as UserProfile);
             } else {
@@ -76,7 +146,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
             setLoading(false);
           }, (error) => {
-            setLoading(false);
+            console.error('ERROR: Failed to load user profile:', error);
+            if (mounted.current) setLoading(false);
             handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
           });
         } else {
@@ -84,63 +155,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setLoading(false);
         }
       });
-    };
-
-    // Fallback for browsers that don't support requestIdleCallback
-    if ('requestIdleCallback' in window) {
-      window.requestIdleCallback(() => initAuth(), { timeout: 2000 });
-    } else {
-      setTimeout(initAuth, 1000);
-    }
+    });
 
     return () => {
-      if (authUnsubscribe) authUnsubscribe();
+      authUnsubscribe();
       if (profileUnsubscribe) profileUnsubscribe();
     };
   }, []);
 
-  // Handle Google redirect result on app mount
-  // After signInWithRedirect, the page reloads and this picks up the result
-  useEffect(() => {
-    let cancelled = false;
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result && !cancelled) {
-          const redirectUser = result.user;
-          const userDoc = await getDoc(doc(db, 'users', redirectUser.uid));
-          if (!userDoc.exists()) {
-            await setDoc(doc(db, 'users', redirectUser.uid), {
-              uid: redirectUser.uid,
-              email: redirectUser.email,
-              displayName: redirectUser.displayName || 'Anonymous',
-              createdAt: serverTimestamp(),
-              phoneNumber: '',
-              sellerType: 'Private Seller'
-            });
-            await setDoc(doc(db, 'stats', 'global'), {
-              usersCount: increment(1)
-            }, { merge: true });
-          }
-          setAuthModalOpen(false);
-        }
-      })
-      .catch((err) => {
-        // Silently ignore redirect errors (user cancelled, etc.)
-        if (err?.code) {
-          console.warn('[Auth] Redirect result error:', err.code);
-        }
-      });
-    return () => { cancelled = true; };
-  }, []);
-
+  // Theme + status bar sync
   useEffect(() => {
     localStorage.setItem('theme', theme);
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
-      document.documentElement.style.colorScheme = 'dark';
     } else {
       document.documentElement.classList.remove('dark');
-      document.documentElement.style.colorScheme = 'light';
+    }
+
+    // Sync native Android status bar with theme
+    if (Capacitor.isNativePlatform()) {
+      try {
+        StatusBar.setBackgroundColor({ color: theme === 'dark' ? '#09090b' : '#FDFDFD' }).catch(() => {});
+        StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light }).catch(() => {});
+      } catch {
+        // StatusBar plugin might not be ready during initial load
+      }
     }
   }, [theme]);
 
@@ -148,64 +187,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('language', language);
   }, [language]);
 
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const toggleTheme = () => {
+    if (mounted.current) setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
   
-  const setLanguage = (lang: Language) => setLanguageState(lang);
+  const setLanguage = (lang: Language) => {
+    if (mounted.current) setLanguageState(lang);
+  };
 
-  // Handle service worker registration & push notifications
+  // Handle service worker registration & web push notifications
   useEffect(() => {
     let messagingUnsubscribe: (() => void) | null = null;
 
     const initNotifications = async () => {
-      // Guard: only run in browsers that support SW + Notification
       if (!('serviceWorker' in navigator) || !('Notification' in window)) {
         return;
       }
 
       try {
-        // Register the main service worker (caching)
         await navigator.serviceWorker.register('/sw.js');
 
-        // Only request notification permission if user is logged in
         if (!user) return;
 
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') return;
 
-        // Register the FCM service worker for push notifications
         const fcmReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
           scope: '/firebase-cloud-messaging-push-scope'
         });
 
-        // Initialize FCM — wrapped in try/catch because it may fail
-        // on browsers that lack PushManager or if the project has no
-        // Web Push certificate configured in Firebase Console.
         try {
-          const messaging = getMessaging();
+          // Dynamically import messaging so it doesn't crash Android Capacitor WebView
+          const { getMessaging, getToken, onMessage } = await import('firebase/messaging');
           
-          // Get FCM token. vapidKey must match the Web Push certificate
-          // generated in Firebase Console → Project Settings → Cloud Messaging.
-          // If you haven't generated one yet, go to:
-          // https://console.firebase.google.com/project/ethiocars-dd66e/settings/cloudmessaging
-          // and generate a new key pair, then paste the public key here.
+          const messagingParams = { app: auth.app }; // need to pass app to getMessaging if needed or just use default
+          const messaging = getMessaging();
           const token = await getToken(messaging, {
             serviceWorkerRegistration: fcmReg
-            // vapidKey is OPTIONAL if you're using Firebase's auto-generated key.
-            // Only add it if you've manually created a VAPID key pair in Firebase Console.
           });
 
           if (token) {
-            // Save token to user profile for targeted notifications
             await setDoc(doc(db, 'users', user.uid), {
               fcmTokens: arrayUnion(token),
               updatedAt: serverTimestamp()
             }, { merge: true });
           }
 
-          // Listen for foreground messages
           messagingUnsubscribe = onMessage(messaging, (payload) => {
             if (document.visibilityState === 'visible') {
-              // Show a native notification even when the app is in the foreground
               new Notification(payload.notification?.title || 'EthioCars', {
                 body: payload.notification?.body,
                 icon: '/favicon.ico'
@@ -213,7 +242,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           });
         } catch (fcmError) {
-          // FCM init can fail if PushManager is unavailable or VAPID key is wrong
           console.warn('[FCM] Firebase messaging not available:', fcmError);
         }
       } catch (error) {
@@ -242,14 +270,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     if (value === undefined) return key;
 
-    // Handle returnObjects case
     if (params && 'returnObjects' in params && params.returnObjects) {
       return value;
     }
     
-    if (typeof value !== 'string') return value; // Return as is if not a string (array/object)
+    if (typeof value !== 'string') return value;
     
-    // Replace params like {amount}
     if (params && !('returnObjects' in params)) {
       return Object.entries(params).reduce((str: string, [k, v]) => {
         return str.replace(new RegExp(`{${k}}`, 'g'), String(v));

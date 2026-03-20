@@ -109,9 +109,11 @@ async function startServer() {
       'https://ethiocars-9jsd.onrender.com', // Render production
       'http://localhost:5173',                 // Vite dev server
       'http://localhost:3000',                 // Express dev server
+      'http://localhost',                      // Capacitor Android
+      'capacitor://localhost',                 // Capacitor iOS
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
     credentials: true,
   }));
 
@@ -152,8 +154,8 @@ async function startServer() {
   });
   
   // R2 Upload Routes - MUST be before express.json() to handle raw body correctly
-  app.post("/api/r2/upload-listing", authenticate, express.raw({ type: ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"], limit: "10mb" }), async (req, res) => {
-    const { fileName, fileType, customKey } = req.query as any;
+  app.post("/api/r2/upload-listing", authenticate, express.raw({ type: "*/*", limit: "20mb" }), async (req, res) => {
+    let { fileName, fileType, customKey } = req.query as any;
 
     try {
       if (!fileName || !fileType) {
@@ -192,8 +194,8 @@ async function startServer() {
     }
   });
 
-  app.post("/api/r2/upload-payment", authenticate, express.raw({ type: ["image/jpeg", "image/jpg", "image/png", "image/webp"], limit: "10mb" }), async (req, res) => {
-    const { fileName, fileType, customKey } = req.query as any;
+  app.post("/api/r2/upload-payment", authenticate, express.raw({ type: "*/*", limit: "20mb" }), async (req, res) => {
+    let { fileName, fileType, customKey } = req.query as any;
 
     try {
       if (!fileName || !fileType) {
@@ -248,6 +250,57 @@ async function startServer() {
       await r2Client.send(command);
       res.json({ success: true, message: "Cloudflare R2 is connected and authenticated." });
     } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // User Delete Listing API
+  api.delete("/listings", authenticate, async (req, res) => {
+    const { id } = req.query;
+    const user = (req as any).user;
+
+    try {
+      if (!id || typeof id !== 'string') {
+        return res.status(400).json({ success: false, error: "Listing ID is required" });
+      }
+
+      if (!db || !admin) throw new Error("Database not initialized");
+
+      const listingRef = db.collection('cars').doc(id);
+      const listingDoc = await listingRef.get();
+
+      if (!listingDoc.exists) {
+        return res.status(404).json({ success: false, error: "Listing not found" });
+      }
+
+      const listingData = listingDoc.data();
+
+      // Ensure the authenticated user owns this listing OR is an admin
+      const isOwner = listingData?.ownerId === user.uid;
+      const isAdmin = user.email === 'kaleabepherem@gmail.com' || user.email === 'kaleabepherem98@gmail.com';
+      
+      if (!isOwner && !isAdmin) {
+        return res.status(403).json({ success: false, error: "Unauthorized to delete this listing" });
+      }
+
+      // 1. Delete images from R2
+      const imageURLs = listingData?.imageURLs || [];
+      await deleteListingImagesFromR2(imageURLs);
+
+      // 2. Delete from Firestore
+      await listingRef.delete();
+
+      // 3. Decrement global count if it was active
+      if (listingData?.status === 'active') {
+        const statsRef = db.collection('stats').doc('global');
+        await statsRef.set({
+          listingsCount: admin.firestore.FieldValue.increment(-1)
+        }, { merge: true });
+      }
+
+      res.json({ success: true, message: "Listing safely deleted" });
+    } catch (error: any) {
+      console.error('Delete Listing Error:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   });
@@ -645,7 +698,7 @@ async function startServer() {
         }
 
         batch.update(listingRef, { 
-          status: 'active',
+          status: 'approved',
           featured: true,
           expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null
         });

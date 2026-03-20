@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface PullToRefreshProps {
   children: React.ReactNode;
@@ -12,11 +12,10 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isPulling = useRef(false);
   const startY = useRef(0);
-  
+
   const PULL_THRESHOLD = 80;
   const MAX_PULL = 180;
 
-  // Prevent browser's native pull-to-refresh
   React.useEffect(() => {
     document.body.style.overscrollBehaviorY = 'contain';
     return () => { document.body.style.overscrollBehaviorY = 'auto'; };
@@ -76,13 +75,9 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
           }}
         >
           <div className="bg-white dark:bg-zinc-800 rounded-full p-2 shadow-lg shadow-black/5 dark:shadow-black/20 border border-zinc-100 dark:border-zinc-700/50">
-            <RefreshCw 
-              className="w-5 h-5 text-brand" 
+            <Loader2
+              className="w-5 h-5 text-brand animate-spin"
               strokeWidth={2.5}
-              style={{
-                transform: `rotate(${isRefreshing ? 0 : pullDistance * 2.5}deg)`,
-                animation: isRefreshing ? 'spin 0.8s linear infinite' : 'none'
-              }}
             />
           </div>
         </div>
