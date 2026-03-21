@@ -138,23 +138,31 @@ export default function App() {
 
 
 
-  // Global Auth Guard — forces auth modal instantly on launch if not logged in
+  // Auth Guard & Optional First-Launch Prompt
+  const promptShownRef = React.useRef(false);
   const redirectingRef = React.useRef(false);
+  
   React.useEffect(() => {
     if (loading) return;
+    if (redirectingRef.current) return;
     
     if (!user) {
-      if (!isAuthModalOpen) {
+      const protectedPages: Page[] = ['post', 'dashboard', 'chat', 'payment'];
+      
+      if (protectedPages.includes(currentPage)) {
+        // Block restricted pages
+        redirectingRef.current = true;
+        sessionStorage.setItem('redirectAfterLogin', currentPage);
+        setAuthModalOpen(true);
+        if (currentPage !== 'home') setCurrentPage('home');
+        setTimeout(() => { redirectingRef.current = false; }, 200);
+      } else if (!promptShownRef.current) {
+        // Optional auth prompt on first app launch
+        promptShownRef.current = true;
         setAuthModalOpen(true);
       }
-    } else {
-      // Secondary route guard if user manually logs out while on protected page
-      const protectedPages: Page[] = ['post', 'dashboard', 'chat', 'payment'];
-      if (protectedPages.includes(currentPage)) {
-        // Safe to stay, they are logged in
-      }
     }
-  }, [currentPage, user, loading, isAuthModalOpen]);
+  }, [currentPage, user, loading]);
 
   // Scroll to top on page change
   React.useEffect(() => {
@@ -232,34 +240,26 @@ export default function App() {
   return (
     <div className={`min-h-[100dvh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 selection:bg-brand/10 selection:text-brand transition-colors duration-500 ${currentPage === 'chat' && activeChatId ? '' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0'}`}>
       <NetworkStatus />
-      {user ? (
-        <>
-          <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
-            <Header currentPage={currentPage} setPage={setCurrentPage} />
-          </div>
-          
-          <main className={currentPage === 'chat' && activeChatId ? 'h-[100dvh]' : ''} style={currentPage === 'chat' && activeChatId ? undefined : { paddingTop: 'var(--header-h)' }}>
-            <PullToRefresh disabled={currentPage === 'menu' || currentPage === 'chat'}>
-                <React.Suspense fallback={
-                  <div className="min-h-[60vh] flex items-center justify-center">
-                    <Loader2 className="animate-spin text-brand" size={32} />
-                  </div>
-                }>
-                  {renderPage()}
-                </React.Suspense>
-            </PullToRefresh>
-          </main>
+      <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
+        <Header currentPage={currentPage} setPage={setCurrentPage} />
+      </div>
+      
+      <main className={currentPage === 'chat' && activeChatId ? 'h-[100dvh]' : ''} style={currentPage === 'chat' && activeChatId ? undefined : { paddingTop: 'var(--header-h)' }}>
+        <PullToRefresh disabled={currentPage === 'menu' || currentPage === 'chat'}>
+            <React.Suspense fallback={
+              <div className="min-h-[60vh] flex items-center justify-center">
+                <Loader2 className="animate-spin text-brand" size={32} />
+              </div>
+            }>
+              {renderPage()}
+            </React.Suspense>
+        </PullToRefresh>
+      </main>
 
-          {currentPage === 'dashboard' && <Footer setPage={setCurrentPage} />}
-          <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
-            <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
-          </div>
-        </>
-      ) : (
-        <div className="flex h-[100dvh] items-center justify-center w-full">
-          <div className="w-16 h-16 opacity-10 animate-pulse rounded-full bg-brand"></div>
-        </div>
-      )}
+      {currentPage === 'dashboard' && <Footer setPage={setCurrentPage} />}
+      <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
+        <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+      </div>
 
       {isAuthModalOpen && (
         <React.Suspense fallback={null}>
