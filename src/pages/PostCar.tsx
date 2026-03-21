@@ -9,80 +9,7 @@ import { db } from '../lib/firebase';
 import { collection, serverTimestamp, doc, writeBatch, setDoc } from 'firebase/firestore';
 import { apiUpload } from '../lib/api-client';
 import { compressImage } from '../utils/image-utils';
-
-// Custom dropdown — replaces native <select> to avoid Android WebView white popup
-interface CustomSelectProps {
-  id?: string;
-  name: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  disabled?: boolean;
-  className?: string;
-  children: React.ReactNode;
-}
-
-const CustomSelect: React.FC<CustomSelectProps> = ({ id, name, value, onChange, disabled, children }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Parse options from children
-  const options: { value: string; label: string }[] = [];
-  React.Children.forEach(children, (child: any) => {
-    if (child?.type === 'option') {
-      options.push({ value: child.props.value ?? '', label: child.props.children ?? '' });
-    }
-  });
-
-  const selected = options.find(o => o.value === value);
-
-  // Close on outside click
-  React.useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const handleSelect = (opt: { value: string; label: string }) => {
-    const syntheticEvent = {
-      target: { name, value: opt.value, type: 'select-one' },
-      currentTarget: { name, value: opt.value }
-    } as React.ChangeEvent<HTMLSelectElement>;
-    onChange(syntheticEvent);
-    setOpen(false);
-  };
-
-  return (
-    <div ref={ref} className="relative w-full">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setOpen(o => !o)}
-        className={`w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold text-left flex items-center justify-between gap-2 disabled:opacity-50 ${!selected?.value ? 'text-zinc-400' : 'text-zinc-900 dark:text-white'}`}
-      >
-        <span className="truncate">{selected?.label || options[0]?.label || 'Select...'}</span>
-        <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute z-[200] left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl shadow-xl overflow-hidden max-h-52 overflow-y-auto">
-          {options.map((opt, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleSelect(opt)}
-              className={`w-full text-left px-4 py-2.5 text-xs font-bold transition-colors ${opt.value === value ? 'bg-brand text-white' : 'text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700'} ${!opt.value ? 'text-zinc-400' : ''}`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+import { BottomSheetSelect } from '../components/BottomSheetSelect';
 
 interface PostCarProps {
   setPage: (page: Page) => void;
@@ -121,7 +48,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     description: '',
     condition: '' as '' | 'Used' | 'New',
     listingType: '' as '' | 'sale' | 'rent',
-    saleType: 'Owner' as 'Owner' | 'Broker' | 'Dealer',
     sellerPhone: profile?.phoneNumber || '',
     packageType: 'free',
     bankLoan: false,
@@ -193,6 +119,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         }
         if (!formData.city) {
           showToast('City is required', 'warning'); return false;
+        }
+        if (formData.city === 'Addis Ababa' && !formData.subCity) {
+          return false; // Silent enforce
         }
         if (!formData.condition) {
           showToast('Condition is required', 'warning'); return false;
@@ -275,7 +204,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
           const imageName = `image-${i + 1}-${Date.now()}`;
           const key = `listings/${user.uid}/${listingId}/${imageName}.jpg`;
 
-          const uploadResponse = await apiUpload(
+          const uploadData = await apiUpload(
             `/api/r2/upload-listing?fileName=${encodeURIComponent(imageName)}&fileType=image/jpeg&customKey=${encodeURIComponent(key)}`,
             {
               method: 'POST',
@@ -287,20 +216,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
             }
           );
 
-          if (!uploadResponse.ok) {
-            const contentType = uploadResponse.headers.get('content-type');
-            let errorMsg = 'Failed to upload image';
-            if (contentType && contentType.includes('application/json')) {
-              const errorData = await uploadResponse.json();
-              errorMsg = errorData.details ? `${errorData.error}: ${errorData.details}` : (errorData.error || errorMsg);
-            }
-            throw new Error(errorMsg);
-          }
-
-          const { publicUrl } = await uploadResponse.json();
-          imageUrls.push(publicUrl);
+          imageUrls.push(uploadData.publicUrl);
         } catch (uploadErr: any) {
-          console.error(`ERROR: Image ${i + 1} upload failed:`, uploadErr);
+          console.error(`ERROR: Image ${i + 1} upload failed:`, uploadErr.message);
           throw new Error(`Image ${i + 1} upload failed: ${uploadErr.message}`);
         }
       }
@@ -312,7 +230,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         ownerId: user.uid,
         ownerName: profile?.displayName || user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
         ownerPhone: formData.sellerPhone,
-        ownerSellerType: formData.saleType,
+        ownerSellerType: profile?.sellerType || 'Private Seller',
         ...formData,
         year: parseInt(formData.year.toString().replace(/[^0-9]/g, '')) || new Date().getFullYear(),
         price: parseFloat(formData.price.toString().replace(/[^0-9.]/g, '')) || 0,
@@ -374,67 +292,61 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="condition" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.condition') || 'Condition'}</label>
-                    <CustomSelect 
-                      id="condition"
-                      name="condition"
-                      value={formData.condition}
-                      onChange={handleInputChange}
-                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                    >
-                      <option value="">{t('post.selectCondition') || 'Select Condition'}</option>
-                      <option value="Used">{t('search.used')}</option>
-                      <option value="New">{t('search.new')}</option>
-                    </CustomSelect>
-                  </div>
-                  <div>
-                    <label htmlFor="listingType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.listingType') || 'Listing Type'}</label>
-                    <CustomSelect 
-                      id="listingType"
-                      name="listingType"
-                      value={formData.listingType}
-                      onChange={handleInputChange}
-                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                    >
-                      <option value="">{t('post.selectListingType') || 'Select Listing Type'}</option>
-                      <option value="sale">{t('nav.sell')}</option>
-                      <option value="rent">{t('nav.rent')}</option>
-                    </CustomSelect>
-                  </div>
+                <div>
+                  <label htmlFor="condition" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.condition') || 'Condition'}</label>
+                  <BottomSheetSelect 
+                    id="condition"
+                    name="condition"
+                    value={formData.condition}
+                    onChange={handleInputChange}
+                    label={t('post.selectCondition') || 'Select Condition'}
+                    options={[
+                      { value: "Used", label: t('search.used') },
+                      { value: "New", label: t('search.new') }
+                    ]}
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="listingType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.listingType') || 'Listing Type'}</label>
+                  <BottomSheetSelect 
+                    id="listingType"
+                    name="listingType"
+                    value={formData.listingType}
+                    onChange={handleInputChange}
+                    label={t('post.selectListingType') || 'Select Listing Type'}
+                    options={[
+                      { value: "sale", label: t('nav.sell') },
+                      { value: "rent", label: t('nav.rent') }
+                    ]}
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="city" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.location') || 'City'}</label>
-                    <CustomSelect 
-                      id="city"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleInputChange}
-                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                    >
-                      <option value="">{t('post.selectCity') || 'Select City'}</option>
-                      {LOCATIONS.map(l => <option key={l} value={l}>{t(`locations.${l}`) || l}</option>)}
-                    </CustomSelect>
-                  </div>
-                  {formData.city === 'Addis Ababa' && (
-                    <div>
-                      <label htmlFor="subCity" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.subCity') || 'Sub City'}</label>
-                      <CustomSelect 
-                        id="subCity"
-                        name="subCity"
-                        value={formData.subCity}
-                        onChange={handleInputChange}
-                        className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                      >
-                        <option value="">{t('search.anySubCity') || 'Select Sub City'}</option>
-                        {ADDIS_ABABA_SUB_CITIES.map(sc => <option key={sc} value={sc}>{t(`subcities.${sc}`) || sc}</option>)}
-                      </CustomSelect>
-                    </div>
-                  )}
+                <div>
+                  <label htmlFor="city" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.location') || 'City'}</label>
+                  <BottomSheetSelect 
+                    id="city"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    label={t('post.selectCity') || 'Select City'}
+                    options={LOCATIONS.map(l => ({ value: l, label: t(`locations.${l}`) || l }))}
+                  />
                 </div>
+                
+                {formData.city === 'Addis Ababa' && (
+                  <div>
+                    <label htmlFor="subCity" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.subCity') || 'Sub City'}</label>
+                    <BottomSheetSelect 
+                      id="subCity"
+                      name="subCity"
+                      value={formData.subCity}
+                      onChange={handleInputChange}
+                      label={t('search.anySubCity') || 'Select Sub City'}
+                      options={ADDIS_ABABA_SUB_CITIES.map(sc => ({ value: sc, label: t(`subcities.${sc}`) || sc }))}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -450,32 +362,25 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label htmlFor="brand" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.make') || 'Make'}</label>
-                  <CustomSelect 
+                  <BottomSheetSelect 
                     id="brand"
                     name="brand"
                     value={formData.brand}
                     onChange={handleInputChange}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                  >
-                    <option value="">{t('search.anyMake') || 'Select Make'}</option>
-                    {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
-                  </CustomSelect>
+                    label={t('search.anyMake') || 'Select Make'}
+                    options={MAKES.map(m => ({ value: m, label: m }))}
+                  />
                 </div>
                 <div>
                   <label htmlFor="model" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.model') || 'Model'}</label>
-                  <CustomSelect 
+                  <BottomSheetSelect 
                     id="model"
                     name="model"
                     value={formData.model}
-                    onChange={handleInputChange}
-                    disabled={!formData.brand}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none disabled:opacity-50"
-                  >
-                    <option value="">{t('search.anyModel') || 'Select Model'}</option>
-                    {formData.brand && MODELS_BY_MAKE[formData.brand]?.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </CustomSelect>
+                    onChange={handleInputChange} disabled={!formData.brand}
+                    label={t('search.anyModel') || 'Select Model'}
+                    options={(formData.brand ? MODELS_BY_MAKE[formData.brand as keyof typeof MODELS_BY_MAKE] || [] : []).map(m => ({ value: m, label: m }))}
+                  />
                 </div>
                 <div>
                   <label htmlFor="year" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.year') || 'Year'}</label>
@@ -502,46 +407,44 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                 </div>
                 <div>
                   <label htmlFor="transmission" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.transmission') || 'Transmission'}</label>
-                  <CustomSelect 
+                  <BottomSheetSelect 
                     id="transmission"
                     name="transmission"
                     value={formData.transmission}
                     onChange={handleInputChange}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                  >
-                    <option value="">{t('post.selectTransmission') || 'Select Transmission'}</option>
-                    <option value="Automatic">{t('common.automatic')}</option>
-                    <option value="Manual">{t('common.manual')}</option>
-                  </CustomSelect>
+                    label={t('post.selectTransmission') || 'Select Transmission'}
+                    options={[
+                      { value: "Automatic", label: t('common.automatic') },
+                      { value: "Manual", label: t('common.manual') }
+                    ]}
+                  />
                 </div>
                 <div>
                   <label htmlFor="fuel" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.fuel') || 'Fuel Type'}</label>
-                  <CustomSelect 
+                  <BottomSheetSelect 
                     id="fuel"
                     name="fuel"
                     value={formData.fuel}
                     onChange={handleInputChange}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                  >
-                    <option value="">{t('post.selectFuelType') || 'Select Fuel Type'}</option>
-                    <option value="Petrol">{t('common.petrol')}</option>
-                    <option value="Diesel">{t('common.diesel')}</option>
-                    <option value="Hybrid">{t('common.hybrid')}</option>
-                    <option value="Electric">{t('common.electric')}</option>
-                  </CustomSelect>
+                    label={t('post.selectFuelType') || 'Select Fuel Type'}
+                    options={[
+                      { value: "Petrol", label: t('common.petrol') },
+                      { value: "Diesel", label: t('common.diesel') },
+                      { value: "Hybrid", label: t('common.hybrid') },
+                      { value: "Electric", label: t('common.electric') }
+                    ]}
+                  />
                 </div>
                 <div>
                   <label htmlFor="bodyType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.bodyType') || 'Body Type'}</label>
-                  <CustomSelect 
+                  <BottomSheetSelect 
                     id="bodyType"
                     name="bodyType"
                     value={formData.bodyType}
                     onChange={handleInputChange}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                  >
-                    <option value="">{t('post.selectBodyType') || 'Select Body Type'}</option>
-                    {BODY_TYPES.map(type => <option key={type} value={type}>{t(`bodyTypes.${type}`) || type}</option>)}
-                  </CustomSelect>
+                    label={t('post.selectBodyType') || 'Select Body Type'}
+                    options={BODY_TYPES.map(type => ({ value: type, label: t(`bodyTypes.${type}`) || type }))}
+                  />
                 </div>
                 <div>
                   <label htmlFor="engineSize" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.engineSize') || 'Engine Size'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
@@ -556,16 +459,14 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                 </div>
                 <div>
                   <label htmlFor="color" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.color') || 'Color'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
-                  <CustomSelect
+                  <BottomSheetSelect 
                     id="color"
                     name="color"
                     value={formData.color}
                     onChange={handleInputChange}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                  >
-                    <option value="">{t('post.selectColor') || 'Select Color'}</option>
-                    {CAR_COLORS.map(c => <option key={c} value={c}>{t(`colors.${c}`) || c}</option>)}
-                  </CustomSelect>
+                    label={t('post.selectColor') || 'Select Color'}
+                    options={CAR_COLORS.map(c => ({ value: c, label: t(`colors.${c}`) || c }))}
+                  />
                 </div>
               </div>
             </div>
@@ -594,15 +495,14 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                 </div>
                 <div>
                   <label htmlFor="priceType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.priceType') || 'Price Type'}</label>
-                  <CustomSelect 
+                  <BottomSheetSelect 
                     id="priceType"
                     name="priceType"
                     value={formData.priceType}
                     onChange={handleInputChange}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                  >
-                    {PRICE_TYPES.map(type => <option key={type} value={type}>{t(`priceTypes.${type}`) || type}</option>)}
-                  </CustomSelect>
+                    label={"Select"}
+                    options={PRICE_TYPES.map(type => ({ value: type, label: t(`priceTypes.${type}`) || type }))}
+                  />
                 </div>
                 <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700">
                   <input 
@@ -644,18 +544,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                <div>
-                  <label htmlFor="saleType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.iAmA') || 'I am a'}</label>
-                  <CustomSelect 
-                    id="saleType"
-                    name="saleType"
-                    value={formData.saleType}
-                    onChange={handleInputChange}
-                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
-                  >
-                    {SELLER_TYPES.map(type => <option key={type} value={type}>{t(`sellerTypes.${type}`) || type}</option>)}
-                  </CustomSelect>
-                </div>
                 <div>
                   <label htmlFor="sellerPhone" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('auth.phone') || 'Phone Number'}</label>
                   <input 

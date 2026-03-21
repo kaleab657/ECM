@@ -38,14 +38,19 @@ Apply this to BOTH buckets: `ethiocars-images` and `payment-proofs`.
     "AllowedOrigins": [
       "https://ethiocars-9jsd.onrender.com",
       "http://localhost:5173",
-      "http://localhost:3000"
+      "http://localhost:3000",
+      "https://localhost",
+      "capacitor://localhost"
     ],
     "AllowedMethods": [
       "GET",
-      "HEAD"
+      "HEAD",
+      "PUT",
+      "OPTIONS"
     ],
     "AllowedHeaders": [
-      "Content-Type"
+      "Content-Type",
+      "Authorization"
     ],
     "ExposeHeaders": ["ETag"],
     "MaxAgeSeconds": 86400
@@ -53,7 +58,10 @@ Apply this to BOTH buckets: `ethiocars-images` and `payment-proofs`.
 ]
 ```
 
-> **Note:** `PUT` and `POST` are NOT needed here since uploads go through the Express server, not directly from the browser.
+> **IMPORTANT:** You MUST include `"OPTIONS"` in `AllowedMethods`. Browsers send an `OPTIONS` preflight request before any cross-origin `PUT` request. If `OPTIONS` is missing, the upload will fail with a CORS error.
+
+
+> **Note:** `PUT` is needed for presigned URL uploads from the mobile app (chat image uploads). The Capacitor WebView origin is `https://localhost`. Listing/payment image uploads go through the Express server proxy, so they don't need R2 CORS.
 
 ---
 
