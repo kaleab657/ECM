@@ -32,7 +32,12 @@ export const MODELS_BY_MAKE: Record<string, string[]> = {
   'Land Rover': ['Range Rover', 'Defender', 'Discovery', 'Evoque'],
 };
 
-export const LOCATIONS = ['Addis Ababa', 'Adama', 'Hawassa', 'Bahir Dar', 'Dire Dawa', 'Mekelle', 'Jimma'];
+export const LOCATIONS = [
+  'Addis Ababa', 'Adama (Nazret)', 'Dire Dawa', 'Mekelle', 'Gondar', 'Hawassa', 
+  'Bahir Dar', 'Jimma', 'Jigjiga', 'Dessie', 'Bishoftu (Debre Zeit)', 'Shashamane', 
+  'Arba Minch', 'Hosaena', 'Harar', 'Dilla', 'Nekemte', 'Debre Birhan', 'Asella', 
+  'Kombolcha', 'Debre Markos', 'Wolkite', 'Gambela', 'Semera', 'Assosa'
+];
 
 export const ADDIS_ABABA_SUB_CITIES = [
   'Bole',
