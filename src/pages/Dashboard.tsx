@@ -310,7 +310,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
             </div>
           </div>
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutModal(true)}
             className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all"
           >
             <LogOut size={20} />
