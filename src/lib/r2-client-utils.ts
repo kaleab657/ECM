@@ -1,5 +1,5 @@
 import { auth } from './firebase';
-import { API_BASE } from './api-client';
+import { apiFetch, API_BASE } from './api-client';
 
 export interface UploadResult {
   publicUrl: string;
@@ -18,8 +18,8 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
 
   const idToken = await user.getIdToken();
 
-  // 1. Get Presigned URL from Backend
-  const response = await fetch(`${API_BASE}/api/r2/presigned-url`, {
+  // 1. Get Presigned URL from Backend (via apiFetch for proper credentials/retry)
+  const responseData = await apiFetch('/api/r2/presigned-url', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -32,21 +32,6 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
     })
   });
 
-  let responseData;
-  const contentType = response.headers.get('content-type');
-  
-  if (contentType && contentType.includes('application/json')) {
-    responseData = await response.json();
-  } else {
-    const text = await response.text();
-    throw new Error(`Server returned non-JSON response (${response.status}).`);
-  }
-
-  if (!response.ok) {
-    const errorMsg = responseData.error || responseData.details || `Server error (${response.status})`;
-    throw new Error(errorMsg);
-  }
-  
   const { uploadUrl, publicUrl, key } = responseData;
   if (!uploadUrl || !publicUrl || !key) {
     throw new Error('Server returned invalid upload configuration');
@@ -75,8 +60,8 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
     throw uploadErr;
   }
 
-  // 3. Confirm upload success with backend
-  const confirmResponse = await fetch(`${API_BASE}/api/r2/confirm-upload`, {
+  // 3. Confirm upload success with backend (via apiFetch for proper credentials/retry)
+  await apiFetch('/api/r2/confirm-upload', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -84,11 +69,6 @@ export async function uploadToR2(file: File, folder: string = 'general'): Promis
     },
     body: JSON.stringify({ key })
   });
-
-  if (!confirmResponse.ok) {
-    const confirmData = await confirmResponse.json();
-    throw new Error(confirmData.error || 'Failed to verify upload with server');
-  }
 
   return { publicUrl, key };
 }

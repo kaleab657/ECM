@@ -8,14 +8,6 @@ export const Support: React.FC<{ setPage: (page: Page) => void }> = ({ setPage }
   
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <button 
-        onClick={() => setPage('home')}
-        className="mb-6 flex items-center text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
-      >
-        <ChevronLeft size={20} className="mr-1" />
-        {t('detail.back') || 'Back'}
-      </button>
-
       <h1 className="text-3xl font-black mb-6 text-zinc-900 dark:text-white mt-4">{t('supportPage.title') || 'Support'}</h1>
       
       <div className="grid gap-6">

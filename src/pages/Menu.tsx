@@ -26,7 +26,7 @@ export const Menu: React.FC<MenuProps> = ({ setPage }) => {
   ];
 
   return (
-    <div className="pt-2 md:pt-4 pb-24 px-4 max-w-2xl mx-auto min-h-screen bg-zinc-50/50 dark:bg-zinc-950/20">
+    <div className="pt-2 md:pt-4 pb-4 px-4 max-w-2xl mx-auto bg-zinc-50/50 dark:bg-zinc-950/20">
       <div className="grid grid-cols-1 gap-2.5">
         {menuItems.map((item) => (
           <button

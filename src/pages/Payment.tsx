@@ -98,7 +98,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
       
       const fileType = screenshot.type || 'image/jpeg';
       
-      const uploadResponse = await apiUpload(`/api/r2/upload-payment?fileName=${fileName}&fileType=${fileType}&customKey=${customKey}`, {
+      const data = await apiUpload(`/api/r2/upload-payment?fileName=${fileName}&fileType=${fileType}&customKey=${customKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': fileType,
@@ -107,17 +107,11 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
         body: screenshotData
       });
 
-      if (!uploadResponse.ok) {
-        const contentType = uploadResponse.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.details || errorData.error || 'Failed to upload screenshot');
-        } else {
-          throw new Error(`Upload failed (status ${uploadResponse.status}).`);
-        }
+      if (!data || !data.publicUrl) {
+        throw new Error(data?.error || 'Failed to upload screenshot');
       }
-      
-      const { publicUrl } = await uploadResponse.json();
+
+      const publicUrl = data.publicUrl;
 
       // 2. Use a writeBatch to ensure both listing & payment are saved atomically
       const batch = writeBatch(db);

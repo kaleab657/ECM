@@ -6,18 +6,23 @@
  * - Android (Capacitor): must use absolute URL to the Render backend
  *
  * Backend runs on Render: https://ethiocars-9jsd.onrender.com
+ *
+ * IMPORTANT: CapacitorHttp is DISABLED in capacitor.config.ts because it
+ * cannot handle ArrayBuffer/binary bodies (hangs on native bridge).
+ * The WebView's standard browser engine handles all requests.
+ *
+ * CRITICAL: Do NOT use `credentials: 'include'` on cross-origin requests.
+ * Auth is handled via Authorization Bearer headers, not cookies.
+ * Using `credentials: 'include'` causes Android WebView to fail with
+ * "Failed to fetch" on binary POST requests (image uploads) because
+ * the preflight credential negotiation breaks for binary bodies.
  */
 
 import { Capacitor } from '@capacitor/core';
 
-/**
- * Get the base URL for API requests.
- * - On native (Capacitor): use the absolute Render backend URL
- * - On web: use relative paths (same origin)
- */
-export const API_BASE = Capacitor.isNativePlatform()
-  ? 'https://ethiocars-9jsd.onrender.com'
-  : '';
+// FORCE production URL unconditionally
+// This ensures mobile ALWAYS uses the same endpoint
+export const API_BASE = 'https://ethiocars-9jsd.onrender.com';
 
 /**
  * Default request timeout in milliseconds.
@@ -85,7 +90,8 @@ export async function apiFetch(
   retries: number = 2
 ): Promise<any> {
   const url = `${API_BASE}${path}`;
-  console.log('[apiFetch] URL:', url, 'Method:', options.method || 'GET');
+  const method = options.method || 'GET';
+  console.log(`[apiFetch] ${method} ${url}`);
   let lastError;
 
   for (let i = 0; i <= retries; i++) {
@@ -94,15 +100,21 @@ export async function apiFetch(
     try {
       const response = await fetch(url, {
         ...options,
+        headers: {
+          'Accept': 'application/json',
+          ...options.headers,
+        },
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
+      console.log(`[apiFetch] ${method} ${url} -> ${response.status}`);
 
       const data = await safeParseJson(response);
 
       if (!response.ok) {
         const errorMsg = data?.error || data?.message || `Request failed with status ${response.status}`;
+        console.error(`[apiFetch] Error response:`, errorMsg);
         throw new Error(errorMsg);
       }
 
@@ -110,6 +122,7 @@ export async function apiFetch(
     } catch (error: any) {
       clearTimeout(timeoutId);
       lastError = error;
+      console.error(`[apiFetch] ${method} ${url} attempt ${i + 1} failed:`, error.message);
 
       // Only retry on network errors or timeouts, not on 4xx/5xx errors thrown above
       const isNetworkError = error instanceof TypeError || error.name === 'AbortError';
@@ -126,18 +139,49 @@ export async function apiFetch(
   throw lastError;
 }
 
+
+/**
+ * Wake the Render server before uploads.
+ * Render free tier sleeps after inactivity — cold start takes 30-60s.
+ * Sends a lightweight ping and waits up to 60s before proceeding.
+ */
+let serverAwake = false;
+export async function wakeServer(): Promise<void> {
+  if (serverAwake) return;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const res = await fetch(`${API_BASE}/api/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      serverAwake = true;
+      setTimeout(() => { serverAwake = false; }, 5 * 60 * 1000);
+    }
+  } catch {
+    // proceed anyway
+  }
+}
+
 /**
  * Enhanced fetch for binary uploads (images, files).
- * Uploads go through the Express server as a proxy — no CORS issues.
+ * Uploads go through the Express server as a proxy.
+ *
+ * CRITICAL: Do NOT add `credentials: 'include'` here.
+ * On Android WebView, credentials + cross-origin binary POST = "Failed to fetch".
+ * Auth is via Authorization Bearer header, not cookies.
  */
 export async function apiUpload(
   path: string,
   options: RequestInit = {},
-  timeoutMs: number = 60000,
+  timeoutMs: number = 120000,
   retries: number = 1
-): Promise<Response> {
+): Promise<any> {
   const url = `${API_BASE}${path}`;
-  console.log('[apiUpload] URL:', url);
+  const method = options.method || 'POST';
+  console.log(`[apiUpload] ${method} ${url}`);
   let lastError;
 
   for (let i = 0; i <= retries; i++) {
@@ -146,24 +190,29 @@ export async function apiUpload(
     try {
       const response = await fetch(url, {
         ...options,
+        headers: {
+          'Accept': 'application/json',
+          ...options.headers,
+        },
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
+      console.log(`[apiUpload] ${method} ${url} -> ${response.status}`);
       
-      if (response.ok || i === retries) {
-        return response;
+      const data = await safeParseJson(response);
+
+      if (!response.ok) {
+        const errorMsg = data?.details || data?.error || data?.message || `Upload failed with status ${response.status}`;
+        console.error(`[apiUpload] Error response:`, errorMsg);
+        throw new Error(errorMsg);
       }
       
-      // If we got a server error, we might want to retry choice errors
-      if (response.status >= 500) {
-         throw new Error(`Server error ${response.status}`);
-      }
-      
-      return response;
+      return data;
     } catch (error: any) {
       clearTimeout(timeoutId);
       lastError = error;
+      console.error(`[apiUpload] ${method} ${url} attempt ${i + 1} failed:`, error.message);
 
       if (i === retries) throw error;
       

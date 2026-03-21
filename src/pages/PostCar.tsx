@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useToast } from '../components/Toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Upload, Info, X, Loader2, ChevronRight, ChevronLeft, CheckCircle2, DollarSign, MapPin, Car as CarIcon, User, Package, ChevronDown } from 'lucide-react';
-import { MAKES, MODELS_BY_MAKE, LOCATIONS, ADDIS_ABABA_SUB_CITIES, BODY_TYPES, PRICE_TYPES, SELLER_TYPES, LISTING_PACKAGES } from '../constants';
+import { MAKES, LOCATIONS, ADDIS_ABABA_SUB_CITIES, BODY_TYPES, PRICE_TYPES, SELLER_TYPES, LISTING_PACKAGES } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { Car, Page, ListingPackage } from '../types';
 import { db } from '../lib/firebase';
@@ -297,6 +297,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   <BottomSheetSelect 
                     id="condition"
                     name="condition"
+                    sheetHeight="40vh"
                     value={formData.condition}
                     onChange={handleInputChange}
                     label={t('post.selectCondition') || 'Select Condition'}
@@ -312,6 +313,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   <BottomSheetSelect 
                     id="listingType"
                     name="listingType"
+                    sheetHeight="40vh"
                     value={formData.listingType}
                     onChange={handleInputChange}
                     label={t('post.selectListingType') || 'Select Listing Type'}
@@ -373,13 +375,14 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                 </div>
                 <div>
                   <label htmlFor="model" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('search.model') || 'Model'}</label>
-                  <BottomSheetSelect 
+                  <input 
                     id="model"
                     name="model"
+                    type="text"
                     value={formData.model}
-                    onChange={handleInputChange} disabled={!formData.brand}
-                    label={t('search.anyModel') || 'Select Model'}
-                    options={(formData.brand ? MODELS_BY_MAKE[formData.brand as keyof typeof MODELS_BY_MAKE] || [] : []).map(m => ({ value: m, label: m }))}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Corolla, Tucson, X5"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
                 <div>
@@ -454,6 +457,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     value={formData.engineSize}
                     onChange={handleInputChange}
                     placeholder="e.g. 1.6L"
+                    inputMode="decimal"
+                    onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)}
                     className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
@@ -498,6 +503,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   <BottomSheetSelect 
                     id="priceType"
                     name="priceType"
+                    sheetHeight="40vh"
                     value={formData.priceType}
                     onChange={handleInputChange}
                     label={"Select"}
@@ -667,29 +673,14 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 md:py-12 pb-24 md:pb-12">
-      <div className="mb-8 md:mb-12 text-center">
-        <h1 className="text-xl md:text-4xl font-black text-zinc-900 dark:text-white mb-6 italic uppercase tracking-tight">{t('post.title') || 'Post Your Car'}</h1>
-        <div className="flex items-center justify-center gap-1.5 md:gap-2 mb-2">
-          {[1, 2, 3, 4, 5, 6].map((step) => (
-            <div 
-              key={step}
-              className={`h-1.5 md:h-2 rounded-full transition-all duration-500 ${
-                step === currentStep ? 'w-8 md:w-12 bg-brand' : step < currentStep ? 'w-3 md:w-4 bg-brand/30' : 'w-3 md:w-4 bg-zinc-200 dark:bg-zinc-800'
-              }`}
-            />
-          ))}
-        </div>
-        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Step {currentStep} of 6</p>
-      </div>
-
-      <div className="min-h-[400px]">
+    <div className="max-w-4xl mx-auto px-4 pt-4 pb-4">
+      <div>
         <AnimatePresence mode="wait">
           {renderStep()}
         </AnimatePresence>
       </div>
 
-      <div className="mt-8 md:mt-12 flex justify-between items-center">
+      <div className="mt-6 flex justify-between items-center">
         {currentStep > 1 ? (
           <button 
             type="button"

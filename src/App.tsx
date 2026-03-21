@@ -43,6 +43,9 @@ export default function App() {
   const backPressCount = React.useRef(0);
   const { showToast } = useToast();
 
+  // Root pages — pressing back from any of these should trigger "press again to exit"
+  const ROOT_PAGES: Page[] = ['home', 'browse', 'chat', 'dashboard'];
+
   const setCurrentPage = React.useCallback((page: Page) => {
     if (page === 'menu' && currentPage === 'menu') {
       const newHistory = [...history];
@@ -62,6 +65,10 @@ export default function App() {
   const [selectedCar, setSelectedCar] = React.useState<Car | null>(null);
   const [initialFilters, setInitialFilters] = React.useState<any>(null);
   const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
+  const activeChatIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
+  const currentPageRef = React.useRef<Page>('home');
+  React.useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
   const [pendingListingId, setPendingListingId] = React.useState<string | null>(null);
   const { loading, user, isAuthModalOpen, setAuthModalOpen } = useAppContext();
 
@@ -75,13 +82,35 @@ export default function App() {
 
     import('@capacitor/app').then(({ App }) => {
       const listener = App.addListener('backButton', () => {
-        // If auth modal is open, close it first
+        // 1. Close auth modal first if open
         if (authModalRef.current) {
           setAuthModalOpen(false);
           return;
         }
 
+        // 2. If inside a chat conversation, go back to chat list first
+        if (activeChatIdRef.current) {
+          setActiveChatId(null);
+          backPressCount.current = 0;
+          return;
+        }
+
         const h = historyRef.current;
+        const page = currentPageRef.current;
+
+        // 3. If on a root page, double-press to exit
+        if (ROOT_PAGES.includes(page) && h.length <= 1) {
+          backPressCount.current += 1;
+          if (backPressCount.current >= 2) {
+            App.exitApp();
+          } else {
+            showToast('Press back again to exit', 'info');
+            setTimeout(() => { backPressCount.current = 0; }, 2000);
+          }
+          return;
+        }
+
+        // 4. Navigate back in history
         if (h.length > 1) {
           const newHistory = h.slice(0, -1);
           const backTo = newHistory[newHistory.length - 1] || 'home';
@@ -89,7 +118,6 @@ export default function App() {
           _setCurrentPage(backTo);
           backPressCount.current = 0;
         } else {
-          // Already at root — double-press to exit
           backPressCount.current += 1;
           if (backPressCount.current >= 2) {
             App.exitApp();
@@ -188,11 +216,11 @@ export default function App() {
       case 'admin':
         return <Admin setPage={setCurrentPage} setSelectedCar={setSelectedCar} />;
       case 'about':
-        return <AboutUs setPage={setCurrentPage} />;
+        return <AboutUs />;
       case 'support':
         return <Support setPage={setCurrentPage} />;
       case 'language':
-        return <Language setPage={setCurrentPage} />;
+        return <Language />;
       case 'saved':
         return <SavedCars setPage={setCurrentPage} setSelectedCar={setSelectedCar} />;
       case 'featuredListings':

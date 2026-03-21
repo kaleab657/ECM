@@ -119,16 +119,15 @@
           }
         }, 1500);
       });
-      // Service Worker Registration for PWA / TWA Compliance
+      // Disable Service Worker (it interferes with Capacitor WebView API calls)
       window.addEventListener('load', function() {
         if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-              console.log('[SW] Registration successful with scope: ', registration.scope);
-            })
-            .catch(function(err) {
-              console.error('[SW] Registration failed: ', err);
-            });
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+              registration.unregister();
+              console.log('[SW] Unregistered to prevent API interference on mobile');
+            }
+          });
         }
       });
     </script>

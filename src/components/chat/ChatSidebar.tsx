@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 interface ChatSession {
@@ -38,18 +38,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = React.memo(({
   return (
     <div className={`w-full md:w-80 lg:w-96 border-r border-zinc-100 dark:border-zinc-800 flex flex-col ${activeChatId && 'hidden md:flex'}`}>
       <div className="p-4 md:p-6 border-b border-zinc-100 dark:border-zinc-800">
-        <h1 className="text-lg md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight mb-4 italic uppercase">{t('chatPage.sidebarTitle') || 'Messages'}</h1>
-        <div className="relative">
-          <label htmlFor="chat-search-input" className="sr-only">{t('chatPage.searchPlaceholder') || 'Search chats...'}</label>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
-          <input 
-            id="chat-search-input"
-            name="chatSearch"
-            type="text" 
-            placeholder={t('chatPage.searchPlaceholder') || 'Search chats...'}
-            className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-xl pl-9 pr-4 py-2 text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all dark:text-white"
-          />
-        </div>
+        <h1 className="text-lg md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight italic uppercase">{t('chatPage.sidebarTitle') || 'Messages'}</h1>
       </div>
       <div className="flex-1">
         {loading ? (

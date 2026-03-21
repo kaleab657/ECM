@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Calculator, Info, ArrowRight } from 'lucide-react';
 import { MAKES, MODELS_BY_MAKE, BASE_PRICES } from '../constants';
 import { useAppContext } from '../context/AppContext';
+import { BottomSheetSelect } from '../components/BottomSheetSelect';
 
 export const Valuation: React.FC = () => {
   const { t } = useAppContext();
@@ -46,34 +47,28 @@ export const Valuation: React.FC = () => {
           <form onSubmit={handleCalculate} className="space-y-6">
             <div>
               <label htmlFor="valuation-make" className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">{t('valuation.make')}</label>
-              <select 
+              <BottomSheetSelect 
                 id="valuation-make"
                 name="make"
-                required 
                 value={formData.make}
                 onChange={(e) => setFormData({...formData, make: e.target.value, model: ''})}
+                label={t('valuation.selectMake') || 'Select Make'}
+                options={MAKES.map(m => ({ value: m, label: m }))}
                 className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand/20 dark:text-white"
-              >
-                <option value="">{t('valuation.selectMake')}</option>
-                {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+              />
             </div>
             <div>
               <label htmlFor="valuation-model" className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">{t('valuation.model')}</label>
-              <select 
+              <BottomSheetSelect 
                 id="valuation-model"
                 name="model"
-                required 
                 disabled={!formData.make}
                 value={formData.model}
                 onChange={(e) => setFormData({...formData, model: e.target.value})}
+                label={t('valuation.selectModel') || 'Select Model'}
+                options={(formData.make ? MODELS_BY_MAKE[formData.make] || [] : []).map(m => ({ value: m, label: m }))}
                 className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-50 dark:text-white"
-              >
-                <option value="">{t('valuation.selectModel')}</option>
-                {formData.make && MODELS_BY_MAKE[formData.make]?.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

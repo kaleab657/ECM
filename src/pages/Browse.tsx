@@ -6,6 +6,7 @@ import { Car, Page } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
+import { BottomSheetSelect } from '../components/BottomSheetSelect';
 import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 
@@ -214,34 +215,28 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
         <FilterSection title={t('search.make')}>
           <div className="grid grid-cols-1 gap-3">
             <div className="relative">
-              <select 
+              <BottomSheetSelect 
                 id="browse-filter-brand"
                 name="brand"
                 value={filters.brand}
                 onChange={(e) => handleFilterChange('brand', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:ring-2 focus:ring-brand/20 focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
-              >
-                <option value="">{t('search.anyMake')}</option>
-                {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                label={t('search.anyMake') || 'Any Make'}
+                options={MAKES.map(m => ({ value: m, label: m }))}
+                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
+              />
             </div>
             
             <div className="relative">
-              <select 
+              <BottomSheetSelect 
                 id="browse-filter-model"
                 name="model"
                 disabled={!filters.brand}
                 value={filters.model}
                 onChange={(e) => handleFilterChange('model', e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:ring-2 focus:ring-brand/20 focus:outline-none appearance-none cursor-pointer disabled:opacity-50 dark:text-white transition-all italic"
-              >
-                <option value="">{t('search.anyModel')}</option>
-                {filters.brand && MODELS_BY_MAKE[filters.brand]?.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                label={t('search.anyModel') || 'Any Model'}
+                options={(filters.brand ? MODELS_BY_MAKE[filters.brand] || [] : []).map(m => ({ value: m, label: m }))}
+                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer disabled:opacity-50 dark:text-white transition-all italic"
+              />
             </div>
           </div>
         </FilterSection>
@@ -308,32 +303,28 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
         <FilterSection title={t('search.location')}>
           <div className="space-y-3">
             <div className="relative">
-              <select 
+              <BottomSheetSelect 
                 id="browse-filter-city"
                 name="city"
                 value={filters.city}
                 onChange={(e) => handleFilterChange('city', e.target.value)}
+                label={t('search.anyLocation') || 'Any Location'}
+                options={LOCATIONS.map(l => ({ value: l, label: t(`locations.${l}`) || l }))}
                 className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
-              >
-                <option value="">{t('search.anyLocation')}</option>
-                {LOCATIONS.map(l => <option key={l} value={l}>{t(`locations.${l}`) || l}</option>)}
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+              />
             </div>
 
             {filters.city === 'Addis Ababa' && (
               <div className="relative">
-                <select 
+                <BottomSheetSelect 
                   id="browse-filter-subcity"
                   name="subCity"
                   value={filters.subCity}
                   onChange={(e) => handleFilterChange('subCity', e.target.value)}
+                  label={t('search.anySubCity') || 'Any Subcity'}
+                  options={ADDIS_ABABA_SUB_CITIES.map(sc => ({ value: sc, label: t(`subcities.${sc}`) || sc }))}
                   className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
-                >
-                  <option value="">{t('search.anySubCity')}</option>
-                  {ADDIS_ABABA_SUB_CITIES.map(sc => <option key={sc} value={sc}>{t(`subcities.${sc}`) || sc}</option>)}
-                </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                />
               </div>
             )}
           </div>

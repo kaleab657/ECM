@@ -143,7 +143,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
         className="fixed left-0 right-0 overflow-y-auto md:static md:flex-1"
         style={{
           top: `calc(env(safe-area-inset-top) + ${HEADER_H}px)`,
-          bottom: `calc(${INPUT_H}px + ${keyboardHeight}px)`,
+          bottom: `calc(env(safe-area-inset-bottom) + 60px + ${keyboardHeight}px)`,
         }}
       >
         <MessageList messages={messages} user={user} />
@@ -152,7 +152,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
       {/* INPUT — fixed at bottom, moves up with keyboard */}
       <div
         className="fixed left-0 right-0 z-20 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 md:static"
-        style={{ bottom: keyboardHeight }}
+        style={{ bottom: keyboardHeight, paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <MessageInput
           inputText={inputText}

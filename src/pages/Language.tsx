@@ -1,10 +1,10 @@
 import React from 'react';
 import { Page } from '../types';
-import { ChevronLeft, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Language as LangType } from '../translations';
 
-export const Language: React.FC<{ setPage: (page: Page) => void }> = ({ setPage }) => {
+export const Language: React.FC = () => {
   const { language, setLanguage, t } = useAppContext();
 
   const handleSelect = (lang: LangType) => {
@@ -13,14 +13,6 @@ export const Language: React.FC<{ setPage: (page: Page) => void }> = ({ setPage 
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <button 
-        onClick={() => setPage('home')}
-        className="mb-6 flex items-center text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
-      >
-        <ChevronLeft size={20} className="mr-1" />
-        {t('detail.back') || 'Back'}
-      </button>
-
       <h1 className="text-3xl font-black mb-6 text-zinc-900 dark:text-white mt-4">{t('menu.language') || 'Language'}</h1>
       
       <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-4 shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-2">
