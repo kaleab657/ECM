@@ -1,11 +1,10 @@
 import { Car } from './types';
 
 export const MAKES = [
-  'Toyota', 'BYD', 'Mercedes-Benz', 'Hyundai', 'BMW', 'Ford', 'Volkswagen',
-  'Suzuki', 'Nissan', 'Isuzu', 'Audi', 'Honda', 'Lexus', 'Chevrolet',
-  'Tesla', 'Peugeot', 'Renault', 'Mazda', 'Subaru', 'Mitsubishi',
-  'Land Rover', 'Jaguar', 'Volvo', 'Porsche', 'Kia', 'Acura', 'Mini',
-  'Fiat', 'Alfa Romeo', 'Jeep', 'Dodge'
+  'Toyota', 'BYD', 'Mercedes-Benz', 'Hyundai', 'BMW', 'Ford', 'Volkswagen', 
+  'Suzuki', 'Nissan', 'Isuzu', 'Audi', 'Honda', 'Lexus', 'Chevrolet', 'Tesla', 
+  'Peugeot', 'Renault', 'Mazda', 'Subaru', 'Mitsubishi', 'Land Rover', 'Jaguar', 
+  'Volvo', 'Porsche', 'Acura', 'Mini', 'Fiat', 'Alfa Romeo', 'Jeep', 'Dodge'
 ];
 
 export const MODELS_BY_MAKE: Record<string, string[]> = {

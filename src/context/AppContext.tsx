@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, User, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider } from 'firebase/auth';
 import { doc, onSnapshot, setDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { UserProfile } from '../types';
 // NOTE: firebase/messaging is NOT imported here — it crashes on Android Capacitor WebView.
@@ -13,7 +13,6 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { NavigationBar } from '@capgo/capacitor-navigation-bar';
-import { Preferences } from '@capacitor/preferences';
 
 const translations = {
   en: enTranslations,
@@ -41,12 +40,21 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const mounted = useRef(true);
-  const freshInstallChecked = useRef(false);
   
   useEffect(() => {
     return () => {
       mounted.current = false;
     };
+  }, []);
+
+  // Force logout on fresh install to prevent zombie sessions across reinstalls
+  useEffect(() => {
+    const hasLaunched = localStorage.getItem('hasLaunchedBefore');
+    if (!hasLaunched) {
+      auth.signOut().catch(() => {});
+      localStorage.clear();
+      localStorage.setItem('hasLaunchedBefore', 'true');
+    }
   }, []);
 
   const [theme, setTheme] = useState<Theme>(() => {
@@ -67,37 +75,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setAuthModalOpen = (isOpen: boolean) => {
     if (mounted.current) setAuthModalOpenState(isOpen);
   };
-
-  // Fresh install detection — force logout if app was reinstalled
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    const checkFreshInstall = async () => {
-      try {
-        const { value } = await Preferences.get({ key: 'app_installed' });
-        if (!value) {
-          // First launch after install/reinstall — clear any stale Firebase session
-          await signOut(auth).catch(() => {});
-          // Clear any web storage that might have survived
-          try { localStorage.clear(); } catch {}
-          try { sessionStorage.clear(); } catch {}
-          // Set sentinel so future launches don't force logout
-          await Preferences.set({ key: 'app_installed', value: 'true' });
-          // Re-apply defaults after clearing localStorage
-          if (mounted.current) {
-            setTheme('light');
-            setLanguageState('en');
-          }
-        }
-        freshInstallChecked.current = true;
-      } catch (e) {
-        console.warn('[FreshInstall] Check failed:', e);
-        freshInstallChecked.current = true;
-      }
-    };
-
-    checkFreshInstall();
-  }, []);
 
   // Native push notification permission — runs once on first launch
   useEffect(() => {

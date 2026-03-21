@@ -381,7 +381,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     type="text"
                     value={formData.model}
                     onChange={handleInputChange}
-                    placeholder="e.g. Corolla, Tucson, X5"
+                    placeholder="e.g. Corolla"
                     className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>

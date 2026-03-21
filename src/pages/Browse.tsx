@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Filter, Search, SlidersHorizontal, X, ChevronDown, RotateCcw, Loader2 } from 'lucide-react';
-import { MAKES, LOCATIONS, MODELS_BY_MAKE, ADDIS_ABABA_SUB_CITIES } from '../constants';
+import { MAKES, LOCATIONS, ADDIS_ABABA_SUB_CITIES } from '../constants';
 import { CarCard, CarCardSkeleton } from '../components/CarCard';
 import { Car, Page } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -227,15 +227,14 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
             </div>
             
             <div className="relative">
-              <BottomSheetSelect 
+              <input 
                 id="browse-filter-model"
                 name="model"
-                disabled={!filters.brand}
+                type="text"
+                placeholder={t('search.anyModel') || 'Any Model'}
                 value={filters.model}
                 onChange={(e) => handleFilterChange('model', e.target.value)}
-                label={t('search.anyModel') || 'Any Model'}
-                options={(filters.brand ? MODELS_BY_MAKE[filters.brand] || [] : []).map(m => ({ value: m, label: m }))}
-                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer disabled:opacity-50 dark:text-white transition-all italic"
+                className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none dark:text-white transition-all italic focus:ring-2 focus:ring-brand/20"
               />
             </div>
           </div>
