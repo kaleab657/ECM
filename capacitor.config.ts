@@ -10,8 +10,21 @@ const config: CapacitorConfig = {
     cleartext: true
   },
   plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    },
     CapacitorHttp: {
-      enabled: true
+      // DISABLED: CapacitorHttp intercepts ALL fetch() calls and routes them
+      // through the native HTTP bridge. This bridge CANNOT handle ArrayBuffer/Blob
+      // request bodies (e.g. image uploads) — it hangs trying to serialize binary
+      // data across the JS-to-native bridge.
+      //
+      // With this disabled, the WebView's standard browser engine handles all
+      // network requests, which correctly supports:
+      //   - ArrayBuffer bodies for image uploads
+      //   - CORS (backend is configured to allow https://localhost)
+      //   - Authorization headers (Bearer tokens)
+      enabled: false
     },
     FirebaseAuthentication: {
       skipNativeAuth: false,

@@ -12,6 +12,7 @@ import amTranslations from '../locales/amharic.json';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { NavigationBar } from '@capgo/capacitor-navigation-bar';
 
 const translations = {
   en: enTranslations,
@@ -78,6 +79,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (result !== 'granted') return;
         } else if (receive !== 'granted') {
           return;
+        }
+
+        if (Capacitor.getPlatform() === 'android') {
+          await PushNotifications.createChannel({
+            id: 'default',
+            name: 'Default',
+            description: 'Default notifications',
+            importance: 5, // 5 = high importance (heads-up notification)
+            visibility: 1,
+          });
         }
 
         await PushNotifications.register();
@@ -172,13 +183,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.documentElement.classList.remove('dark');
     }
 
-    // Sync native Android status bar with theme
+    // Sync native Android status bar and navigation bar with theme
     if (Capacitor.isNativePlatform()) {
       try {
-        StatusBar.setBackgroundColor({ color: theme === 'dark' ? '#09090b' : '#FDFDFD' }).catch(() => {});
+        const bgColor = theme === 'dark' ? '#09090b' : '#FDFDFD';
+        StatusBar.setBackgroundColor({ color: bgColor }).catch(() => {});
         StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light }).catch(() => {});
+        
+        NavigationBar.setNavigationBarColor({
+          color: bgColor,
+          darkButtons: theme !== 'dark' // true means black buttons for light mode
+        }).catch((e) => console.log('NavBar err:', e));
       } catch {
-        // StatusBar plugin might not be ready during initial load
+        // StatusBar/NavigationBar plugin might not be ready during initial load
       }
     }
   }, [theme]);

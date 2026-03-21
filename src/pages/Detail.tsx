@@ -7,6 +7,8 @@ import { CarCard } from '../components/CarCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc, limit } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
+import { StatusBar, Style } from '@capacitor/status-bar';
 
 interface DetailProps {
   car: Car;
@@ -71,18 +73,34 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
     }
   }, [car.id]);
 
-  // Fullscreen viewer: lock scroll + hide header/nav via body class
+  // Fullscreen viewer: lock scroll + set status bar black to eliminate white gap
+  // StatusBar.hide() causes a white gap on some Android devices because the native
+  // app background shows between status bar and WebView. Setting it black is more reliable.
   React.useEffect(() => {
     if (isViewerOpen) {
       document.body.classList.add('viewer-open');
       document.body.style.overflow = 'hidden';
+      if (Capacitor.isNativePlatform()) {
+        StatusBar.setBackgroundColor({ color: '#000000' }).catch(() => {});
+        StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+      }
     } else {
       document.body.classList.remove('viewer-open');
       document.body.style.overflow = '';
+      // Restore status bar to theme color when viewer closes
+      if (Capacitor.isNativePlatform()) {
+        const isDark = document.documentElement.classList.contains('dark');
+        StatusBar.setBackgroundColor({ color: isDark ? '#09090b' : '#FDFDFD' }).catch(() => {});
+        StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
+      }
     }
     return () => {
       document.body.classList.remove('viewer-open');
       document.body.style.overflow = '';
+      // Always restore status bar on unmount
+      if (Capacitor.isNativePlatform()) {
+        StatusBar.show().catch(() => {});
+      }
     };
   }, [isViewerOpen]);
 
@@ -331,6 +349,9 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                   <p className="font-bold text-zinc-900 dark:text-white text-sm">
                     {(sellerProfile?.displayName !== 'Anonymous' ? sellerProfile?.displayName : undefined) || (car.ownerName !== 'Anonymous' ? car.ownerName : undefined) || sellerProfile?.email?.split('@')[0] || 'User'}
                   </p>
+                  {car.ownerSellerType && (
+                    <p className="text-[9px] font-black text-brand uppercase tracking-widest mt-0.5">{t(`sellerTypes.${car.ownerSellerType}`) || car.ownerSellerType}</p>
+                  )}
                 </div>
               </div>
               
@@ -385,6 +406,9 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     <p className="font-bold text-zinc-900 dark:text-white text-sm">
                       {(sellerProfile?.displayName !== 'Anonymous' ? sellerProfile?.displayName : undefined) || (car.ownerName !== 'Anonymous' ? car.ownerName : undefined) || sellerProfile?.email?.split('@')[0] || 'User'}
                     </p>
+                    {car.ownerSellerType && (
+                      <p className="text-[9px] font-black text-brand uppercase tracking-widest mt-0.5">{t(`sellerTypes.${car.ownerSellerType}`) || car.ownerSellerType}</p>
+                    )}
                   </div>
                 </div>
 
@@ -442,56 +466,69 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black flex flex-col h-[100dvh] w-screen overflow-hidden"
-            style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+            className="fixed left-0 z-[100] bg-black w-screen overflow-hidden"
+            style={{
+              top: 'calc(-1 * env(safe-area-inset-top, 0px))',
+              height: 'calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px))',
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+              touchAction: 'none' // Prevent pull-to-refresh & vertical scroll
+            }}
           >
-            {/* Header */}
-            <div className="flex justify-between items-center px-4 py-3 shrink-0">
-              <span className="font-black text-xs tracking-widest text-white">{activeImage + 1} / {car.imageURLs.length}</span>
+            {/* Header (Absolute to top) */}
+            <div className="absolute top-0 inset-x-0 flex justify-between items-center px-4 py-3 z-20 pt-[max(env(safe-area-inset-top),16px)] pointer-events-none">
+              <div className="flex-1 flex justify-center">
+                <span className="px-5 py-2 bg-black/50 backdrop-blur-md rounded-full font-black text-sm tracking-[0.2em] text-white drop-shadow-md">
+                  {activeImage + 1} / {car.imageURLs.length}
+                </span>
+              </div>
               <button
                 onClick={() => setIsViewerOpen(false)}
-                className="p-2 bg-white/10 rounded-full text-white"
+                className="absolute right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md pointer-events-auto"
               >
                 <X size={24} />
               </button>
             </div>
 
-            {/* Image — fills remaining space */}
-            <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden px-2">
+            {/* Navigation Arrows (Absolute vertically centered) */}
+            <button
+              onClick={() => setActiveImage(prev => (prev > 0 ? prev - 1 : car.imageURLs.length - 1))}
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md z-30 pointer-events-auto shadow-xl"
+            >
+              <ChevronLeft size={32} />
+            </button>
+            <button
+              onClick={() => setActiveImage(prev => (prev < car.imageURLs.length - 1 ? prev + 1 : 0))}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md z-30 pointer-events-auto shadow-xl"
+            >
+              <ChevronRight size={32} />
+            </button>
+
+            {/* Image (Absolute to fill screen completely, centered) */}
+            <div className="absolute inset-0 flex items-center justify-center">
               <motion.img
                 key={activeImage}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.8}
+                onDragEnd={(e, { offset }) => {
+                  const swipe = offset.x;
+                  if (swipe < -50) {
+                    setActiveImage(prev => (prev < car.imageURLs.length - 1 ? prev + 1 : 0));
+                  } else if (swipe > 50) {
+                    setActiveImage(prev => (prev > 0 ? prev - 1 : car.imageURLs.length - 1));
+                  }
+                }}
                 src={car.imageURLs[activeImage]}
                 alt=""
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }}
+                className="w-full h-full object-contain pointer-events-auto cursor-grab active:cursor-grabbing"
                 referrerPolicy="no-referrer"
+                draggable={false} // Prevent browser image drag
               />
-            </div>
-
-            {/* Navigation dots + arrows */}
-            <div className="shrink-0 flex items-center justify-center gap-4 py-4">
-              <button
-                onClick={() => setActiveImage(prev => (prev > 0 ? prev - 1 : car.imageURLs.length - 1))}
-                className="p-3 bg-white/10 text-white rounded-full"
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <div className="flex gap-2">
-                {car.imageURLs.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveImage(i)}
-                    className={`rounded-full transition-all ${i === activeImage ? 'w-4 h-2 bg-brand' : 'w-2 h-2 bg-white/40'}`}
-                  />
-                ))}
-              </div>
-              <button
-                onClick={() => setActiveImage(prev => (prev < car.imageURLs.length - 1 ? prev + 1 : 0))}
-                className="p-3 bg-white/10 text-white rounded-full"
-              >
-                <ChevronRight size={24} />
-              </button>
             </div>
           </motion.div>
         )}

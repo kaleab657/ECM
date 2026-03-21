@@ -8,8 +8,10 @@ import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { signOut } from 'firebase/auth';
 import { Car, Page } from '../types';
 import { SELLER_TYPES } from '../constants';
+import { apiFetch } from '../lib/api-client';
 
 import { useToast } from '../components/Toast';
+import { BottomSheetSelect } from '../components/BottomSheetSelect';
 
 interface DashboardProps {
   setPage: (page: Page) => void;
@@ -139,7 +141,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
       // Try backend API first (handles R2 image cleanup + Firestore delete)
       try {
         const idToken = await user.getIdToken();
-        const { apiFetch } = await import('../lib/api-client');
         await apiFetch(`/api/listings?id=${encodeURIComponent(carToDelete)}`, {
           method: 'DELETE',
           headers: {
@@ -202,7 +203,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-black text-zinc-900 dark:text-white truncate leading-tight">{profile?.displayName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'User')}</h2>
-            <p className="text-[10px] font-bold text-zinc-400 truncate uppercase tracking-wider">{profile?.phoneNumber || user?.email || ''}</p>
+            <div className="flex flex-col">
+              <p className="text-[10px] font-bold text-zinc-400 truncate uppercase tracking-wider">{profile?.phoneNumber || user?.email || ''}</p>
+              {profile?.sellerType && (
+                <p className="text-[9px] font-black text-brand truncate uppercase tracking-widest mt-0.5">{t(`sellerTypes.${profile.sellerType}`) || profile.sellerType}</p>
+              )}
+            </div>
           </div>
           <button 
             onClick={handleLogout}
@@ -299,12 +305,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                           <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${
                             car.status === 'approved' 
                               ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500'
-                              : car.status === 'pending_payment_verification'
-                                ? 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-500'
-                                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                              : car.status === 'rejected'
+                                ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-500'
+                                : car.status === 'sold'
+                                  ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                  : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-500'
                           }`}>
                             <span className="whitespace-normal text-left break-words">
-                              {car.status === 'approved' ? t('dashboard.active') : car.status === 'pending_payment_verification' ? 'Payment Pending' : t('dashboard.sold')}
+                              {car.status === 'approved' ? t('dashboard.active') : car.status === 'rejected' ? 'Rejected' : car.status === 'sold' ? t('dashboard.sold') : 'Payment Pending Verification'}
                             </span>
                           </span>
                         </div>
@@ -421,22 +429,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">{t('profile.labels.sellerType')}</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {SELLER_TYPES.map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setSellerType(type)}
-                          className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${
-                            sellerType === type
-                              ? 'bg-brand border-brand text-white shadow-md shadow-brand/20'
-                              : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-100 dark:border-zinc-700 text-zinc-400'
-                          }`}
-                        >
-                          {t(`sellerTypes.${type}`) || type}
-                        </button>
-                      ))}
-                    </div>
+                    <BottomSheetSelect 
+                      id="dashboard-seller-type"
+                      name="sellerType"
+                      value={sellerType}
+                      onChange={(e) => setSellerType(e.target.value)}
+                      label="Select Role"
+                      options={SELLER_TYPES.map(type => ({ value: type, label: t(`sellerTypes.${type}`) || type }))}
+                    />
                   </div>
                 </div>
 

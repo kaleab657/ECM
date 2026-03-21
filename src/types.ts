@@ -17,7 +17,7 @@ export type Car = {
   description: string;
   imageURLs: string[];
   listingType: 'sale' | 'rent';
-  status: 'approved' | 'pending' | 'sold' | 'pending_payment_verification';
+  status: 'approved' | 'pending' | 'sold' | 'pending_payment_verification' | 'rejected';
   condition: 'Used' | 'New';
   bodyType?: string;
   color?: string;
