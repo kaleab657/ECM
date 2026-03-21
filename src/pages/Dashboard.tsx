@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { LayoutDashboard, Car as CarIcon, MessageSquare, PlusCircle, Settings, LogOut, MoreVertical, Loader2, User, Phone, Briefcase, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Car as CarIcon, MessageSquare, PlusCircle, Settings, LogOut, MoreVertical, Loader2, User, Phone, Briefcase, ShieldCheck, Megaphone, ArrowRight, ArrowLeft, Send, Instagram } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -12,6 +12,105 @@ import { apiFetch } from '../lib/api-client';
 
 import { useToast } from '../components/Toast';
 import { BottomSheetSelect } from '../components/BottomSheetSelect';
+
+const AdvertisingScreen = () => {
+  const [step, setStep] = useState<'promo' | 'contact'>('promo');
+
+  if (step === 'promo') {
+    return (
+      <div className="relative rounded-[32px] overflow-hidden shadow-2xl min-h-[400px] flex flex-col justify-end p-8 border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&q=80&w=800"
+            alt="Advertising"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/20" />
+        </div>
+        
+        <div className="relative z-10 space-y-4">
+          <span className="inline-block px-3 py-1 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-brand/20">
+            ADVERTISING
+          </span>
+          <h2 className="text-3xl font-black text-white italic uppercase tracking-tight leading-tight">
+            Advertise your products and services here
+          </h2>
+          <p className="text-zinc-300 font-bold pb-4">
+            Reach thousands of customers
+          </p>
+          <button 
+            onClick={() => setStep('contact')}
+            className="w-full py-4 bg-white text-zinc-900 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            Get Started <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+      <div className="flex items-center gap-3 mb-8">
+        <button onClick={() => setStep('promo')} className="p-2 -ml-2 text-zinc-500 hover:text-brand transition-colors">
+          <ArrowLeft size={20} />
+        </button>
+        <div>
+          <h3 className="text-lg font-black text-zinc-900 dark:text-white uppercase italic tracking-tight">Contact Options</h3>
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Reach out to us directly</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {/* Phone */}
+        <a href="tel:+251991152329" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
+          <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400 flex items-center justify-center shrink-0">
+            <Phone size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Phone Number</p>
+            <p className="text-sm font-bold text-zinc-900 dark:text-white">+251 99 115 2329</p>
+          </div>
+        </a>
+
+        {/* Telegram */}
+        <a href="https://t.me/+251991152329" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Send size={20} className="-mr-0.5 mt-0.5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Telegram</p>
+            <p className="text-sm font-bold text-zinc-900 dark:text-white">+251 99 115 2329</p>
+          </div>
+        </a>
+
+        {/* Instagram */}
+        <a href="https://www.instagram.com/ethi.ocars" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
+          <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-500 dark:bg-pink-500/20 dark:text-pink-400 flex items-center justify-center shrink-0">
+            <Instagram size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Instagram</p>
+            <p className="text-sm font-bold text-zinc-900 dark:text-white">@ethi.ocars</p>
+          </div>
+        </a>
+
+        {/* TikTok */}
+        <a href="https://www.tiktok.com/@ethi.ocars" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
+          <div className="w-10 h-10 rounded-xl bg-zinc-200 text-black dark:bg-zinc-700 dark:text-white flex items-center justify-center shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">TikTok</p>
+            <p className="text-sm font-bold text-zinc-900 dark:text-white">@ethi.ocars</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  );
+};
 
 interface DashboardProps {
   setPage: (page: Page) => void;
@@ -179,14 +278,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
 
   const menuItems = [
     { id: 'listings', label: t('dashboard.myListings'), icon: CarIcon },
-    { id: 'messages', label: t('dashboard.messages'), icon: MessageSquare, badge: unreadTotal },
+    { id: 'advertising', label: 'Advertising', icon: Megaphone },
     { id: 'settings', label: t('dashboard.settings'), icon: Settings },
   ];
 
   const handleTabClick = (id: string) => {
-    if (id === 'messages') {
-      setPage('chat');
-    } else if (id === 'admin') {
+    if (id === 'admin') {
       setPage('admin');
     } else {
       setActiveTab(id);
@@ -247,6 +344,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
 
         {/* Main Content Area */}
         <main className="space-y-6">
+          {activeTab === 'advertising' && <AdvertisingScreen />}
+
           {activeTab === 'listings' && (
             <div className="space-y-6">
               {/* Stats Grid - Bento Style */}
