@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import compression from "compression";
 import { getR2Client, r2Config, initFirebaseAdmin } from "./src/lib/backend-config";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,7 +88,7 @@ async function startServer() {
           await db.collection('users').doc(user.uid).set({
             role: 'admin',
             email: user.email,
-            updatedAt: admin?.firestore.FieldValue.serverTimestamp()
+            updatedAt: FieldValue.serverTimestamp()
           }, { merge: true });
           return next();
         }
@@ -104,19 +105,25 @@ async function startServer() {
     }
   };
 
-  app.use(cors({
-    origin: [
-      'https://ethiocars-9jsd.onrender.com', // Render production
-      'http://localhost:5173',                 // Vite dev server
-      'http://localhost:3000',                 // Express dev server
-      'http://localhost',                      // Capacitor Android
-      'capacitor://localhost',                 // Capacitor iOS
-    ],
+  // Shared CORS configuration — used by both middleware and preflight handler
+  //
+  // IMPORTANT: credentials is NOT set (defaults to false).
+  // Auth is handled via Authorization Bearer headers, NOT cookies.
+  // When credentials is false, origin: '*' works correctly and the browser
+  // does not require exact origin matching on preflight responses.
+  // This is what allows Capacitor WebView (origin: https://localhost) to
+  // successfully complete preflight OPTIONS + actual requests.
+  const corsConfig = {
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
-    credentials: true,
-  }));
+  };
 
+  app.use(cors(corsConfig));
+
+  // Explicit preflight handler for ALL routes.
+  // OPTIONS requests must return 200/204 with correct CORS headers.
+  app.options('*', cors(corsConfig));
   app.use(compression());
 
   // Browser Security Headers (CSP, CORP)
@@ -294,7 +301,7 @@ async function startServer() {
       if (listingData?.status === 'active') {
         const statsRef = db.collection('stats').doc('global');
         await statsRef.set({
-          listingsCount: admin.firestore.FieldValue.increment(-1)
+          listingsCount: FieldValue.increment(-1)
         }, { merge: true });
       }
 
@@ -418,7 +425,7 @@ async function startServer() {
 
       await db.collection('cars').doc(id).update({
         ...updates,
-        updatedAt: admin?.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       res.json({ success: true, message: "Listing updated successfully" });
@@ -453,7 +460,7 @@ async function startServer() {
       if (listingData?.status === 'active') {
         const statsRef = db.collection('stats').doc('global');
         await statsRef.set({
-          listingsCount: admin.firestore.FieldValue.increment(-1)
+          listingsCount: FieldValue.increment(-1)
         }, { merge: true });
       }
 
@@ -565,7 +572,7 @@ async function startServer() {
             processedUsers.add(userId);
           }
           cleanupBatch.update(db.collection('users').doc(userId), {
-            fcmTokens: admin.firestore.FieldValue.arrayRemove(token)
+            fcmTokens: FieldValue.arrayRemove(token)
           });
         }
         
@@ -646,7 +653,7 @@ async function startServer() {
               err.code === 'messaging/registration-token-not-registered') {
             console.log(`[Push] Removing invalid token: ${token.substring(0, 20)}...`);
             await db!.collection('users').doc(recipientId).update({
-              fcmTokens: admin!.firestore.FieldValue.arrayRemove(token)
+              fcmTokens: FieldValue.arrayRemove(token)
             });
           }
           return null; // Don't fail the whole request for one bad token
@@ -680,7 +687,7 @@ async function startServer() {
 
       batch.update(paymentRef, { 
         status: status,
-        verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+        verifiedAt: FieldValue.serverTimestamp(),
         verifiedBy: user.uid
       });
 
@@ -700,13 +707,13 @@ async function startServer() {
         batch.update(listingRef, { 
           status: 'approved',
           featured: true,
-          expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null
+          expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null
         });
         
         // Increment global count
         const statsRef = db.collection('stats').doc('global');
         batch.set(statsRef, {
-          listingsCount: admin.firestore.FieldValue.increment(1)
+          listingsCount: FieldValue.increment(1)
         }, { merge: true });
       } else {
         // If rejected, maybe keep it as pending_payment_verification or mark as rejected
@@ -756,8 +763,8 @@ async function startServer() {
 
       batch.set(docRef, {
         ...listing,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: expiresAt ? admin.firestore.Timestamp.fromDate(expiresAt) : null,
+        createdAt: FieldValue.serverTimestamp(),
+        expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
         status: status
       });
       
@@ -765,7 +772,7 @@ async function startServer() {
       if (status === 'active') {
         const statsRef = db.collection('stats').doc('global');
         batch.set(statsRef, {
-          listingsCount: admin.firestore.FieldValue.increment(1)
+          listingsCount: FieldValue.increment(1)
         }, { merge: true });
       }
       
@@ -815,7 +822,7 @@ async function startServer() {
       if (carData?.status === 'active') {
         const statsRef = db.collection('stats').doc('global');
         batch.set(statsRef, {
-          listingsCount: admin.firestore.FieldValue.increment(-1)
+          listingsCount: FieldValue.increment(-1)
         }, { merge: true });
       }
       
@@ -876,7 +883,7 @@ async function startServer() {
     console.log('Running expired listings cleanup...');
     if (!admin || !db) return;
     try {
-      const now = admin.firestore.Timestamp.now();
+      const now = Timestamp.now();
       const expiredQuery = db.collection('cars')
         .where('expiresAt', '<=', now)
         .where('status', '==', 'active');
@@ -904,7 +911,7 @@ async function startServer() {
       if (deletedCount > 0) {
         const statsRef = db.collection('stats').doc('global');
         batch.set(statsRef, {
-          listingsCount: admin.firestore.FieldValue.increment(-deletedCount)
+          listingsCount: FieldValue.increment(-deletedCount)
         }, { merge: true });
       }
 
