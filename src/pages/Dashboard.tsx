@@ -20,14 +20,14 @@ const AdvertisingScreen = () => {
     return (
       <div className="relative rounded-[32px] overflow-hidden shadow-2xl min-h-[400px] flex flex-col justify-end p-8 border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in-95 duration-200">
         <div className="absolute inset-0 z-0">
-          <img 
+          <img
             src="https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&q=80&w=800"
             alt="Advertising"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/50 to-black/20" />
         </div>
-        
+
         <div className="relative z-10 space-y-4">
           <span className="inline-block px-3 py-1 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-brand/20">
             ADVERTISING
@@ -38,7 +38,7 @@ const AdvertisingScreen = () => {
           <p className="text-zinc-300 font-bold pb-4">
             Reach thousands of customers
           </p>
-          <button 
+          <button
             onClick={() => setStep('contact')}
             className="w-full py-4 bg-white text-zinc-900 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-transform"
           >
@@ -74,7 +74,7 @@ const AdvertisingScreen = () => {
         </a>
 
         {/* Telegram */}
-        <a href="https://t.me/+251991152329" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
+        <a href="https://t.me/ethiocars9" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
           <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center shrink-0">
             <Send size={20} className="-mr-0.5 mt-0.5" />
           </div>
@@ -99,7 +99,7 @@ const AdvertisingScreen = () => {
         <a href="https://www.tiktok.com/@ethi.ocars" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
           <div className="w-10 h-10 rounded-xl bg-zinc-200 text-black dark:bg-zinc-700 dark:text-white flex items-center justify-center shrink-0">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
             </svg>
           </div>
           <div>
@@ -125,19 +125,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [carToDelete, setCarToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Lock body scroll when delete modal is open
+  // Lock body scroll when delete or logout modal is open
   useEffect(() => {
-    if (carToDelete) {
+    if (carToDelete || showLogoutModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [carToDelete]);
+  }, [carToDelete, showLogoutModal]);
 
   const isAdmin = profile?.role?.toLowerCase() === 'admin' || user?.email === 'kaleabepherem@gmail.com' || user?.email === 'kaleabepherem98@gmail.com';
-  
+
   // Settings state
   const [displayName, setDisplayName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -186,7 +187,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
         id: doc.id,
         ...doc.data()
       })) as Car[];
-      
+
       const sortedListings = carData.sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
         const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
@@ -214,7 +215,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
         phoneNumber,
         sellerType
       });
-      
+
       showToast(t('dashboard.profileUpdated'), 'success');
     } catch (error) {
       showToast(t('dashboard.updateFailed'), 'error');
@@ -228,9 +229,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     if (!carToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       if (!user) {
@@ -252,7 +253,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
         const carRef = doc(db, 'cars', carToDelete);
         await deleteDoc(carRef);
       }
-      
+
       // Update local state immediately for better perceived performance
       setListings(prev => prev.filter(car => car.id !== carToDelete));
       setCarToDelete(null);
@@ -267,6 +268,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setShowLogoutModal(false);
       setPage('home');
     } catch (error) {
       // Silent logout
@@ -276,7 +278,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   if (authLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-brand" /></div>;
   if (!user) return <div className="text-center py-24"><h2 className="text-2xl font-bold">{t('dashboard.loginRequired')}</h2></div>;
 
-  const menuItems = [
+  const menuItems: { id: string, label: any, icon: any, badge?: number }[] = [
     { id: 'listings', label: t('dashboard.myListings'), icon: CarIcon },
     { id: 'advertising', label: 'Advertising', icon: Megaphone },
     { id: 'settings', label: t('dashboard.settings'), icon: Settings },
@@ -307,7 +309,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
               )}
             </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all"
           >
@@ -322,18 +324,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
               <button
                 key={item.id}
                 onClick={() => handleTabClick(item.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
-                  activeTab === item.id 
-                    ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20' 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${activeTab === item.id
+                    ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20'
                     : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
-                }`}
+                  }`}
               >
                 <item.icon size={14} />
                 {item.label}
                 {item.badge ? (
-                  <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${
-                    activeTab === item.id ? 'bg-white text-brand' : 'bg-brand text-white'
-                  }`}>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${activeTab === item.id ? 'bg-white text-brand' : 'bg-brand text-white'
+                    }`}>
                     {item.badge}
                   </span>
                 ) : null}
@@ -356,7 +356,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <p className="text-4xl font-black">{listings.length}</p>
                   </div>
                   <CarIcon size={80} className="absolute -right-4 -bottom-4 opacity-20 rotate-12" />
-                  <button 
+                  <button
                     onClick={() => setPage('post')}
                     className="relative z-10 bg-white text-brand px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg"
                   >
@@ -388,7 +388,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{t('dashboard.myInventory')}</h3>
                   <span className="text-[10px] font-bold text-zinc-400">{listings.length} {t('dashboard.items')}</span>
                 </div>
-                
+
                 {loading ? (
                   <div className="flex justify-center py-12"><Loader2 className="animate-spin text-brand" /></div>
                 ) : listings.length > 0 ? (
@@ -401,15 +401,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                         <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate mb-0.5 w-full">{car.title}</h4>
                         <p className="text-xs font-black text-brand mb-2">{car.price.toLocaleString()} ETB</p>
                         <div className="mb-2">
-                          <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${
-                            car.status === 'approved' 
+                          <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${car.status === 'approved'
                               ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500'
                               : car.status === 'rejected'
                                 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-500'
                                 : car.status === 'sold'
                                   ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
                                   : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-500'
-                          }`}>
+                            }`}>
                             <span className="whitespace-normal text-left break-words">
                               {car.status === 'approved' ? t('dashboard.active') : car.status === 'rejected' ? 'Rejected' : car.status === 'sold' ? t('dashboard.sold') : 'Payment Pending Verification'}
                             </span>
@@ -417,7 +416,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                         </div>
                         <div className="flex gap-2">
                           {car.status === 'approved' && (
-                            <button 
+                            <button
                               onClick={async () => {
                                 const carRef = doc(db, 'cars', car.id);
                                 await updateDoc(carRef, { status: 'sold' });
@@ -427,7 +426,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                               {t('dashboard.markSold')}
                             </button>
                           )}
-                          <button 
+                          <button
                             onClick={() => setCarToDelete(car.id)}
                             className="p-1.5 text-red-500 bg-red-50 dark:bg-red-500/10 rounded-lg"
                           >
@@ -443,7 +442,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                       <CarIcon size={24} />
                     </div>
                     <p className="text-zinc-500 text-xs font-bold">{t('dashboard.noListings')}</p>
-                    <button 
+                    <button
                       onClick={() => setPage('post')}
                       className="mt-4 text-brand text-[10px] font-black uppercase tracking-widest"
                     >
@@ -483,7 +482,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                       <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest">Manage platform</p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setPage('admin')}
                     className="py-3 px-6 bg-brand text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-brand/90 transition-all"
                   >
@@ -498,10 +497,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">{t('profile.labels.fullName')}</label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={18} />
-                      <input 
+                      <input
                         id="dashboard-display-name"
                         name="displayName"
-                        type="text" 
+                        type="text"
                         placeholder={t('profile.labels.fullName')}
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
@@ -514,10 +513,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">{t('profile.labels.phone')}</label>
                     <div className="relative">
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={18} />
-                      <input 
+                      <input
                         id="dashboard-phone-number"
                         name="phoneNumber"
-                        type="tel" 
+                        type="tel"
                         placeholder="0911..."
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
@@ -528,7 +527,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">{t('profile.labels.sellerType')}</label>
-                    <BottomSheetSelect 
+                    <BottomSheetSelect
                       id="dashboard-seller-type"
                       name="sellerType"
                       value={sellerType}
@@ -539,7 +538,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                   </div>
                 </div>
 
-                <button 
+                <button
                   disabled={isUpdating}
                   className="w-full py-4 bg-brand text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-brand/20 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -558,24 +557,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{t('dashboard.preferences')}</p>
                   </div>
                 </div>
-                
+
                 <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700/50">
                   <h3 className="text-xs font-black text-zinc-900 dark:text-white mb-1 uppercase tracking-tight">{t('dashboard.language')}</h3>
                   <p className="text-[10px] font-medium text-zinc-500 mb-4">{t('dashboard.languageDesc')}</p>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={() => setLanguage('en')}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                        language === 'en' ? 'bg-brand text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 border border-zinc-100 dark:border-zinc-800'
-                      }`}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === 'en' ? 'bg-brand text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 border border-zinc-100 dark:border-zinc-800'
+                        }`}
                     >
                       English
                     </button>
-                    <button 
+                    <button
                       onClick={() => setLanguage('am')}
-                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                        language === 'am' ? 'bg-brand text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 border border-zinc-100 dark:border-zinc-800'
-                      }`}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === 'am' ? 'bg-brand text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 border border-zinc-100 dark:border-zinc-800'
+                        }`}
                     >
                       Amharic
                     </button>
@@ -599,14 +596,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
               {t('dashboard.deleteConfirm')}
             </p>
             <div className="flex flex-col gap-3">
-              <button 
+              <button
                 onClick={handleDeleteListing}
                 disabled={isDeleting}
                 className="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 disabled:opacity-50"
               >
                 {isDeleting ? <Loader2 className="animate-spin mx-auto" size={20} /> : t('dashboard.yesDelete')}
               </button>
-              <button 
+              <button
                 onClick={() => setCarToDelete(null)}
                 disabled={isDeleting}
                 className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
@@ -619,6 +616,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
         document.body
       )}
 
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6">
+              <LogOut size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">Log out?</h3>
+            <p className="text-zinc-500 text-center mb-8 font-medium">
+              Are you sure you want to log out?
+            </p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleLogout}
+                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+              >
+                Log out
+              </button>
+              <button 
+                onClick={() => setShowLogoutModal(false)}
+                className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );
