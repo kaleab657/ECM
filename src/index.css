@@ -19,8 +19,99 @@ body.viewer-open nav {
   pointer-events: none !important;
 }
 body.viewer-open {
-  overflow: hidden !important;
+  /* overflow: hidden removed to prevent blocking native Android UI */
 }
+
+html {
+  color-scheme: light dark;
+}
+
+html, body {
+  /* overflow-x removed to ensure native system UI visibility */
+  -webkit-overflow-scrolling: touch !important;
+  scroll-behavior: smooth !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 100vh !important;
+  /* overflow-x removed to ensure native system UI visibility */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hide the native scrollbar universally while keeping scroll functional */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+}
+* {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+  box-sizing: border-box !important;
+}
+
+/* 
+   NATIVE ANDROID TEXT SELECTION
+   Disables WebView custom selection UI — lets Android render its own
+   native floating toolbar (Cut / Copy / Paste / Share) with no white box
+*/
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body, #root {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Allow selection only on text inputs and explicitly marked elements */
+input, textarea, [data-selectable], [contenteditable] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  /* Allow native Android callout (copy/paste popup) to appear */
+  -webkit-touch-callout: default !important;
+}
+
+/* Block selection on all interactive/non-text elements */
+button, nav, svg, .lucide, [role="button"], img, video {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+/* Transparent selection highlight — lets Android draw its own blue handles */
+::selection {
+  background-color: rgba(255, 92, 34, 0.25) !important;
+  color: inherit !important;
+}
+::-moz-selection {
+  background-color: rgba(255, 92, 34, 0.25) !important;
+  color: inherit !important;
+}
+
+/* Force all media to never exceed screen width */
+img, video, canvas, iframe {
+  max-width: 100% !important;
+  height: auto !important;
+}
+svg {
+  max-width: 100%;
+}
+
 
 /* Global font unification — outside @layer to beat all Tailwind utilities */
 *, *::before, *::after,
@@ -30,7 +121,7 @@ body, button, input, select, textarea {
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: light dark;
     /* Header height = bar height + status-bar inset.
        Every element that offsets below the fixed header must use this. */
     --header-h: calc(3.5rem + env(safe-area-inset-top, 0px));
@@ -111,8 +202,6 @@ nav.bottom-nav-safe {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  overflow: hidden;
-  touch-action: none;
 }
 
 .auth-bottomsheet-backdrop {

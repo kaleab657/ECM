@@ -9,6 +9,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
@@ -27,33 +28,38 @@ interface AuthProps {
 
 function getAuthErrorMessage(error: any, t: (key: string) => string): string {
   const code = error?.code || '';
+  
+  const getSafely = (key: string, fallback: string) => {
+    const val = t(key);
+    return (val === key || !val) ? fallback : val;
+  };
+
   switch (code) {
     case 'auth/invalid-credential':
-      return t('auth.invalidCredential') || 'Invalid email or password. Please check your credentials and try again.';
-    case 'auth/user-not-found':
-      return t('auth.userNotFound') || 'No account found with this email. Please sign up first.';
+      return getSafely('auth.invalidCredential', 'Invalid email or password');
     case 'auth/wrong-password':
-      return t('auth.wrongPassword') || 'Incorrect password. Please try again.';
+      return getSafely('auth.wrongPassword', 'Incorrect password');
+    case 'auth/user-not-found':
+      return getSafely('auth.userNotFound', 'No account found with this email');
     case 'auth/email-already-in-use':
-      return t('auth.emailInUse') || 'This email is already registered. Please log in instead.';
+      return getSafely('auth.emailInUse', 'This email is already registered. Please log in instead.');
     case 'auth/weak-password':
-      return t('auth.weakPassword') || 'Password is too weak. Please use at least 6 characters.';
+      return getSafely('auth.weakPassword', 'Password is too weak. Please use at least 6 characters.');
     case 'auth/invalid-email':
-      return t('auth.invalidEmail') || 'Please enter a valid email address.';
+      return getSafely('auth.invalidEmail', 'Invalid email format.');
     case 'auth/too-many-requests':
-      return t('auth.tooManyRequests') || 'Too many failed attempts. Please wait a moment and try again.';
+      return getSafely('auth.tooManyRequests', 'Too many failed attempts. Try again later.');
     case 'auth/network-request-failed':
-      return t('auth.networkError') || 'Network error. Please check your connection and try again.';
+      return getSafely('auth.networkError', 'Network error. Please check your connection and try again.');
     case 'auth/popup-closed-by-user':
-      return t('auth.popupClosed') || 'Sign-in was cancelled. Please try again.';
+      return getSafely('auth.popupClosed', 'Sign-in was cancelled. Please try again.');
     case 'auth/popup-blocked':
-      return t('auth.popupBlocked') || 'Sign-in popup was blocked. Redirecting instead...';
+      return getSafely('auth.popupBlocked', 'Sign-in popup was blocked. Redirecting instead...');
     case 'auth/cancelled-popup-request':
-      return 'A sign-in request is already in progress. Please wait.';
     case 'auth/redirect-cancelled-by-user':
       return 'Sign-in was cancelled. Please try again.';
     default:
-      return error?.message || t('auth.authError') || 'An error occurred. Please try again.';
+      return getSafely('auth.authError', 'Login failed. Please try again');
   }
 }
 
@@ -73,9 +79,10 @@ async function ensureUserDocument(user: any): Promise<boolean> {
       phoneNumber: user.phoneNumber || '',
       sellerType: ''
     });
-    await setDoc(doc(db, 'stats', 'global'), {
+    // Stats update is non-critical — fire and forget (saves ~200-500ms)
+    setDoc(doc(db, 'stats', 'global'), {
       usersCount: increment(1)
-    }, { merge: true });
+    }, { merge: true }).catch(() => {});
     return true; // Wait for profile completion
   } else {
     // Sync Google data into existing profile if the profile is lacking it
@@ -91,11 +98,11 @@ async function ensureUserDocument(user: any): Promise<boolean> {
       updates.displayName = fallbackName;
     }
     
+    // Profile sync is non-critical — fire and forget (saves ~200-500ms)
     if (Object.keys(updates).length > 0) {
-      await setDoc(userRef, updates, { merge: true });
+      setDoc(userRef, updates, { merge: true }).catch(() => {});
     }
     
-    if (!data.phoneNumber || !data.sellerType) return true;
     return false;
   }
 }
@@ -116,6 +123,8 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [isCompletingProfile, setIsCompletingProfile] = useState(false);
   const [googleUser, setGoogleUser] = useState<any>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   React.useEffect(() => {
     // Only redirect automatically if not in the middle of Google profile completion
@@ -156,6 +165,8 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
     setError(null);
     let userRecord = null;
     
+
+    
     try {
       try {
         userRecord = await performGoogleAuth();
@@ -163,9 +174,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
         if (firstErr?.code === 'auth/popup-closed-by-user' || firstErr?.code === 'auth/cancelled-popup-request') {
           throw firstErr; // Skip retry if aborted by user
         }
-        // Auto-retry once silently & provide soft loading feedback
-        setError("Preparing Google sign-in…");
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Auto-retry immediately — no artificial delay
         userRecord = await performGoogleAuth();
       }
       
@@ -261,7 +270,15 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+        const needsCompletion = await ensureUserDocument(userCredential.user);
+        if (needsCompletion) {
+          setGoogleUser(userCredential.user);
+          if (!fullName) setFullName(userCredential.user.displayName || '');
+          setIsCompletingProfile(true);
+          setIsLoading(false);
+          return;
+        }
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await setDoc(doc(db, 'users', userCredential.user.uid), {
@@ -283,6 +300,31 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
       setAuthModalOpen(false);
     } catch (err: any) {
       setError(getAuthErrorMessage(err, t));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError(t('auth.invalidEmail') || 'Please enter a valid email address');
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetSent(true);
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') {
+        setError(t('auth.userNotFound') !== 'auth.userNotFound' ? t('auth.userNotFound') : 'No account found');
+      } else if (err?.code === 'auth/invalid-email') {
+        setError(t('auth.invalidEmail') !== 'auth.invalidEmail' ? t('auth.invalidEmail') : 'Invalid email format');
+      } else {
+        setError(getAuthErrorMessage(err, t));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -325,7 +367,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
   }
 
   return (
-    <div className="auth-bottomsheet-overlay z-[200]">
+    <div className="auth-bottomsheet-overlay">
       <motion.div
         className="auth-bottomsheet-backdrop"
         onClick={() => setAuthModalOpen(false)}
@@ -348,7 +390,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
 
         <div className="flex items-center justify-between mb-4 px-1">
           <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
-            {isCompletingProfile ? 'Complete Profile' : isLogin ? (t('auth.welcomeBack') || 'Welcome Back') : (t('auth.createAccount') || 'Create Account')}
+            {isCompletingProfile ? 'Complete Profile' : showForgotPassword ? (t('auth.resetPassword') !== 'auth.resetPassword' ? t('auth.resetPassword') : 'Reset Password') : isLogin ? (t('auth.welcomeBack') || 'Welcome Back') : (t('auth.createAccount') || 'Create Account')}
           </h2>
           <button
             onClick={() => setAuthModalOpen(false)}
@@ -425,8 +467,8 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                   name="sellerType"
                   value={sellerType}
                   onChange={(e) => setSellerType(e.target.value)}
-                  label="Select Role"
-                  options={SELLER_TYPES.map(type => ({ value: type, label: t(`sellerTypes.${type}`) || type }))}
+                  label={t('auth.selectRole') !== 'auth.selectRole' ? t('auth.selectRole') : 'Select Role'}
+                  options={SELLER_TYPES.map(type => ({ value: type, label: t(`sellerTypes.${type}`) !== `sellerTypes.${type}` ? t(`sellerTypes.${type}`) : type }))}
                   className="auth-input pl-[44px] pr-4 w-full flex items-center justify-between pointer-events-auto"
                 />
               </div>
@@ -439,11 +481,81 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                   <Loader2 className="animate-spin mx-auto" size={22} />
                 ) : (
                   <>
-                    Finish Setup
+                    {t('auth.finishSetup') || 'Finish Setup'}
                     <ArrowRight size={18} />
                   </>
                 )}
               </button>
+            </motion.form>
+          ) : showForgotPassword ? (
+            <motion.form
+              key="forgot-password"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              onSubmit={handleForgotPassword}
+              className="space-y-3"
+            >
+              {resetSent ? (
+                <div className="text-center py-6">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="text-green-600 dark:text-green-400" size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Check your email</h3>
+                  <p className="text-sm text-zinc-500 mb-6">
+                    {t('auth.resetLinkSent') !== 'auth.resetLinkSent' ? t('auth.resetLinkSent') : 'Password reset link sent. Check your inbox or spam folder.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setShowForgotPassword(false); setResetSent(false); setIsLogin(true); }}
+                    className="w-full btn-primary py-3.5 text-base shadow-lg shadow-brand/20 rounded-2xl"
+                  >
+                    {t('auth.backToLogin') || 'Back to Login'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-zinc-500 font-medium leading-relaxed mb-4 px-1 text-center">
+                    {t('auth.forgotPasswordSubtitle') !== 'auth.forgotPasswordSubtitle' ? t('auth.forgotPasswordSubtitle') : 'Enter your email address to receive a password reset link.'}
+                  </p>
+
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300 dark:text-zinc-600 pointer-events-none" size={18} />
+                    <input
+                      name="email"
+                      required
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={t('profile.labels.email') || 'Email'}
+                      className="auth-input pl-[44px]"
+                    />
+                  </div>
+
+                  <button
+                    disabled={isLoading}
+                    className="w-full btn-primary py-3.5 text-base shadow-lg shadow-brand/20 disabled:opacity-70 rounded-2xl mt-4 mb-4"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="animate-spin mx-auto" size={22} />
+                    ) : (
+                      <>
+                        {t('auth.sendResetLink') !== 'auth.sendResetLink' ? t('auth.sendResetLink') : 'Send Reset Link'}
+                        <ArrowRight size={18} />
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => { setShowForgotPassword(false); setError(null); setIsLogin(true); }}
+                    className="w-full py-3.5 text-sm font-bold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 underline-offset-4 hover:underline transition-all"
+                  >
+                    {t('auth.backToLogin') || 'Back to Login'}
+                  </button>
+                </>
+              )}
             </motion.form>
           ) : (
             <motion.div key="auth-main" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
@@ -452,8 +564,8 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                 disabled={isLoading}
                 className="w-full flex items-center justify-center gap-3 py-3.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all font-bold text-sm text-zinc-700 dark:text-zinc-200 shadow-sm disabled:opacity-50 mb-3"
               >
-                {isLoading && error === "Preparing Google sign-in…" ? (
-                  <><Loader2 size={18} className="animate-spin text-zinc-400" /> <span className="text-zinc-500 whitespace-nowrap overflow-hidden">Preparing...</span></>
+                {isLoading ? (
+                  <Loader2 size={20} className="animate-spin text-brand" />
                 ) : (
                   <>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -484,7 +596,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.25 }}
-              className="overflow-hidden"
+              className=""
             >
               <div className="relative flex items-center justify-center mb-3">
                 <div className="absolute inset-0 flex items-center">
@@ -531,8 +643,8 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                         name="sellerType"
                         value={sellerType}
                         onChange={(e) => setSellerType(e.target.value)}
-                        label="Select Role"
-                        options={SELLER_TYPES.map(type => ({ value: type, label: type }))}
+                        label={t('auth.selectRole') !== 'auth.selectRole' ? t('auth.selectRole') : 'Select Role'}
+                        options={SELLER_TYPES.map(type => ({ value: type, label: t(`sellerTypes.${type}`) !== `sellerTypes.${type}` ? t(`sellerTypes.${type}`) : type }))}
                         className="auth-input pl-[44px] pr-4 w-full flex items-center justify-between"
                       />
                     </div>
@@ -568,6 +680,18 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
                     className="auth-input"
                   />
                 </div>
+
+                {isLogin && (
+                  <div className="flex justify-end mt-2 mb-1">
+                    <button
+                      type="button"
+                      onClick={() => { setShowForgotPassword(true); setError(null); setResetSent(false); }}
+                      className="text-xs font-bold text-brand hover:underline"
+                    >
+                      {t('auth.forgotPasswordText') !== 'auth.forgotPasswordText' ? t('auth.forgotPasswordText') : 'Forgot Password?'}
+                    </button>
+                  </div>
+                )}
 
                 {!isLogin && (
                   <div className="relative">
@@ -608,7 +732,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           )}
         </AnimatePresence>
 
-        {!isCompletingProfile && (
+        {!isCompletingProfile && !showForgotPassword && (
           <>
             <p className="mt-4 text-center text-[11px] font-bold text-zinc-500">
               {isLogin ? (t('auth.noAccount') || "Don't have an account?") : (t('auth.hasAccount') || 'Already have an account?')}
@@ -622,10 +746,10 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
             </p>
 
             <p className="mt-3 text-center text-[10px] text-zinc-400 leading-relaxed px-2">
-              By continuing, you agree to our{' '}
-              <button type="button" onClick={() => { setAuthModalOpen(false); setPage('terms'); }} className="text-brand hover:underline">Terms & Conditions</button>
-              {' '}and{' '}
-              <button type="button" onClick={() => { setAuthModalOpen(false); setPage('privacy'); }} className="text-brand hover:underline">Privacy Policy</button>
+              {t('auth.agreeText') || 'By continuing, you agree to our'}{' '}
+              <button type="button" onClick={() => { setAuthModalOpen(false); setPage('terms'); }} className="text-brand hover:underline">{t('auth.termsConditions')}</button>
+              {' '}{t('auth.and') || 'and'}{' '}
+              <button type="button" onClick={() => { setAuthModalOpen(false); setPage('privacy'); }} className="text-brand hover:underline">{t('auth.privacyPolicy')}</button>
             </p>
           </>
         )}

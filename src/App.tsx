@@ -8,6 +8,7 @@ import { useAppContext } from './context/AppContext';
 import { Loader2 } from 'lucide-react';
 import { useToast } from './components/Toast';
 import { PullToRefresh } from './components/PullToRefresh';
+import { OnboardingModal } from './components/OnboardingModal';
 
 // Lazy load non-critical pages
 const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
@@ -31,6 +32,7 @@ const Support = React.lazy(() => import('./pages/Support').then(m => ({ default:
 const Language = React.lazy(() => import('./pages/Language').then(m => ({ default: m.Language })));
 const SavedCars = React.lazy(() => import('./pages/SavedCars').then(m => ({ default: m.SavedCars })));
 const FeaturedListings = React.lazy(() => import('./pages/FeaturedListings').then(m => ({ default: m.FeaturedListings })));
+const PremiumListings = React.lazy(() => import('./pages/PremiumListings').then(m => ({ default: m.PremiumListings })));
 const MenuPage = React.lazy(() => import('./pages/Menu').then(m => ({ default: m.Menu })));
 
 
@@ -43,10 +45,11 @@ export default function App() {
   const backPressCount = React.useRef(0);
   const { showToast } = useToast();
 
-  // Root pages — pressing back from any of these should trigger "press again to exit"
-  const ROOT_PAGES: Page[] = ['home', 'browse', 'chat', 'dashboard'];
+  // Tab / Root pages — switching between these REPLACES history (no stacking)
+  const TAB_PAGES: Page[] = ['home', 'browse', 'chat', 'dashboard'];
 
   const setCurrentPage = React.useCallback((page: Page) => {
+    // Menu toggle behavior
     if (page === 'menu' && currentPage === 'menu') {
       const newHistory = [...history];
       newHistory.pop();
@@ -55,10 +58,22 @@ export default function App() {
       _setCurrentPage(backTo);
       return;
     }
-    setHistory(prev => {
-      if (prev[prev.length - 1] === page) return prev;
-      return [...prev, page];
-    });
+
+    if (TAB_PAGES.includes(page)) {
+      // Switching to a tab: REPLACE history (not push)
+      // Home is the absolute root; other tabs sit one level above Home
+      if (page === 'home') {
+        setHistory(['home']);
+      } else {
+        setHistory(['home', page]);
+      }
+    } else {
+      // Inner page: PUSH onto current history stack
+      setHistory(prev => {
+        if (prev[prev.length - 1] === page) return prev;
+        return [...prev, page];
+      });
+    }
     _setCurrentPage(page);
   }, [currentPage, history]);
 
@@ -82,6 +97,12 @@ export default function App() {
 
     import('@capacitor/app').then(({ App }) => {
       const listener = App.addListener('backButton', () => {
+        // 0. Close fullscreen image viewer if open (stays on detail page)
+        if (typeof (window as any).__closeDetailViewer === 'function') {
+          (window as any).__closeDetailViewer();
+          return;
+        }
+
         // 1. Close auth modal first if open
         if (authModalRef.current) {
           setAuthModalOpen(false);
@@ -98,8 +119,8 @@ export default function App() {
         const h = historyRef.current;
         const page = currentPageRef.current;
 
-        // 3. If on a root page, double-press to exit
-        if (ROOT_PAGES.includes(page) && h.length <= 1) {
+        // 3. On Home with no deeper history → double-press to exit
+        if (page === 'home') {
           backPressCount.current += 1;
           if (backPressCount.current >= 2) {
             App.exitApp();
@@ -110,7 +131,15 @@ export default function App() {
           return;
         }
 
-        // 4. Navigate back in history
+        // 4. On a non-Home tab → go to Home (not previous history)
+        if (TAB_PAGES.includes(page)) {
+          setHistory(['home']);
+          _setCurrentPage('home');
+          backPressCount.current = 0;
+          return;
+        }
+
+        // 5. On an inner page → pop back in history
         if (h.length > 1) {
           const newHistory = h.slice(0, -1);
           const backTo = newHistory[newHistory.length - 1] || 'home';
@@ -118,13 +147,10 @@ export default function App() {
           _setCurrentPage(backTo);
           backPressCount.current = 0;
         } else {
-          backPressCount.current += 1;
-          if (backPressCount.current >= 2) {
-            App.exitApp();
-          } else {
-            showToast('Press back again to exit', 'info');
-            setTimeout(() => { backPressCount.current = 0; }, 2000);
-          }
+          // Fallback: go Home
+          setHistory(['home']);
+          _setCurrentPage('home');
+          backPressCount.current = 0;
         }
       });
 
@@ -132,6 +158,19 @@ export default function App() {
     }).catch(() => {});
 
     return () => { cleanup?.(); };
+  }, []);
+
+  // Handle push notification tapping (navigation)
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const { chatId } = (e as CustomEvent).detail;
+      if (chatId) {
+        _setCurrentPage('chat');
+        setActiveChatId(chatId);
+      }
+    };
+    window.addEventListener('app-notification-action', handler);
+    return () => window.removeEventListener('app-notification-action', handler);
   }, []);
 
 
@@ -232,20 +271,22 @@ export default function App() {
         return <SavedCars setPage={setCurrentPage} setSelectedCar={setSelectedCar} />;
       case 'featuredListings':
         return <FeaturedListings setPage={setCurrentPage} setSelectedCar={setSelectedCar} />;
+      case 'premiumListings':
+        return <PremiumListings setPage={setCurrentPage} setSelectedCar={setSelectedCar} />;
       default:
         return <Home setPage={setCurrentPage} setSelectedCar={setSelectedCar} onSearch={handleSearch} />;
     }
   };
 
   return (
-    <div className={`min-h-[100dvh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 selection:bg-brand/10 selection:text-brand transition-colors duration-500 ${currentPage === 'chat' && activeChatId ? '' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0'}`}>
+    <div className={`w-full max-w-full min-h-[100vh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-500 ${currentPage === 'chat' && activeChatId ? '' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0'}`}>
       <NetworkStatus />
       <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
         <Header currentPage={currentPage} setPage={setCurrentPage} />
       </div>
       
       <main className={currentPage === 'chat' && activeChatId ? 'h-[100dvh]' : ''} style={currentPage === 'chat' && activeChatId ? undefined : { paddingTop: 'var(--header-h)' }}>
-        <PullToRefresh disabled={currentPage === 'menu' || currentPage === 'chat'}>
+        <PullToRefresh disabled={currentPage !== 'home'}>
             <React.Suspense fallback={
               <div className="min-h-[60vh] flex items-center justify-center">
                 <Loader2 className="animate-spin text-brand" size={32} />
@@ -256,10 +297,12 @@ export default function App() {
         </PullToRefresh>
       </main>
 
-      {currentPage === 'dashboard' && <Footer setPage={setCurrentPage} />}
-      <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
+
+      <div className={(currentPage === 'chat' && activeChatId) || currentPage === 'post' ? 'hidden md:block' : ''}>
         <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
       </div>
+
+      <OnboardingModal />
 
       {isAuthModalOpen && (
         <React.Suspense fallback={null}>

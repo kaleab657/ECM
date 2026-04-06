@@ -1,5 +1,5 @@
 import React from 'react';
-import { Moon, Sun, Globe, Heart, Car, Shield, Info, MessageCircle, User } from 'lucide-react';
+import { Moon, Sun, Globe, Star, Car, Shield, Info, MessageCircle, User } from 'lucide-react';
 import { Page } from '../types';
 import { useAppContext } from '../context/AppContext';
 
@@ -15,14 +15,14 @@ export const Menu: React.FC<MenuProps> = ({ setPage }) => {
   };
 
   const menuItems = [
-    { id: 'saved', label: t('menu.savedCars') || 'Saved Cars', description: t('menu.savedCarsDesc'), icon: Heart, action: () => handleNavClick('saved') },
-    { id: 'valuation', label: t('menu.valuation') || 'Car Valuation', icon: Car, action: () => handleNavClick('valuation') },
+    { id: 'saved', label: t('menu.savedCars') || 'Saved Cars', description: t('menu.savedCarsDesc'), icon: Star, action: () => handleNavClick('saved') },
     { id: 'safety', label: t('menu.safety') || 'Safety Tips', icon: Shield, action: () => handleNavClick('safety') },
+    { id: 'valuation', label: t('menu.valuation') || 'Car Valuation', icon: Car, action: () => handleNavClick('valuation') },
+    { id: 'language', label: t('menu.language') || 'Language', description: t('menu.languageDesc'), icon: Globe, action: () => handleNavClick('language') },
     { id: 'privacy', label: t('menu.privacy') || 'Privacy Policy', icon: Shield, action: () => handleNavClick('privacy') },
-    { id: 'theme', label: t('menu.theme') || 'Appearance', description: t('menu.themeDesc'), icon: theme === 'light' ? Moon : Sun, action: toggleTheme },
     { id: 'about', label: t('menu.about') || 'About Us', icon: Info, action: () => handleNavClick('about') },
     { id: 'support', label: t('menu.support') || 'Support & Help', icon: MessageCircle, action: () => handleNavClick('support') },
-    { id: 'language', label: t('menu.language') || 'Language', description: t('menu.languageDesc'), icon: Globe, action: () => handleNavClick('language') },
+    { id: 'theme', label: t('menu.theme') || 'Appearance', description: t('menu.themeDesc'), icon: theme === 'light' ? Moon : Sun, action: toggleTheme },
   ];
 
   return (

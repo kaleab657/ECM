@@ -52,9 +52,7 @@ export const Footer: React.FC<FooterProps> = ({ setPage }) => {
               </a>
             ))}
           </div>
-          <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-600 text-center">
-            <p>&copy; {new Date().getFullYear()} EthioCars. {t('footer.rights') || 'All rights reserved.'}</p>
-          </div>
+          {/* Copyright removed natively */}
         </div>
       </div>
     </footer>

@@ -29,7 +29,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     // Car Listings
@@ -48,7 +48,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
     // Stats
@@ -67,11 +67,18 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
         allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow delete: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
       }
     }
     
     // Dealerships
     match /dealerships/{dealerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // App Settings (admin-controlled dynamic config)
+    match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }

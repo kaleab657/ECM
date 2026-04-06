@@ -87,23 +87,23 @@ export const LOGO_DARK = 'path-to-your-dark-logo';
 export const LISTING_PACKAGES = [
   {
     id: 'free',
-    name: 'Free Package',
+    name: 'Normal listing',
     price: 0,
     duration: 15,
-    features: ['15 days listing']
+    features: ['Appears in latest listings only', 'Auto expires after 15 days']
   },
   {
     id: 'featured',
-    name: 'Featured Package',
+    name: 'Featured Plan',
     price: 300,
     duration: 30,
-    features: ['15 days homepage feature', '30 days listing']
+    features: ['Homepage exposure', 'Featured section visibility', 'Auto expires after 30 days']
   },
   {
     id: 'premium',
-    name: 'Premium Package',
+    name: 'Premium Plan',
     price: 600,
-    duration: 30,
-    features: ['Maximum exposure', 'Featured everywhere']
+    duration: 0, // 0 signifies no expiry
+    features: ['Maximum exposure', 'Always first placement', 'Auto boost visibility', 'Active until you delete']
   }
 ] as const;

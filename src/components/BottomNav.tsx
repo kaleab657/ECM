@@ -56,7 +56,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, setPage }) =>
   const navItems = [
     { id: 'home', label: t('nav.home') || 'Home', icon: Home },
     { id: 'browse', label: t('nav.browse') || 'Browse', icon: Search },
-    { id: 'post', label: 'Post Your Car', icon: PlusCircle },
+    { id: 'post', label: t('nav.postCar') || 'Post Your Car', icon: PlusCircle },
     { id: 'chat', label: t('nav.chat') || 'Chat', icon: Bell, badge: unreadCount },
     { id: 'dashboard', label: t('nav.account') || 'Account', icon: LayoutDashboard },
   ];

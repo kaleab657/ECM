@@ -56,21 +56,6 @@ export const SafetyGuidelines: React.FC = () => {
         ))}
       </div>
 
-      <div className="bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-500/20 rounded-[32px] p-8 flex flex-col md:flex-row items-center gap-6">
-        <div className="bg-red-500 p-4 rounded-2xl text-white shadow-lg shadow-red-500/20">
-          <AlertTriangle size={32} />
-        </div>
-        <div className="flex-1 text-center md:text-left">
-          <h4 className="text-red-900 dark:text-red-400 font-black text-xl mb-1">{t('safetyPage.bewareScams') || 'Beware of Scams!'}</h4>
-          <p className="text-red-700 dark:text-red-500/80 text-sm font-medium">{t('safetyPage.bewareScamsDesc')}</p>
-        </div>
-        <button 
-          onClick={() => window.location.href = 'tel:+251942712410'}
-          className="bg-red-600 text-white px-8 py-3 rounded-2xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
-        >
-          {t('safetyPage.reportScam') || 'Report a Scam'}
-        </button>
-      </div>
     </div>
   );
 };

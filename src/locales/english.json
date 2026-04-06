@@ -9,11 +9,12 @@
     "login": "Login",
     "valuation": "Valuation",
     "dealerships": "Dealerships",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "postCar": "Post Your Car"
   },
   "menu": {
     "savedCars": "Saved Cars",
-    "savedCarsDesc": "View the cars you've liked",
+    "savedCarsDesc": "View the cars you've starred",
     "valuation": "Car Valuation",
     "safety": "Safety Tips",
     "privacy": "Privacy Policy",
@@ -39,6 +40,7 @@
   "home": {
     "searchPlaceholder": "Search cars...",
     "featuredTitle": "Featured Listings",
+    "premiumTitle": "Premium Cars",
     "viewAll": "View All",
     "latestTitle": "Latest Listings",
     "noResults": "No listings found"
@@ -124,7 +126,8 @@
     "electric": "Electric",
     "optional": "Optional",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "getStarted": "Get Started"
   },
   "auth": {
     "loginTitle": "Welcome back",
@@ -172,7 +175,14 @@
     "heroDesc": "Join thousands of buyers and sellers on the most trusted automotive marketplace.",
     "listings": "Listings",
     "users": "Users",
-    "support": "Support"
+    "support": "Support",
+    "agreeText": "I agree to the",
+    "termsConditions": "Terms & Conditions",
+    "and": "and",
+    "privacyPolicy": "Privacy Policy",
+    "selectRole": "Select Role",
+    "finishSetup": "Finish Setup",
+    "resetLinkSent": "Password reset link sent. Check your inbox or spam folder."
   },
   "profile": {
     "labels": {
@@ -208,6 +218,7 @@
     "selectTransmission": "Select Transmission",
     "selectFuelType": "Select Fuel Type",
     "selectBodyType": "Select Body Type",
+    "selectPriceType": "Select Price Type",
     "remainingLoan": "Remaining Bank Loan Amount",
     "loanPlaceholder": "Enter remaining loan amount (ETB)",
     "previous": "Previous",
@@ -224,6 +235,8 @@
     "errorPhone": "Please enter your phone number",
     "errorPosting": "Failed to post listing: ",
     "days": "Post Days",
+    "driveType": "Drive Type",
+    "fuelMileage": "Fuel Mileage (km/L)",
     "step": "Step",
     "of": "of",
     "uploading": "Uploading images...",
@@ -250,7 +263,8 @@
     "noChatSelectedDesc": "Pick a conversation from the list on the left to view messages.",
     "maxImages": "Maximum 3 images allowed per message",
     "uploadFailed": "Failed to upload images",
-    "deleteFailed": "Failed to delete conversation"
+    "deleteFailed": "Failed to delete conversation",
+    "permissionRequired": "Permission required to upload image"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -259,6 +273,9 @@
     "goHome": "Go to Home"
   },
   "dashboard": {
+    "admin": "Admin",
+    "adminPortal": "Admin Portal",
+    "managePlatform": "Manage Platform",
     "myListings": "My Listings",
     "messages": "Messages",
     "settings": "Settings",
@@ -267,7 +284,7 @@
     "totalListings": "Total Listings",
     "active": "Active",
     "sold": "Sold",
-    "myInventory": "My Inventory",
+    "myInventory": "My Listings",
     "items": "items",
     "markSold": "Mark Sold",
     "deleteListingTitle": "Delete Listing?",
@@ -285,7 +302,29 @@
     "updateProfile": "Update Profile",
     "profileUpdated": "Profile updated successfully!",
     "updateFailed": "Failed to update profile. Please try again.",
-    "loginRequired": "Please login to access dashboard"
+    "loginRequired": "Please login to access dashboard",
+    "advertising": "Advertising",
+    "advertiseTitle": "Advertise your products and services here",
+    "advertiseDesc": "Reach thousands of customers",
+    "contactOptions": "Contact Options",
+    "reachOutDirectly": "Reach out directly",
+    "phoneNumber": "Phone Number",
+    "deleteAccount": "Delete Account",
+    "deleteDataDesc": "Permanently remove your data",
+    "deleteWarning": "This will permanently delete your account, all your listings, messages, payment records, and uploaded images. This action cannot be undone.",
+    "yesDeleteAccount": "Delete My Account",
+    "logoutTitle": "Log out?",
+    "logoutConfirm": "Are you sure you want to log out?",
+    "deleteAccountConfirm": "Are you sure you want to permanently delete your account? All your listings, messages, and data will be removed forever. This cannot be undone.",
+    "deletingAccount": "Deleting account...",
+    "rejected": "Rejected",
+    "paymentRejected": "Payment Rejected",
+    "pendingVerification": "Payment Pending Verification",
+    "deleteListingBtn": "Delete Listing",
+    "markAsSoldTitle": "Mark as Sold",
+    "markAsSoldConfirm": "Are you sure you want to mark this listing as sold?",
+    "confirm": "Confirm",
+    "config": "Confirm"
   },
   "browse": {
     "title": "Browse Cars",
@@ -339,7 +378,9 @@
     "verified": "Verified",
     "reportScam": "Report Scam",
     "bankLoan": "Bank Loan",
-    "remainingLoan": "Remaining Loan"
+    "remainingLoan": "Remaining Loan",
+    "driveType": "Drive Type",
+    "fuelMileage": "Fuel Mileage (km/L)"
   },
   "payment": {
     "title": "Complete Your Payment",
@@ -392,7 +433,8 @@
     "placeholderName": "John Doe",
     "placeholderInfo": "name@example.com",
     "placeholderMessage": "How can we help you?",
-    "sendBtn": "Send Message"
+    "sendBtn": "Send Message",
+    "connectWithUs": "Connect With Us"
   },
   "safetyPage": {
     "title": "Safety Guidelines",
@@ -460,17 +502,39 @@
     "sendUsAMessage": "Send us a message directly"
   },
   "about": {
-    "title": "About Us",
-    "p1": "EthioCars Marketplace is a modern digital platform built to make buying and selling cars in Ethiopia simple, fast, and secure. The app connects car buyers and sellers in one trusted marketplace where users can explore a wide range of vehicles, from budget-friendly cars to premium models.",
-    "p2": "With EthioCars Marketplace, users can easily browse car listings, view detailed vehicle information, chat directly with sellers, and post their own cars for sale within minutes.",
-    "p3": "The platform is designed specifically for the Ethiopian market, making it easier for people to find cars in their city or nearby locations.",
-    "keyFeatures": "Key Features",
-    "feature1": "Browse thousands of car listings across Ethiopia",
-    "feature2": "Post your car for sale quickly and easily",
-    "feature3": "View detailed car information including condition, price, and location",
-    "feature4": "Chat directly with buyers and sellers inside the app",
-    "feature5": "Save cars to your favorites or wishlist",
-    "feature6": "Fast search and category filtering to find the perfect car."
+    "heroTitle1": "Driving the Future of",
+    "heroTitle2": "Automotive in Ethiopia",
+    "heroDesc": "EthioCars Marketplace is a modern digital platform built to make buying and selling cars in Ethiopia simple, fast, and secure. We connect buyers and sellers in one trusted marketplace.",
+    "totalUsers": "Total Users",
+    "activeListings": "Active Listings",
+    "satisfaction": "Satisfaction",
+    "support": "Support",
+    "missionTitle": "Our Mission",
+    "missionDesc": "Empowering Ethiopians to buy and sell cars with absolute trust, transparency, and convenience. We are transforming the local automotive market through modern technology.",
+    "whyChooseTitle": "Why Choose EthioCars",
+    "whyChooseDesc": "We provide the most robust set of features to make your experience seamless.",
+    "feature1Title": "Verified Listings",
+    "feature1Desc": "All listings are reviewed before going live to ensure quality and safety.",
+    "feature2Title": "Direct Chat",
+    "feature2Desc": "Talk to sellers instantly inside the app without sharing personal numbers.",
+    "feature3Title": "Built for Ethiopia",
+    "feature3Desc": "Designed specifically for Ethiopian cities, regions, and local market needs.",
+    "feature4Title": "Always Available",
+    "feature4Desc": "Our platform gives you 24/7 access to browse and manage your listings.",
+    "valuesTitle": "Our Values",
+    "valuesDesc": "The principles that guide everything we do behind the scenes.",
+    "value1Title": "Integrity",
+    "value1Desc": "Honesty and fairness are the foundation of every transaction on our platform.",
+    "value2Title": "Innovation",
+    "value2Desc": "We are constantly improving to provide the most modern car trading experience.",
+    "value3Title": "Customer First",
+    "value3Desc": "Your satisfaction and safety remain our absolute top priorities at all times.",
+    "value4Title": "Transparency",
+    "value4Desc": "Clear, accurate, and upfront information on every single vehicle listing.",
+    "ctaTitle": "Ready to find your ride?",
+    "ctaDesc": "Join thousands of users discovering the best car deals seamlessly across Ethiopia today.",
+    "ctaButton": "Start Exploring",
+    "followUs": "Follow Us"
   },
   "carCard": {
     "premium": "Premium",
@@ -501,12 +565,30 @@
   },
   "locations": {
     "Addis Ababa": "Addis Ababa",
-    "Adama": "Adama",
-    "Hawassa": "Hawassa",
-    "Bahir Dar": "Bahir Dar",
+    "Adama (Nazret)": "Adama (Nazret)",
     "Dire Dawa": "Dire Dawa",
     "Mekelle": "Mekelle",
-    "Jimma": "Jimma"
+    "Gondar": "Gondar",
+    "Hawassa": "Hawassa",
+    "Bahir Dar": "Bahir Dar",
+    "Jimma": "Jimma",
+    "Jigjiga": "Jigjiga",
+    "Dessie": "Dessie",
+    "Bishoftu (Debre Zeit)": "Bishoftu (Debre Zeit)",
+    "Shashamane": "Shashamane",
+    "Arba Minch": "Arba Minch",
+    "Hosaena": "Hosaena",
+    "Harar": "Harar",
+    "Dilla": "Dilla",
+    "Nekemte": "Nekemte",
+    "Debre Birhan": "Debre Birhan",
+    "Asella": "Asella",
+    "Kombolcha": "Kombolcha",
+    "Debre Markos": "Debre Markos",
+    "Wolkite": "Wolkite",
+    "Gambela": "Gambela",
+    "Semera": "Semera",
+    "Assosa": "Assosa"
   },
   "subcities": {
     "Bole": "Bole",
@@ -560,31 +642,32 @@
     "sections": {
       "intro": {
         "title": "1. Introduction",
-        "text": "At EthioCars, we respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you."
+        "text": "Welcome to EthioCars. This app is designed to help users buy and sell vehicles in Ethiopia. This Privacy Policy explains what information we collect, how we use it, and how we protect it. By using EthioCars, you agree to the practices described here."
       },
       "data": {
-        "title": "2. Data We Collect",
-        "text": "We may collect, use, store and transfer different kinds of personal data about you which we have grouped together as follows:",
+        "title": "2. Information We Collect",
+        "text": "When you use EthioCars, we may collect the following information:",
         "items": [
-          "Identity Data includes first name, last name, username or similar identifier.",
-          "Contact Data includes email address and telephone numbers.",
-          "Technical Data includes internet protocol (IP) address, your login data, browser type and version.",
-          "Usage Data includes information about how you use our website and services."
+          "Your name, email address, and phone number.",
+          "Your selected role (private seller, broker, dealer, etc.).",
+          "Car listings you create, including images and descriptions.",
+          "Messages you send or receive through the app.",
+          "Basic device and usage information to help us improve the app."
         ]
       },
       "usage": {
-        "title": "3. How We Use Your Data",
-        "text": "We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:",
+        "title": "3. How We Use Your Information",
+        "text": "We use the information we collect for the following purposes:",
         "items": [
-          "To register you as a new customer.",
-          "To process and deliver your listings.",
-          "To manage our relationship with you.",
-          "To improve our website, services, marketing and customer relationships."
+          "To create and manage your account.",
+          "To allow you to post, edit, and manage vehicle listings.",
+          "To enable messaging between buyers and sellers.",
+          "To improve app performance and fix issues."
         ]
       },
       "security": {
         "title": "4. Data Security",
-        "text": "We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorized way, altered or disclosed."
+        "text": "Your data is stored securely using industry-standard cloud services. We take reasonable measures to protect your information from unauthorized access, loss, or misuse. However, no system can guarantee complete security."
       }
     }
   },
@@ -592,28 +675,40 @@
     "title": "Terms of Use",
     "sections": {
       "agreement": {
-        "title": "1. Agreement to Terms",
-        "text": "By accessing or using EthioCars, you agree to be bound by these Terms of Use and all applicable laws and regulations. If you do not agree with any of these terms, you are prohibited from using or accessing this site."
+        "title": "1. Accurate Information",
+        "text": "You must provide truthful and accurate information when creating your account and posting listings. Misleading or false information may result in your account being suspended."
       },
       "license": {
-        "title": "2. Use License",
-        "text": "Permission is granted to temporarily download one copy of the materials on EthioCars' website for personal, non-commercial transitory viewing only."
+        "title": "2. Listing Responsibility",
+        "text": "You are fully responsible for the listings you post on EthioCars. Make sure your vehicle details, images, and descriptions are honest and up to date."
       },
       "conduct": {
-        "title": "3. User Conduct",
-        "text": "Users are responsible for the content they post. You agree not to post any content that is:",
+        "title": "3. Prohibited Content",
+        "text": "You agree not to post any content that is:",
         "items": [
-          "False, inaccurate, or misleading.",
-          "Fraudulent or involves the sale of stolen items.",
-          "Infringes any third party's copyright, patent, trademark, or other proprietary rights.",
-          "Violates any law, statute, or regulation."
+          "False, misleading, or fraudulent.",
+          "Illegal or promoting illegal activity.",
+          "Offensive, abusive, or harmful to others.",
+          "Violating the rights of any third party."
         ]
       },
       "disclaimer": {
-        "title": "4. Disclaimer",
-        "text": "The materials on EthioCars' website are provided on an 'as is' basis. EthioCars makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability."
+        "title": "4. Platform Disclaimer",
+        "text": "EthioCars is a platform that connects buyers and sellers. We are not responsible for any transactions, agreements, or disputes between users. Always exercise caution when dealing with others."
       }
     }
+  },
+  "admin": {
+    "totalUsers": "Total Users",
+    "totalListings": "Total Listings",
+    "pending": "Pending",
+    "featured": "Featured",
+    "premium": "Premium",
+    "report": "Report",
+    "listing": "Listing",
+    "listings": "Listings",
+    "payments": "Payments",
+    "notifications": "Notifications"
   },
   "packages": {
     "free": {

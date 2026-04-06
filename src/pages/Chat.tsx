@@ -38,7 +38,7 @@ interface ChatProps {
 }
 
 export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
-  const { user, t } = useAppContext();
+  const { user, profile, t } = useAppContext();
   const { showToast } = useToast();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -96,6 +96,10 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
     
     if (session && session.unreadCount && session.unreadCount > 0 && session.lastMessageSenderId !== user.uid) {
       updateDoc(chatRef, { unreadCount: 0 });
+      // Clear native status bar notifications when reading chat
+      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+        PushNotifications.removeAllDeliveredNotifications().catch(() => {});
+      }).catch(() => {});
     }
   }, [activeChatId, user, sessions]);
 
@@ -155,6 +159,10 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
 
   const handleSendMessage = useCallback(async (e?: React.FormEvent, imageURLs?: string[]) => {
     if (e) e.preventDefault();
+    if (profile?.isBanned) {
+      showToast('Your account is restricted. Chat is disabled.', 'error');
+      return;
+    }
     if (!inputText.trim() && (!imageURLs || imageURLs.length === 0)) return;
     if (!activeChatId || !user) return;
 
@@ -215,6 +223,11 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   }, [inputText, activeChatId, user, sessions]);
 
   const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (profile?.isBanned) {
+      showToast('Your account is restricted. Chat is disabled.', 'error');
+      if (e.target) e.target.value = '';
+      return;
+    }
     const files = e.target.files;
     if (!files || files.length === 0 || !activeChatId || !user) return;
 

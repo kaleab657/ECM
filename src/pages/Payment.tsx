@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { CreditCard, Upload, CheckCircle2, AlertCircle, Loader2, ArrowLeft, Building2, Smartphone } from 'lucide-react';
+import { CreditCard, Upload, CheckCircle2, AlertCircle, Loader2, ArrowLeft, Building2, Smartphone, X } from 'lucide-react';
 import { db, storage } from '../lib/firebase';
 import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -8,6 +8,7 @@ import { useAppContext } from '../context/AppContext';
 import { LISTING_PACKAGES } from '../constants';
 import { Page, Car, ListingPackage } from '../types';
 import { apiUpload } from '../lib/api-client';
+import { compressImage } from '../utils/image-utils';
 
 interface PaymentProps {
   listingId: string | null;
@@ -15,7 +16,7 @@ interface PaymentProps {
 }
 
 export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
-  const { user, t } = useAppContext();
+  const { user, t, appConfig } = useAppContext();
   const [listing, setListing] = useState<Car | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<ListingPackage | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'CBE' | 'Telebirr'>('CBE');
@@ -30,12 +31,19 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
     if (pendingData) {
       const data = JSON.parse(pendingData) as Car;
       setListing(data);
-      const pkg = LISTING_PACKAGES.find(p => p.id === data.packageType);
-      if (pkg) setSelectedPackage(pkg as ListingPackage);
+      const basePkg = LISTING_PACKAGES.find(p => p.id === data.packageType);
+      if (basePkg) {
+        const pkg = {
+          ...basePkg,
+          price: basePkg.id === 'featured' ? (appConfig.featured_price ?? basePkg.price) : 
+                 basePkg.id === 'premium' ? (appConfig.premium_price ?? basePkg.price) : basePkg.price
+        };
+        setSelectedPackage(pkg as ListingPackage);
+      }
     } else if (!listingId) {
       setPage('home');
     }
-  }, [listingId, setPage]);
+  }, [listingId, setPage, appConfig]);
 
   const handlePackageChange = (pkg: ListingPackage) => {
     setSelectedPackage(pkg);
@@ -63,6 +71,13 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
     }
   };
 
+  const removeScreenshot = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setScreenshot(null);
+    setPreview(null);
+    setError(null);
+  };
+
   const handleSubmit = async () => {
     if (!user || !selectedPackage || !screenshot) {
       setError(t('payment.errorMissingInfo') || 'Please complete all required fields');
@@ -74,11 +89,11 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
 
     try {
       const idToken = await user.getIdToken();
-      
+
       let finalListingId = listingId;
       const pendingData = sessionStorage.getItem('pendingListing');
       let listingPayload = null;
-      
+
       if (pendingData) {
         listingPayload = JSON.parse(pendingData);
         finalListingId = listingPayload.id;
@@ -92,12 +107,15 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
       const timestamp = Date.now();
       const customKey = `payments/${user.uid}/${finalListingId}/${timestamp}.jpg`;
       const fileName = `payment-${timestamp}.jpg`;
-      
+
+      // Compress screenshot before upload to reduce transfer time
+      const compressedScreenshot = await compressImage(screenshot, 1200, 1200, 0.8).catch(() => screenshot);
+
       // Use ArrayBuffer for Capacitor Android compatibility (Blob/File natively fails in fetch on older webviews)
-      const screenshotData = screenshot.arrayBuffer ? await screenshot.arrayBuffer() : screenshot;
-      
-      const fileType = screenshot.type || 'image/jpeg';
-      
+      const screenshotData = compressedScreenshot.arrayBuffer ? await compressedScreenshot.arrayBuffer() : compressedScreenshot;
+
+      const fileType = 'image/jpeg';
+
       const data = await apiUpload(`/api/r2/upload-payment?fileName=${fileName}&fileType=${fileType}&customKey=${customKey}`, {
         method: 'POST',
         headers: {
@@ -115,7 +133,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
 
       // 2. Use a writeBatch to ensure both listing & payment are saved atomically
       const batch = writeBatch(db);
-      
+
       // Payment Record
       const paymentRef = doc(collection(db, 'payments'));
       batch.set(paymentRef, {
@@ -131,7 +149,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
 
       // Update Listing status to pending and attach payment proof
       const carRef = doc(db, 'cars', finalListingId);
-      
+
       if (listingPayload) {
         // Strip any undefined values that might have snuck in to prevent Firestore crash
         const sanitizedPayload = Object.fromEntries(
@@ -142,7 +160,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
             createdAt: serverTimestamp()
           }).filter(([_, v]) => v !== undefined)
         );
-        
+
         // Option A: Full save (if coming from PostCar where it wasn't saved yet)
         batch.set(carRef, sanitizedPayload);
       } else {
@@ -156,19 +174,18 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
       }
 
       await batch.commit();
-      
+
       // Success!
       sessionStorage.removeItem('pendingListing');
       setSuccess(true);
-      setTimeout(() => setPage('dashboard'), 3000);
+      setTimeout(() => setPage('dashboard'), 800);
     } catch (err: any) {
       console.error('Payment submission failed:', err);
       // Give more specific error message if possible
-      const message = err.message?.includes('not-found') 
+      const message = err.message?.includes('not-found')
         ? 'Listing record not found. Please try re-posting the car.'
         : (err.message || 'Submission failed. Please check your connection.');
       setError(`Error: ${message}`);
-      alert(`Submission Error: ${message}`); // Alert to ensure the user sees the actual error blocking submission
     } finally {
       setIsSubmitting(false);
     }
@@ -176,26 +193,34 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
 
   if (success) {
     return (
-      <div className="min-h-screen pt-24 pb-12 px-4 flex items-center justify-center">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-3xl p-8 text-center shadow-xl border border-zinc-100 dark:border-zinc-800"
+      <div className="fixed inset-0 z-50 bg-[#FDFDFD]/95 dark:bg-zinc-950/95" style={{ position: 'fixed', overflow: 'hidden' }}>
+        <div
+          className="w-[calc(100%-2rem)] max-w-md bg-white dark:bg-zinc-900 rounded-3xl p-8 text-center shadow-xl border border-zinc-100 dark:border-zinc-800 z-[51]"
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            overflow: 'hidden',
+            maxHeight: '90vh'
+          }}
         >
-          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 size={40} />
-          </div>
-          <h1 className="text-2xl font-bold mb-4 dark:text-white">{t('payment.successTitle')}</h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-8">
-            {t('payment.successDesc')}
-          </p>
-          <button 
-            onClick={() => setPage('dashboard')}
-            className="w-full py-4 bg-brand text-white rounded-2xl font-bold shadow-lg shadow-brand/20"
-          >
-            {t('payment.goToDashboard')}
-          </button>
-        </motion.div>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 size={40} />
+            </div>
+            <h1 className="text-2xl font-bold mb-4 dark:text-white">{t('payment.successTitle')}</h1>
+            <p className="text-zinc-600 dark:text-zinc-400 mb-8">
+              {t('payment.successDesc')}
+            </p>
+            <button
+              onClick={() => setPage('dashboard')}
+              className="w-full py-4 bg-brand text-white rounded-2xl font-bold shadow-lg shadow-brand/20"
+            >
+              {t('payment.goToDashboard')}
+            </button>
+          </motion.div>
+        </div>
       </div>
     );
   }
@@ -203,7 +228,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
   return (
     <div className="min-h-screen pt-4 md:pt-24 pb-24 md:pb-12 px-4">
       <div className="max-w-3xl mx-auto">
-        <button 
+        <button
           onClick={() => setPage('post')}
           className="flex items-center gap-2 text-zinc-500 hover:text-brand mb-4 md:mb-8 transition-colors"
         >
@@ -228,49 +253,24 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
                     <span className="font-black text-zinc-900 dark:text-white uppercase tracking-tight">{selectedPackage.name}</span>
                     <span className="text-brand font-black text-lg">{selectedPackage.price} ETB</span>
                   </div>
-                  <p className="text-zinc-500 text-[10px] font-bold mb-3 uppercase tracking-widest">{selectedPackage.duration} {t('post.days') || 'Post Days'}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedPackage.features.map((f, i) => (
-                      <span key={i} className="px-2 py-1 bg-white dark:bg-zinc-800 text-[9px] font-black uppercase tracking-tight rounded-lg border border-black/[0.03] dark:border-white/[0.05] dark:text-zinc-300">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+                    {selectedPackage.id === 'premium' ? 'Maximum exposure' : `${selectedPackage.duration} Days Duration`}
+                  </p>
                 </div>
               )}
-              
-              <div className="mt-6">
-                <label className="block text-sm font-semibold mb-3 dark:text-zinc-300">{t('payment.changePackage')}</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {LISTING_PACKAGES.filter(p => p.price > 0).map((pkg) => (
-                    <button
-                      key={pkg.id}
-                      onClick={() => handlePackageChange(pkg as ListingPackage)}
-                      className={`p-3 rounded-xl border-2 transition-all text-sm font-bold ${
-                        selectedPackage?.id === pkg.id
-                          ? 'border-brand bg-brand/5 text-brand'
-                          : 'border-zinc-100 dark:border-zinc-800 dark:text-zinc-400'
-                      }`}
-                    >
-                      {pkg.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </section>
 
             {/* Payment Methods */}
             <section className="bg-white dark:bg-zinc-900 rounded-[32px] p-5 md:p-6 shadow-sm border border-black/[0.03] dark:border-white/[0.05]">
               <h2 className="text-sm font-black mb-6 text-zinc-400 uppercase tracking-widest">{t('payment.method')}</h2>
-              
+
               <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                   onClick={() => setPaymentMethod('CBE')}
-                  className={`flex flex-col items-center gap-3 p-4 rounded-3xl border-2 transition-all ${
-                    paymentMethod === 'CBE'
+                  className={`flex flex-col items-center gap-3 p-4 rounded-3xl border-2 transition-all ${paymentMethod === 'CBE'
                       ? 'border-brand bg-brand/[0.02]'
                       : 'border-zinc-50 dark:border-zinc-800'
-                  }`}
+                    }`}
                 >
                   <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center overflow-hidden border border-black/[0.05] shadow-sm">
                     <img src="/assets/logos/cbe_logo.png" alt="CBE Bank" className="w-9 h-9 object-contain" />
@@ -283,11 +283,10 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
 
                 <button
                   onClick={() => setPaymentMethod('Telebirr')}
-                  className={`flex flex-col items-center gap-3 p-4 rounded-3xl border-2 transition-all ${
-                    paymentMethod === 'Telebirr'
+                  className={`flex flex-col items-center gap-3 p-4 rounded-3xl border-2 transition-all ${paymentMethod === 'Telebirr'
                       ? 'border-brand bg-brand/[0.02]'
                       : 'border-zinc-50 dark:border-zinc-800'
-                  }`}
+                    }`}
                 >
                   <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center overflow-hidden border border-black/[0.05] shadow-sm">
                     <img src="/assets/logos/telebirr_logo.png" alt="Telebirr" className="w-9 h-9 object-contain" />
@@ -330,7 +329,7 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-zinc-500">{t('payment.phoneNumber')}</span>
-                        <span className="font-bold text-lg text-brand">+251942712410</span>
+                        <span className="font-bold text-lg text-brand">+251 942712410</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-zinc-500">{t('payment.accountName')}</span>
@@ -365,26 +364,33 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
 
             <section className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-100 dark:border-zinc-800">
               <h2 className="text-xl font-bold mb-4 dark:text-white">{t('payment.uploadProof')}</h2>
-              
+
               <div className="space-y-4">
-                <div 
+                <div
                   onClick={() => document.getElementById('screenshot-upload')?.click()}
-                  className={`aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden relative ${
-                    preview ? 'border-brand' : 'border-zinc-200 dark:border-zinc-700 hover:border-brand'
-                  }`}
+                  className={`aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden relative ${preview ? 'border-brand' : 'border-zinc-200 dark:border-zinc-700 hover:border-brand'
+                    }`}
                 >
                   {preview ? (
-                    <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                    <>
+                      <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                      <button 
+                        onClick={removeScreenshot}
+                        className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full shadow-lg active:scale-95 transition-all z-10"
+                      >
+                        <X size={14} />
+                      </button>
+                    </>
                   ) : (
                     <>
                       <Upload className="text-zinc-400 mb-2" size={32} />
                       <span className="text-xs text-zinc-500 font-medium">{t('payment.proofDesc')}</span>
                     </>
                   )}
-                  <input 
+                  <input
                     id="screenshot-upload"
-                    type="file" 
-                    className="hidden" 
+                    type="file"
+                    className="hidden"
                     accept="image/*"
                     onChange={handleScreenshotChange}
                   />
@@ -400,11 +406,10 @@ export const Payment: React.FC<PaymentProps> = ({ listingId, setPage }) => {
                 <button
                   disabled={isSubmitting || !screenshot}
                   onClick={handleSubmit}
-                  className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
-                    isSubmitting || !screenshot
+                  className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${isSubmitting || !screenshot
                       ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
                       : 'bg-brand text-white shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-[0.98]'
-                  }`}
+                    }`}
                 >
                   {isSubmitting ? (
                     <>

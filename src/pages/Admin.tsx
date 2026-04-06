@@ -14,11 +14,15 @@ import {
   ChevronRight,
   ShieldCheck,
   CreditCard,
-  Send
+  Send,
+  Crown,
+  Ban,
+  UserMinus,
+  Settings
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { Car, Page } from '../types';
 import { apiFetch } from '../lib/api-client';
@@ -38,13 +42,34 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     totalUsers: 0,
     totalListings: 0,
     pendingApprovals: 0,
-    featuredListings: 0
+    featuredListings: 0,
+    premiumListings: 0
   });
   const [listings, setListings] = useState<Car[]>([]);
   const [pendingPayments, setPendingPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Users Management state
+  const [users, setUsers] = useState<any[]>([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+
+  // Settings state
+  const { appConfig } = useAppContext();
+  const [settingsValues, setSettingsValues] = useState({
+    featured_price: '',
+    premium_price: '',
+    premium_enabled: true
+  });
+  
+  useEffect(() => {
+    setSettingsValues({
+      featured_price: appConfig.featured_price?.toString() ?? '300',
+      premium_price: appConfig.premium_price?.toString() ?? '600',
+      premium_enabled: appConfig.premium_enabled !== false
+    });
+  }, [appConfig]);
   
   // Notification form state
   const [notifTitle, setNotifTitle] = useState('');
@@ -55,6 +80,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [carToDelete, setCarToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [userToBan, setUserToBan] = useState<string | null>(null);
 
   const isAdmin = profile?.role?.toLowerCase() === 'admin' || user?.email === 'kaleabepherem@gmail.com' || user?.email === 'kaleabepherem98@gmail.com';
 
@@ -66,62 +92,39 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     // Real-time stats from Firestore
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
       setStats(prev => ({ ...prev, totalUsers: snapshot.size }));
+      const allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUsers(allUsers);
     }, (error) => {
       console.error('ERROR: Failed to fetch users count:', error);
     });
     unsubscribers.push(unsubUsers);
 
+    setLoading(true);
     const unsubAllCars = onSnapshot(collection(db, 'cars'), (snapshot) => {
       const allCars = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Car[];
+      
+      // Sort client-side
+      allCars.sort((a, b) => {
+        const dateA = a.createdAt?.toDate?.() ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+        const dateB = b.createdAt?.toDate?.() ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+      
+      setListings(allCars);
+      setLoading(false);
+
       setStats(prev => ({
         ...prev,
         totalListings: allCars.length,
         pendingApprovals: allCars.filter(c => c.status === 'pending' || c.status === 'pending_payment_verification').length,
-        featuredListings: allCars.filter(c => c.featured).length
+        featuredListings: allCars.filter(c => c.packageType === 'featured').length,
+        premiumListings: allCars.filter(c => c.packageType === 'premium').length
       }));
     }, (error) => {
       console.error('ERROR: Failed to fetch cars stats:', error);
+      setLoading(false);
     });
     unsubscribers.push(unsubAllCars);
-
-    // Fetch listings (with optional status filter) from Firestore
-    const fetchListings = () => {
-      setLoading(true);
-      let q;
-      if (statusFilter === 'all') {
-        q = query(collection(db, 'cars'), orderBy('createdAt', 'desc'), limit(100));
-      } else {
-        q = query(collection(db, 'cars'), where('status', '==', statusFilter), orderBy('createdAt', 'desc'), limit(100));
-      }
-      const unsubListings = onSnapshot(q, (snapshot) => {
-        const cars = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Car[];
-        setListings(cars);
-        setLoading(false);
-      }, (error) => {
-        console.error('ERROR: Failed to fetch admin listings:', error);
-        // Fallback: try without ordering if composite index is missing
-        const fallbackQ = statusFilter === 'all'
-          ? query(collection(db, 'cars'), limit(100))
-          : query(collection(db, 'cars'), where('status', '==', statusFilter), limit(100));
-        onSnapshot(fallbackQ, (snapshot) => {
-          const cars = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Car[];
-          // Sort client-side
-          cars.sort((a, b) => {
-            const dateA = a.createdAt?.toDate?.() ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime();
-            const dateB = b.createdAt?.toDate?.() ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime();
-            return dateB - dateA;
-          });
-          setListings(cars);
-          setLoading(false);
-        }, (fallbackError) => {
-          console.error('ERROR: Fallback listings query also failed:', fallbackError);
-          setLoading(false);
-        });
-      });
-      unsubscribers.push(unsubListings);
-    };
-
-    fetchListings();
 
     // Listen for pending payments
     const qPayments = query(
@@ -137,7 +140,65 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     unsubscribers.push(unsubscribePayments);
 
     return () => unsubscribers.forEach(u => u());
-  }, [user, isAdmin, statusFilter]);
+  }, [user, isAdmin]);
+
+  const handleToggleBan = async (userId: string, currentStatus: boolean) => {
+    if (!user) return;
+    if (!currentStatus) {
+      setUserToBan(userId);
+      return;
+    }
+    await executeToggleBan(userId, currentStatus);
+  };
+
+  const executeToggleBan = async (userId: string, currentStatus: boolean) => {
+    setIsProcessing(userId);
+    try {
+      await updateDoc(doc(db, 'users', userId), { isBanned: !currentStatus });
+      showToast(`User ${!currentStatus ? 'banned' : 'unbanned'} successfully!`, 'success');
+    } catch (error) {
+      console.error('Error updating ban status:', error);
+      showToast('Failed to update ban status', 'error');
+    } finally {
+      setIsProcessing(null);
+      setUserToBan(null);
+    }
+  };
+
+  const handleSoftDelete = async (userId: string) => {
+    if (!user) return;
+    setIsProcessing(userId);
+    try {
+      await updateDoc(doc(db, 'users', userId), { isDeleted: true });
+      showToast('User deleted successfully!', 'success');
+    } catch (error) {
+      console.error('Error soft-deleting user:', error);
+      showToast('Failed to delete user', 'error');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!user) return;
+    setIsProcessing('settings');
+    const featured_price = parseFloat(settingsValues.featured_price) || 0;
+    const premium_price = parseFloat(settingsValues.premium_price) || 0;
+    
+    try {
+      await setDoc(doc(db, 'settings', 'app_config'), {
+        featured_price,
+        premium_price,
+        premium_enabled: settingsValues.premium_enabled
+      }, { merge: true });
+      showToast('Global settings updated dynamically!', 'success');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      showToast('Failed to update app configuration', 'error');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
 
   const handleUpdateStatus = async (carId: string, newStatus: string) => {
     if (!user) return;
@@ -175,15 +236,38 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     if (!user || !carToDelete) return;
     setIsDeleting(true);
     setIsProcessing(carToDelete);
+    
+    // Optimistic UI update
+    const deletedId = carToDelete;
+    const prevListings = [...listings];
+    setListings(prev => prev.filter(c => c.id !== deletedId));
+    setCarToDelete(null);
+    showToast('Listing deleted successfully', 'success');
+
     try {
-      const carRef = doc(db, 'cars', carToDelete);
-      await deleteDoc(carRef);
-      setListings(prev => prev.filter(c => c.id !== carToDelete));
-      showToast('Listing deleted successfully', 'success');
-      setCarToDelete(null);
-    } catch (error) {
+      const idToken = await user.getIdToken();
+      // Remove from R2 storage via API
+      try {
+        await apiFetch(`/api/listings?id=${encodeURIComponent(deletedId)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${idToken}` }
+        });
+        // Sync local Firestore cache
+        try { await deleteDoc(doc(db, 'cars', deletedId)); } catch {}
+      } catch {
+        // Fallback to internal delete
+        await deleteDoc(doc(db, 'cars', deletedId));
+      }
+      
+      // Clear all session caches to instantly remove ghosts from frontend
+      sessionStorage.removeItem('cachedFeaturedCars');
+      sessionStorage.removeItem('cachedPremiumCars');
+      sessionStorage.removeItem('cachedHomeCars');
+    } catch (error: any) {
       console.error('Error deleting listing:', error);
-      showToast('Failed to delete listing', 'error');
+      // Revert optimistic update
+      setListings(prevListings);
+      showToast(`Failed to delete listing: ${error.message || 'Unknown error'}`, 'error');
     } finally {
       setIsProcessing(null);
       setIsDeleting(false);
@@ -269,11 +353,13 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     );
   }
 
-  const filteredListings = listings.filter(c => 
-    c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.model.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredListings = listings.filter(c => {
+    const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          c.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          c.model.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const getScreenshotUrl = (url: string) => {
     if (!url) return '';
@@ -311,9 +397,11 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide sticky top-0 z-10 bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md -mx-4 px-4 py-2">
           {[
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+            { id: 'users', label: 'Users', icon: Users },
             { id: 'listings', label: 'Listings', icon: CarIcon },
             { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
             { id: 'notifications', label: 'Broadcast', icon: Bell },
+            { id: 'settings', label: 'Settings', icon: Settings },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -346,29 +434,38 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center mb-3">
                     <Users size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total Users</p>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{t('admin.totalUsers')}</p>
                   <p className="text-2xl font-black text-zinc-900 dark:text-white">{stats.totalUsers}</p>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 p-5 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center mb-3">
                     <CarIcon size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total Listings</p>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{t('admin.totalListings')}</p>
                   <p className="text-2xl font-black text-zinc-900 dark:text-white">{stats.totalListings}</p>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 p-5 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-3">
                     <CreditCard size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Pending</p>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{t('admin.pending')}</p>
                   <p className="text-2xl font-black text-zinc-900 dark:text-white">{stats.pendingApprovals}</p>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 p-5 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-3">
                     <Star size={20} />
                   </div>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Featured</p>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{t('admin.featured')}</p>
                   <p className="text-2xl font-black text-zinc-900 dark:text-white">{stats.featuredListings}</p>
+                </div>
+                <div className="col-span-2 bg-white dark:bg-zinc-900 p-5 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{t('admin.premium')}</p>
+                    <p className="text-2xl font-black text-zinc-900 dark:text-white">{stats.premiumListings}</p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                    <Crown size={24} />
+                  </div>
                 </div>
               </div>
 
@@ -385,6 +482,105 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                   </button>
                 </div>
                 <Bell size={100} className="absolute -right-4 -bottom-4 opacity-10 rotate-12" />
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'users' && (
+            <div className="space-y-4">
+              {/* Filters & Search */}
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                  <input 
+                    type="text"
+                    placeholder="Search users by name, email or role..."
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    className="w-full bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-sm font-bold focus:outline-none focus:border-brand transition-all shadow-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Users List */}
+              <div className="space-y-3">
+                {users.length === 0 ? (
+                  <div className="flex justify-center py-12"><Loader2 className="animate-spin text-brand" /></div>
+                ) : users
+                    .filter(u => !u.isDeleted)
+                    .filter(u => 
+                      (u.displayName || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+                      (u.email || '').toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+                      (u.role || '').toLowerCase().includes(userSearchTerm.toLowerCase())
+                    ).length > 0 ? (
+                  users
+                    .filter(u => !u.isDeleted)
+                    .filter(u => 
+                      (u.displayName || '').toLowerCase().includes(userSearchTerm.toLowerCase()) || 
+                      (u.email || '').toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+                      (u.role || '').toLowerCase().includes(userSearchTerm.toLowerCase())
+                    )
+                    .map(targetUser => (
+                    <div key={targetUser.id} className={`bg-white dark:bg-zinc-900 p-4 rounded-[2rem] border ${targetUser.isBanned ? 'border-red-200 dark:border-red-900/50 opacity-80' : 'border-zinc-100 dark:border-zinc-800'} shadow-sm`}>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex gap-3">
+                          <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-500 overflow-hidden shrink-0">
+                            {targetUser.photoURL ? <img src={targetUser.photoURL} alt="" referrerPolicy="no-referrer" /> : <Users size={16} />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-black text-sm text-zinc-900 dark:text-white truncate">{targetUser.displayName || 'Unknown User'}</h4>
+                              {targetUser.role && (
+                                <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500">{targetUser.role}</span>
+                              )}
+                              {targetUser.isBanned && (
+                                <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-red-100 text-red-600">Banned</span>
+                              )}
+                            </div>
+                            <p className="text-[10px] font-bold text-zinc-400 mt-0.5 truncate">{targetUser.email || targetUser.phoneNumber || 'No contact info'}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-xl">
+                          <span className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest">Listings</span>
+                          <span className="text-sm font-black text-zinc-900 dark:text-white">{listings.filter(c => c.ownerId === targetUser.id).length}</span>
+                        </div>
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-xl">
+                          <span className="block text-[8px] font-black text-zinc-400 uppercase tracking-widest">Joined</span>
+                          <span className="text-[10px] font-black text-zinc-900 dark:text-white truncate">
+                            {targetUser.createdAt?.toDate ? targetUser.createdAt.toDate().toLocaleDateString() : 'Date unknown'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2 border-t border-zinc-50 dark:border-zinc-800">
+                        <button
+                          disabled={isProcessing === targetUser.id}
+                          onClick={() => handleToggleBan(targetUser.id, !!targetUser.isBanned)}
+                          className={`flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-sm transition-all ${targetUser.isBanned ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-500/20'}`}
+                        >
+                           {isProcessing === targetUser.id ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />} {targetUser.isBanned ? 'Unban User' : 'Ban User'}
+                        </button>
+                        <button
+                          disabled={isProcessing === targetUser.id}
+                          onClick={() => handleSoftDelete(targetUser.id)}
+                          className="px-4 py-3 text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-xl transition-all disabled:opacity-50 border border-red-100 dark:border-red-900/30 shrink-0"
+                        >
+                          {isProcessing === targetUser.id ? <Loader2 size={16} className="animate-spin" /> : <UserMinus size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-[2rem] border border-dashed border-zinc-200 dark:border-zinc-800">
+                    <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-300">
+                      <Users size={24} />
+                    </div>
+                    <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">No users found</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -624,8 +820,105 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
               </div>
             </div>
           )}
+
+          {activeTab === 'settings' && (
+            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center">
+                  <Settings size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-zinc-900 dark:text-white">Dynamic Configuration</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Safely manage app behavior</p>
+                </div>
+              </div>
+
+              <div className="space-y-6 border-t border-zinc-100 dark:border-zinc-800 pt-6">
+                <div>
+                  <h4 className="text-sm font-black text-zinc-900 dark:text-white mb-4 uppercase tracking-widest">Pricing Controls</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">Featured Price (ETB)</label>
+                      <input 
+                        type="number" 
+                        value={settingsValues.featured_price}
+                        onChange={(e) => setSettingsValues(prev => ({ ...prev, featured_price: e.target.value }))}
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-4 text-sm font-bold focus:outline-none focus:border-brand transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">Premium Price (ETB)</label>
+                      <input 
+                        type="number" 
+                        value={settingsValues.premium_price}
+                        onChange={(e) => setSettingsValues(prev => ({ ...prev, premium_price: e.target.value }))}
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-4 text-sm font-bold focus:outline-none focus:border-brand transition-all"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[9px] font-bold text-brand uppercase mt-2 ml-2">Updates instantly across app</p>
+                </div>
+
+                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-6">
+                  <h4 className="text-sm font-black text-zinc-900 dark:text-white mb-4 uppercase tracking-widest">Features Toggle</h4>
+                  
+                  <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 relative overflow-hidden group">
+                    <div>
+                      <h5 className="font-bold text-sm text-zinc-900 dark:text-white mb-0.5">Premium Badge UI</h5>
+                      <p className="text-[10px] font-bold text-zinc-500 max-w-[80%] leading-relaxed">Turn OFF to globally hide the Premium badge across the entire platform. Data and logic won't be deleted, only visibility.</p>
+                    </div>
+                    <button 
+                      onClick={() => setSettingsValues(prev => ({ ...prev, premium_enabled: !prev.premium_enabled }))}
+                      className={`relative w-14 h-8 rounded-full transition-colors flex items-center shadow-inner shrink-0 ${settingsValues.premium_enabled ? 'bg-brand' : 'bg-red-500'}`}
+                    >
+                      <div className={`w-6 h-6 rounded-full bg-white transition-all shadow-md transform ${settingsValues.premium_enabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                    </button>
+                    {!settingsValues.premium_enabled && <div className="absolute inset-y-0 right-0 w-1 bg-red-500" />}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                <button 
+                  disabled={isProcessing === 'settings'}
+                  onClick={handleSaveSettings}
+                  className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:bg-black dark:hover:bg-zinc-200"
+                >
+                  {isProcessing === 'settings' ? <Loader2 className="animate-spin" size={20} /> : <><CheckCircle size={16} /> Save Active Configuration</>}
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
+
+      {/* Ban Confirmation Modal */}
+      {userToBan && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6">
+              <Ban size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">Are you sure you want to ban this user?</h3>
+            <div className="flex flex-col gap-3 mt-8">
+              <button 
+                onClick={() => executeToggleBan(userToBan, false)}
+                disabled={isProcessing === userToBan}
+                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 disabled:opacity-50 flex justify-center items-center"
+              >
+                {isProcessing === userToBan ? <Loader2 className="animate-spin" size={20} /> : 'Confirm'}
+              </button>
+              <button 
+                onClick={() => setUserToBan(null)}
+                disabled={isProcessing === userToBan}
+                className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {carToDelete && (

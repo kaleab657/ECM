@@ -26,8 +26,12 @@ export const translations = {
       }
     },
     home: {
-      latestListings: 'Latest Listings',
+      latestTitle: 'Latest Listings',
+      featuredTitle: 'Featured Cars',
+      premiumTitle: 'Premium Cars',
+      viewAll: 'View All',
       noListings: 'No cars listed yet. Be the first!',
+      noResults: 'No listings found in this category'
     },
     search: {
       title: 'Refine Your Search',
@@ -257,6 +261,11 @@ export const translations = {
       descriptionPlaceholder: 'Tell buyers more about your car...',
       choosePackage: 'Choose Listing Package',
       free: 'Free'
+    },
+    carCard: {
+      premium: 'Premium',
+      featured: 'Featured',
+      viewDetails: 'View Details'
     }
   },
   am: {
@@ -284,8 +293,12 @@ export const translations = {
       }
     },
     home: {
-      latestListings: 'የቅርብ ጊዜ ማስታወቂያዎች',
+      latestTitle: 'የቅርብ ጊዜ ማስታወቂያዎች',
+      featuredTitle: 'ተለይተው የቀረቡ መኪናዎች',
+      premiumTitle: 'ልዩ (Premium) መኪናዎች',
+      viewAll: 'ሁሉንም ይመልከቱ',
       noListings: 'እስካሁን ምንም መኪና አልተመዘገበም። የመጀመሪያው ይሁኑ!',
+      noResults: 'በዚህ ምድብ ውስጥ ምንም ዝርዝሮች አልተገኙም'
     },
     search: {
       title: 'ፍለጋዎን ያጣሩ',
@@ -515,6 +528,147 @@ export const translations = {
       descriptionPlaceholder: 'ስለ መኪናዎ ለገዢዎች ተጨማሪ ይንገሩ...',
       choosePackage: 'የማስታወቂያ ጥቅል ይምረጡ',
       free: 'ነፃ'
+    },
+    carCard: {
+      premium: 'ልዩ (Premium)',
+      featured: 'ተለይተው የቀረቡ',
+      viewDetails: 'ዝርዝር እይ'
+    },
+    admin: {
+      accessDenied: 'መግባት አይቻልም',
+      accessDeniedDesc: 'ይህ ገጽ ለአድሚኖች ብቻ የተፈቀደ ነው::',
+      managementConsole: 'የአስተዳደር ገጽ',
+      totalUsers: 'ጠቅላላ ተጠቃሚዎች',
+      totalListings: 'ጠቅላላ ማስታወቂያዎች',
+      pending: 'መጠባበቅ ላይ',
+      featured: 'ተለይተው የቀረቡ',
+      premium: 'ልዩ (Premium)',
+      sold: 'የተሸጡ',
+      portal: 'አድሚን ፖርታል'
+    },
+    valuation: {
+      estimatedValue: 'ግምታዊ ዋጋ'
     }
   }
+};
+
+// Update English side with missing keys too
+const updatedTranslations = translations as any;
+updatedTranslations.en.admin = {
+  accessDenied: 'Access Denied',
+  accessDeniedDesc: 'Only administrators can access this page.',
+  managementConsole: 'Management Console',
+  totalUsers: 'Total Users',
+  totalListings: 'Total Listings',
+  pending: 'Pending',
+  featured: 'Featured',
+  premium: 'Premium',
+  sold: 'Sold',
+  portal: 'Admin Portal'
+};
+updatedTranslations.en.valuation = {
+  estimatedValue: 'Estimated Value'
+};
+updatedTranslations.en.auth = {
+  ...updatedTranslations.en.auth,
+  selectRole: 'Select Role',
+  termsConditions: 'Terms & Conditions',
+  privacyPolicy: 'Privacy Policy'
+};
+updatedTranslations.am.auth = {
+  ...updatedTranslations.am.auth,
+  selectRole: 'ድርሻ ይምረጡ',
+  termsConditions: 'የአጠቃቀም ደንቦች',
+  privacyPolicy: 'የግላዊነት ፖሊሲ'
+};
+updatedTranslations.en.dashboard = {
+  ...updatedTranslations.en.dashboard,
+  contactOptions: 'Contact Options',
+  reachOutDirectly: 'Reach out to us directly',
+  phoneNumber: 'Phone Number',
+  deleteListing: 'Delete Listing',
+  deleteListingTitle: 'Delete Listing',
+  adminPortal: 'Admin Portal',
+  managePlatform: 'Manage Platform',
+  markAsSoldTitle: 'Mark as Sold?',
+  markAsSoldConfirm: 'Are you sure you want to mark this listing as sold? It will be automatically deleted after 5 minutes.',
+  confirm: 'Confirm',
+  deleteConfirm: 'Are you sure you want to delete this listing? This action cannot be undone.',
+  yesDelete: 'Yes, Delete',
+  logoutTitle: 'Log out?',
+  logoutConfirm: 'Are you sure you want to log out?',
+  deleteAccount: 'Delete Account',
+  deleteAccountConfirm: 'Are you sure you want to permanently delete your account? All your listings, messages, and data will be removed forever. This cannot be undone.',
+  deletingAccount: 'Deleting account...',
+  yesDeleteAccount: 'Yes, Delete My Account'
+};
+updatedTranslations.am.dashboard = {
+  ...updatedTranslations.am.dashboard,
+  contactOptions: 'ግንኙነት',
+  reachOutDirectly: 'በቀጥታ ያግኙን',
+  phoneNumber: 'ስልክ ቁጥር',
+  deleteListing: 'ማስታወቂያውን ሰርዝ',
+  deleteListingTitle: 'ማስታወቂያውን ሰርዝ',
+  adminPortal: 'የአድሚን ገጽ',
+  managePlatform: 'ሲስተሙን ያስተዳድሩ',
+  markAsSoldTitle: 'ተሽጧል ይሁን?',
+  markAsSoldConfirm: 'ይህንን ማስታወቂያ ተሽጧል ብለው መመዝገብ ይፈልጋሉ? ከ 5 ደቂቃ በኋላ በራሱ ይሰረዛል።',
+  confirm: 'አረጋግጥ',
+  deleteConfirm: 'ይህንን ማስታወቂያ መሰረዝ እንደሚፈልጉ እርግጠኛ ነዎት? አንዴ ከተሰረዘ መመለስ አይቻልም።',
+  yesDelete: 'አዎ ሰርዝ',
+  logoutTitle: 'መውጣት ይፈልጋሉ?',
+  logoutConfirm: 'በእርግጥ ከመለያዎ መውጣት ይፈልጋሉ?',
+  deleteAccount: 'መለያ ሰርዝ',
+  deleteAccountConfirm: 'መለያዎን በቋሚነት መሰረዝ እንደሚፈልጉ እርግጠኛ ነዎት? ሁሉም ማስታወቂያዎችዎ እና መረጃዎችዎ ለዘላለም ይወገዳሉ። ይህ ሊቀለበስ አይችልም።',
+  deletingAccount: 'መለያ በመሰረዝ ላይ...',
+  yesDeleteAccount: 'አዎ መለያዬን ሰርዝ'
+};
+updatedTranslations.en.common = {
+  ...updatedTranslations.en.common,
+  noMoreListings: 'No more listings',
+  etb: 'ETB',
+  optional: 'Optional',
+  noSavedCars: 'No Saved Cars',
+  noPremiumListings: 'No Premium Listings',
+  noFeaturedListings: 'No Featured Listings'
+};
+updatedTranslations.am.common = {
+  ...updatedTranslations.am.common,
+  noMoreListings: 'ተጨማሪ ማስታወቂያ የለም',
+  etb: 'ብር',
+  optional: 'አማራጭ',
+  noSavedCars: 'የተቀመጡ መኪናዎች የሉም',
+  noPremiumListings: 'ምንም ልዩ ማስታወቂያ የለም',
+  noFeaturedListings: 'ምንም ተለይተው የቀረቡ ማስታወቂያዎች የሉም'
+};
+
+updatedTranslations.en.valuation = {
+  ...updatedTranslations.en.valuation,
+  estimatedValue: 'Estimated Value',
+  marketAverage: 'Estimate based on market averages',
+  modelPlaceholder: 'e.g. Corolla'
+};
+updatedTranslations.am.valuation = {
+  ...updatedTranslations.am.valuation,
+  estimatedValue: 'ግምታዊ ዋጋ',
+  marketAverage: 'በገበያ አማካይ ዋጋ ላይ የተመሰረተ ግምት',
+  modelPlaceholder: 'ለምሳሌ፡ ኮሮላ'
+};
+updatedTranslations.en.admin = {
+  ...updatedTranslations.en.admin,
+  totalUsers: 'Total Users',
+  totalListings: 'Total Listings',
+  pending: 'Pending',
+  featured: 'Featured',
+  premium: 'Premium',
+  sold: 'Sold'
+};
+updatedTranslations.am.admin = {
+  ...updatedTranslations.am.admin,
+  totalUsers: 'ጠቅላላ ተጠቃሚዎች',
+  totalListings: 'ጠቅላላ ማስታወቂያዎች',
+  pending: 'በመጠባበቅ ላይ',
+  featured: 'ተለይተው የቀረቡ',
+  premium: 'ልዩ (Premium)',
+  sold: 'የተሸጡ'
 };

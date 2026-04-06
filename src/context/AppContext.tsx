@@ -23,7 +23,14 @@ export type Language = 'en' | 'am';
 
 type Theme = 'light' | 'dark';
 
+export interface AppConfig {
+  premium_enabled?: boolean;
+  featured_price?: number;
+  premium_price?: number;
+}
+
 interface AppContextType {
+  appConfig: AppConfig;
   theme: Theme;
   toggleTheme: () => void;
   language: Language;
@@ -34,12 +41,16 @@ interface AppContextType {
   loading: boolean;
   isAuthModalOpen: boolean;
   setAuthModalOpen: (isOpen: boolean) => void;
+  savedIds: string[];
+  toggleFavorite: (carId: string) => void;
+  isSaved: (carId: string) => boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const mounted = useRef(true);
+  const fcmTokenRef = useRef<string | null>(null);
   
   useEffect(() => {
     return () => {
@@ -71,6 +82,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthModalOpen, setAuthModalOpenState] = useState(false);
+  const [appConfig, setAppConfig] = useState<AppConfig>({
+    premium_enabled: true,
+  });
+
+  // Listen to remote AppConfig settings dynamically
+  useEffect(() => {
+    const unsubConfig = onSnapshot(
+      doc(db, 'settings', 'app_config'),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          setAppConfig({
+            premium_enabled: data?.premium_enabled !== false, // default true
+            featured_price: data?.featured_price,
+            premium_price: data?.premium_price
+          });
+        }
+        // If document doesn't exist yet, keep defaults — no crash
+      },
+      (error) => {
+        // Permission denied or network error — app continues with defaults
+        console.warn('[AppConfig] Settings listener failed, using defaults:', error.message);
+      }
+    );
+    return () => unsubConfig();
+  }, []);
+  
+  const [savedIds, setSavedIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('savedCarIds') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('savedCarIds', JSON.stringify(savedIds));
+  }, [savedIds]);
+
+  const toggleFavorite = (carId: string) => {
+    if (mounted.current) {
+      setSavedIds(prev =>
+        prev.includes(carId) ? prev.filter(id => id !== carId) : [...prev, carId]
+      );
+    }
+  };
+
+  const isSaved = (carId: string) => savedIds.includes(carId);
 
   const setAuthModalOpen = (isOpen: boolean) => {
     if (mounted.current) setAuthModalOpenState(isOpen);
@@ -96,20 +155,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             id: 'default',
             name: 'Default',
             description: 'Default notifications',
-            importance: 5, // 5 = high importance (heads-up notification)
+            importance: 5,
             visibility: 1,
+          });
+          await PushNotifications.createChannel({
+            id: 'messages',
+            name: 'Messages',
+            description: 'Chat message notifications',
+            importance: 5,
+            visibility: 1,
+            sound: 'default',
           });
         }
 
         await PushNotifications.register();
 
         PushNotifications.addListener('registration', async (token) => {
-          const currentUser = auth.currentUser;
-          if (currentUser && token.value) {
-            await setDoc(doc(db, 'users', currentUser.uid), {
-              fcmTokens: arrayUnion(token.value),
-              updatedAt: serverTimestamp()
-            }, { merge: true });
+          if (token.value) {
+            fcmTokenRef.current = token.value;
+            const currentUser = auth.currentUser;
+            if (currentUser) {
+              await setDoc(doc(db, 'users', currentUser.uid), {
+                fcmTokens: arrayUnion(token.value),
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+            }
           }
         });
 
@@ -127,6 +197,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             // Dispatch a custom event that the Toast system can pick up
             window.dispatchEvent(new CustomEvent('app-notification', {
               detail: { title, body }
+            }));
+          }
+        });
+        
+        // Handle push notifications when tapped (action performed)
+        PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          console.log('[PushNotifications] Action performed:', action);
+          const { chatId } = action.notification.data || {};
+          if (chatId) {
+            // Dispatch a custom event so App.tsx can handle navigation
+            window.dispatchEvent(new CustomEvent('app-notification-action', {
+              detail: { chatId }
             }));
           }
         });
@@ -158,6 +240,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUser(currentUser);
 
         if (currentUser) {
+          // Save any pending FCM token that was registered before auth resolved
+          if (fcmTokenRef.current) {
+            setDoc(doc(db, 'users', currentUser.uid), {
+              fcmTokens: arrayUnion(fcmTokenRef.current),
+              updatedAt: serverTimestamp()
+            }, { merge: true }).catch(() => {});
+          }
           profileUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (snapshot) => {
             if (!mounted.current) return;
             if (snapshot.exists()) {
@@ -313,7 +402,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   return (
-    <AppContext.Provider value={{ theme, toggleTheme, language, setLanguage, t, user, profile, loading, isAuthModalOpen, setAuthModalOpen }}>
+    <AppContext.Provider value={{ 
+      theme, toggleTheme, language, setLanguage, t, user, profile, loading, 
+      isAuthModalOpen, setAuthModalOpen, savedIds, toggleFavorite, isSaved, appConfig
+    }}>
       {children}
     </AppContext.Provider>
   );

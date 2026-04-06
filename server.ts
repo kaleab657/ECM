@@ -24,19 +24,46 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Helper to safely delete images from R2 and prevent orphans
-  const deleteListingImagesFromR2 = async (imageURLs: string[]) => {
-    if (!imageURLs || imageURLs.length === 0) return;
+  // Helper to safely delete files from R2 and prevent orphans
+  const deleteFilesFromR2 = async (urls: string[]) => {
+    if (!urls || urls.length === 0) return;
     const r2 = getR2Client();
-    for (const url of imageURLs) {
+    for (const url of urls) {
       try {
+        if (!url) continue;
         const urlObj = new URL(url);
         const key = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+        // Determine bucket based on the URL domain
         const bucket = url.includes(r2Config.paymentPublicUrl) ? r2Config.paymentBucket : r2Config.listingBucket;
         await r2.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+        console.log(`[R2 Cleanup] Deleted: ${key} from ${bucket}`);
       } catch (err: any) {
-        console.error(`Failed to delete image ${url} from R2:`, err.message);
+        // Log but don't crash — always continue cleanup
+        console.error(`[R2 Cleanup] Failed to delete ${url}:`, err.message);
       }
+    }
+  };
+
+  // Backwards-compatible alias
+  const deleteListingImagesFromR2 = deleteFilesFromR2;
+
+  // Helper to fetch and delete payment proof for a listing
+  const deletePaymentProofFromR2 = async (listingId: string) => {
+    if (!db) return;
+    try {
+      const paymentsSnap = await db.collection('payments')
+        .where('listingId', '==', listingId)
+        .get();
+      const proofUrls: string[] = [];
+      paymentsSnap.docs.forEach(doc => {
+        const url = doc.data()?.screenshotURL;
+        if (url) proofUrls.push(url);
+      });
+      if (proofUrls.length > 0) {
+        await deleteFilesFromR2(proofUrls);
+      }
+    } catch (err: any) {
+      console.error(`[R2 Cleanup] Failed to fetch/delete payment proof for listing ${listingId}:`, err.message);
     }
   };
 
@@ -290,15 +317,18 @@ async function startServer() {
         return res.status(403).json({ success: false, error: "Unauthorized to delete this listing" });
       }
 
-      // 1. Delete images from R2
+      // 1. Delete listing images from R2
       const imageURLs = listingData?.imageURLs || [];
       await deleteListingImagesFromR2(imageURLs);
 
-      // 2. Delete from Firestore
+      // 2. Delete payment proof images from R2
+      await deletePaymentProofFromR2(id as string);
+
+      // 3. Delete from Firestore
       await listingRef.delete();
 
-      // 3. Decrement global count if it was active
-      if (listingData?.status === 'active') {
+      // 4. Decrement global count if it was approved
+      if (listingData?.status === 'approved') {
         const statsRef = db.collection('stats').doc('global');
         await statsRef.set({
           listingsCount: FieldValue.increment(-1)
@@ -449,15 +479,18 @@ async function startServer() {
       }
 
       const listingData = listingDoc.data();
-      // 1. Delete images from R2
+      // 1. Delete listing images from R2
       const imageURLs = listingData?.imageURLs || [];
       await deleteListingImagesFromR2(imageURLs);
 
-      // 2. Delete from Firestore
+      // 2. Delete payment proof images from R2
+      await deletePaymentProofFromR2(id);
+
+      // 3. Delete from Firestore
       await listingRef.delete();
 
-      // 3. Decrement global count if it was active
-      if (listingData?.status === 'active') {
+      // 4. Decrement global count if it was approved
+      if (listingData?.status === 'approved') {
         const statsRef = db.collection('stats').doc('global');
         await statsRef.set({
           listingsCount: FieldValue.increment(-1)
@@ -716,8 +749,52 @@ async function startServer() {
           listingsCount: FieldValue.increment(1)
         }, { merge: true });
       } else {
-        // If rejected, maybe keep it as pending_payment_verification or mark as rejected
-        batch.update(listingRef, { status: 'payment_rejected' });
+        // Rejection flow: mark as payment_rejected immediately with a rejectedAt timestamp.
+        // A delayed background job will update it to 'rejected' after ~3 minutes.
+        const rejectedAt = new Date();
+        batch.update(listingRef, { 
+          status: 'payment_rejected',
+          rejectedAt: Timestamp.fromDate(rejectedAt)
+        });
+        batch.update(paymentRef, {
+          status: 'rejected',
+          rejectedAt: Timestamp.fromDate(rejectedAt)
+        });
+
+        // Commit first, then schedule cleanup + delayed status change
+        await batch.commit();
+
+        // --- R2 cleanup: delete listing images + payment proof (non-blocking) ---
+        const listingDoc = await listingRef.get();
+        const listingData = listingDoc.data();
+        const listingImageURLs = listingData?.imageURLs || [];
+
+        // Delete listing images from R2
+        deleteFilesFromR2(listingImageURLs).catch(err => 
+          console.error('[Reject R2 Cleanup] Listing images cleanup error:', err.message)
+        );
+
+        // Delete payment proof from R2
+        deletePaymentProofFromR2(listingId).catch(err => 
+          console.error('[Reject R2 Cleanup] Payment proof cleanup error:', err.message)
+        );
+
+        // --- Delayed status update: 'payment_rejected' → 'rejected' after ~3 minutes ---
+        setTimeout(async () => {
+          try {
+            if (!db) return;
+            const freshDoc = await listingRef.get();
+            // Only update if still in payment_rejected state (admin may have re-approved)
+            if (freshDoc.exists && freshDoc.data()?.status === 'payment_rejected') {
+              await listingRef.update({ status: 'rejected' });
+              console.log(`[Delayed Reject] Listing ${listingId} status updated to 'rejected'`);
+            }
+          } catch (err: any) {
+            console.error(`[Delayed Reject] Failed to update listing ${listingId}:`, err.message);
+          }
+        }, 180_000); // 3 minutes
+
+        return res.json({ success: true });
       }
 
       await batch.commit();
@@ -748,7 +825,7 @@ async function startServer() {
       const listingId = listing.id || db.collection('cars').doc().id;
       const docRef = db.collection('cars').doc(listingId);
       
-      const status = listing.status || 'active';
+      const status = listing.status || 'approved';
       
       // Set expiration date dynamically based on package
       let expiresAt: Date | null = new Date();
@@ -769,7 +846,7 @@ async function startServer() {
       });
       
       // Only increment global count if listing is active
-      if (status === 'active') {
+      if (status === 'approved') {
         const statsRef = db.collection('stats').doc('global');
         batch.set(statsRef, {
           listingsCount: FieldValue.increment(1)
@@ -819,7 +896,7 @@ async function startServer() {
       batch.delete(carRef);
       
       // Only decrement if it was an active listing
-      if (carData?.status === 'active') {
+      if (carData?.status === 'approved') {
         const statsRef = db.collection('stats').doc('global');
         batch.set(statsRef, {
           listingsCount: FieldValue.increment(-1)
@@ -886,7 +963,7 @@ async function startServer() {
       const now = Timestamp.now();
       const expiredQuery = db.collection('cars')
         .where('expiresAt', '<=', now)
-        .where('status', '==', 'active');
+        .where('status', '==', 'approved');
       
       const snapshot = await expiredQuery.get();
       if (snapshot.empty) return;
@@ -898,10 +975,13 @@ async function startServer() {
         const data = doc.data();
         const imageURLs = data.imageURLs || [];
         
-        // Delete orphaned images before database removal
+        // Delete orphaned listing images before database removal
         if (imageURLs.length > 0) {
           await deleteListingImagesFromR2(imageURLs);
         }
+
+        // Delete payment proof from R2
+        await deletePaymentProofFromR2(doc.id);
         
         batch.delete(doc.ref);
         deletedCount++;
@@ -921,6 +1001,30 @@ async function startServer() {
       console.error('Error cleaning up expired listings:', error);
     }
   }, 1000 * 60 * 60); // Run every hour
+
+  // Periodic cleanup: finalize stale 'payment_rejected' listings
+  // Catches cases where the server restarted before a setTimeout could complete
+  setInterval(async () => {
+    if (!admin || !db) return;
+    try {
+      const threeMinutesAgo = new Date(Date.now() - 180_000);
+      const staleQuery = db.collection('cars')
+        .where('status', '==', 'payment_rejected')
+        .where('rejectedAt', '<=', Timestamp.fromDate(threeMinutesAgo));
+
+      const snapshot = await staleQuery.get();
+      if (snapshot.empty) return;
+
+      const batch = db.batch();
+      snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { status: 'rejected' });
+      });
+      await batch.commit();
+      console.log(`[Stale Reject Cleanup] Updated ${snapshot.size} payment_rejected listing(s) to 'rejected'.`);
+    } catch (error) {
+      console.error('[Stale Reject Cleanup] Error:', error);
+    }
+  }, 1000 * 60 * 5); // Run every 5 minutes
 
   app.listen(PORT, "0.0.0.0", () => {
   });

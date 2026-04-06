@@ -5,6 +5,7 @@ import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, limit, onSnapshot } from 'firebase/firestore';
 import { CarCard, CarCardSkeleton } from '../components/CarCard';
+import { isListingExpired } from '../utils/expiry';
 
 interface FeaturedListingsProps {
   setPage: (page: Page) => void;
@@ -16,18 +17,27 @@ export const FeaturedListings: React.FC<FeaturedListingsProps> = ({ setPage, set
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const sortNewestFirst = (listingData: Car[]) => {
+    return listingData.sort((a, b) => {
+      const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt || 0).getTime();
+      const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt || 0).getTime();
+      return (timeB || 0) - (timeA || 0);
+    });
+  };
+
   useEffect(() => {
     setLoading(true);
     const q = query(
       collection(db, 'cars'),
       where('status', '==', 'approved'),
-      where('featured', '==', true),
+      where('packageType', '==', 'featured'),
       limit(50)
     );
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Car[];
-      setCars(data);
+      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Car[];
+      data = data.filter(c => !isListingExpired(c));
+      setCars(sortNewestFirst(data));
       setLoading(false);
     }, (err) => {
       console.error('Error fetching featured cars:', err);
@@ -50,7 +60,7 @@ export const FeaturedListings: React.FC<FeaturedListingsProps> = ({ setPage, set
         <div className="flex items-center gap-2">
           <Star size={22} className="text-amber-500" fill="currentColor" />
           <h1 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight uppercase italic">
-            {t('home.featuredTitle') || 'Featured Listings'}
+            Featured Cars
           </h1>
         </div>
         {!loading && cars.length > 0 && (

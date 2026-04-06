@@ -17,6 +17,8 @@
     "@capacitor-firebase/authentication": "^8.1.0",
     "@capacitor/android": "^8.2.0",
     "@capacitor/app": "^8.0.1",
+    "@capacitor/camera": "^8.0.2",
+    "@capacitor/clipboard": "^8.0.1",
     "@capacitor/core": "^8.2.0",
     "@capacitor/keyboard": "^8.0.1",
     "@capacitor/preferences": "^8.0.1",
@@ -43,6 +45,7 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.2.0",
     "@types/compression": "^1.8.1",
     "@types/express": "^4.17.21",

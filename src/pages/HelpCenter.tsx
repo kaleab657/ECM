@@ -145,13 +145,13 @@ export const HelpCenter: React.FC = () => {
         <p className="text-zinc-400 mb-8 relative z-10">{t('helpPage.supportAvailable') || 'Our support team is available 24/7 to assist you.'}</p>
         <div className="flex flex-col md:flex-row gap-4 justify-center relative z-10">
           <button 
-            onClick={() => window.location.href = 'tel:+251942712410'}
+            onClick={() => window.location.href = 'tel:+251991152329'}
             className="btn-primary px-10"
           >
             {t('helpPage.callSupport') || 'Call Support'}
           </button>
           <button 
-            onClick={() => window.location.href = 'tel:+251942712410'}
+            onClick={() => window.location.href = 'tel:+251991152329'}
             className="bg-red-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
           >
             {t('helpPage.reportScam') || 'Report Scam'}

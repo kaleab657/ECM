@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Car, Page } from '../types';
-import { Heart, ChevronLeft, Car as CarIcon, Loader2 } from 'lucide-react';
+import { Star, ChevronLeft, Car as CarIcon, Loader2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useFavorites } from '../hooks/useFavorites';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { CarCard, CarCardSkeleton } from '../components/CarCard';
+import { isListingExpired } from '../utils/expiry';
 
 interface SavedCarsProps {
   setPage: (page: Page) => void;
@@ -49,7 +50,7 @@ export const SavedCars: React.FC<SavedCarsProps> = ({ setPage, setSelectedCar })
         // Preserve the order of savedIds
         const ordered = savedIds
           .map(id => results.find(c => c.id === id))
-          .filter(Boolean) as Car[];
+          .filter(c => c !== undefined && !isListingExpired(c as Car)) as Car[];
 
         setCars(ordered);
       } catch (err) {
@@ -73,7 +74,7 @@ export const SavedCars: React.FC<SavedCarsProps> = ({ setPage, setSelectedCar })
           <ChevronLeft size={20} />
         </button>
         <div className="flex items-center gap-2">
-          <Heart size={22} className="text-brand" fill="currentColor" />
+          <Star size={22} className="text-brand" fill="currentColor" />
           <h1 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
             {t('menu.savedCars') || 'Saved Cars'}
           </h1>
@@ -92,12 +93,12 @@ export const SavedCars: React.FC<SavedCarsProps> = ({ setPage, setSelectedCar })
       ) : cars.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <div className="w-20 h-20 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
-            <Heart size={36} className="text-zinc-300" />
+            <Star size={36} className="text-zinc-300" />
           </div>
           <div className="text-center">
             <h2 className="text-lg font-black text-zinc-900 dark:text-white mb-1">No Saved Cars</h2>
             <p className="text-sm text-zinc-400 font-medium">
-              Tap the heart icon on any listing to save it here.
+              Tap the star icon on any listing to save it here.
             </p>
           </div>
           <button

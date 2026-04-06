@@ -94,7 +94,7 @@ export const Dealerships: React.FC = () => {
             <div className="col-span-full py-20 text-center bg-zinc-50 dark:bg-zinc-900 rounded-[32px] border border-dashed border-zinc-200 dark:border-zinc-800">
               <p className="text-zinc-400 font-bold">{t('dealerships.noDealers')}</p>
               <button 
-                onClick={() => window.location.href = 'mailto:partners@ethiocars.com'}
+                onClick={() => window.location.href = 'mailto:ethiocarsmarket@gmail.com'}
                 className="mt-4 text-brand font-black uppercase tracking-widest text-xs hover:underline"
               >
                 {t('dealerships.registerPartner')}

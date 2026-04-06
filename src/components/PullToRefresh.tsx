@@ -17,9 +17,10 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
   const MAX_PULL = 180;
 
   React.useEffect(() => {
+    if (disabled) return; // Only set overscrollBehavior when pull-to-refresh is active
     document.body.style.overscrollBehaviorY = 'contain';
-    return () => { document.body.style.overscrollBehaviorY = 'auto'; };
-  }, []);
+    return () => { document.body.style.overscrollBehaviorY = ''; };
+  }, [disabled]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (disabled || isRefreshing || window.scrollY > 5) return;
@@ -46,24 +47,30 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
       setPullDistance(PULL_THRESHOLD);
       if (onRefresh) {
         await onRefresh();
-        setIsRefreshing(false);
-        setPullDistance(0);
-      } else {
-        setTimeout(() => window.location.reload(), 600);
       }
+      // Small delay so the user sees the refresh indicator
+      await new Promise(r => setTimeout(r, 300));
+      setIsRefreshing(false);
+      setPullDistance(0);
     } else {
       setPullDistance(0);
     }
   };
 
-  const showIndicator = (pullDistance > 20 || isRefreshing) && !disabled;
+  // When disabled, render children directly — NO wrapper div, NO touch handlers
+  // This ensures zero interference with native browser scrolling on non-home pages
+  if (disabled) {
+    return <>{children}</>;
+  }
+
+  const showIndicator = pullDistance > 20 || isRefreshing;
 
   return (
     <div
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="w-full h-full relative"
+      className="w-full relative"
     >
       {showIndicator && (
         <div
@@ -83,7 +90,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
         </div>
       )}
       <div
-        className="w-full min-h-full transition-transform duration-200"
+        className="w-full transition-transform duration-200"
         style={{ transform: `translateY(${isRefreshing ? 15 : pullDistance * 0.15}px)` }}
       >
         {children}

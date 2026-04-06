@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { LayoutDashboard, Car as CarIcon, MessageSquare, PlusCircle, Settings, LogOut, MoreVertical, Loader2, User, Phone, Briefcase, ShieldCheck, Megaphone, ArrowRight, ArrowLeft, Send, Instagram } from 'lucide-react';
+import { LayoutDashboard, Car as CarIcon, MessageSquare, PlusCircle, Settings, LogOut, MoreVertical, Loader2, User, Phone, Briefcase, ShieldCheck, Megaphone, ArrowRight, ArrowLeft, Send, Instagram, Facebook, Music, Trash2, AlertCircle, List } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db, auth } from '../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, getDocs, serverTimestamp, increment } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
-import { signOut } from 'firebase/auth';
+import { signOut, deleteUser } from 'firebase/auth';
 import { Car, Page } from '../types';
 import { SELLER_TYPES } from '../constants';
 import { apiFetch } from '../lib/api-client';
 
 import { useToast } from '../components/Toast';
 import { BottomSheetSelect } from '../components/BottomSheetSelect';
+import { isListingExpired } from '../utils/expiry';
 
-const AdvertisingScreen = () => {
+const TikTokLogo = ({ size = 20, className = "" }: { size?: number, className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 2.25-1.11 4.41-2.82 5.76-1.8 1.4-4.22 1.83-6.4 1.25-2.43-.65-4.32-2.73-4.73-5.2-.42-2.5.5-5.2 2.5-6.62 1.95-1.39 4.42-1.6 6.64-.81V15.7c-1.31-.38-2.73-.24-3.87.5-1.12.72-1.76 2.05-1.63 3.39.14 1.4 1.22 2.6 2.6 2.87 1.34.25 2.75-.15 3.63-1.14.86-.96 1.2-2.3 1.15-3.64l-.06-17.65Z"/>
+  </svg>
+);
+
+const AdvertisingScreen = ({ t }: { t: (key: string) => string }) => {
   const [step, setStep] = useState<'promo' | 'contact'>('promo');
 
   if (step === 'promo') {
@@ -33,16 +40,16 @@ const AdvertisingScreen = () => {
             ADVERTISING
           </span>
           <h2 className="text-3xl font-black text-white italic uppercase tracking-tight leading-tight">
-            Advertise your products and services here
+            {t('dashboard.advertiseTitle') || 'Advertise your products and services here'}
           </h2>
           <p className="text-zinc-300 font-bold pb-4">
-            Reach thousands of customers
+            {t('dashboard.advertiseDesc') || 'Reach thousands of customers'}
           </p>
           <button
             onClick={() => setStep('contact')}
             className="w-full py-4 bg-white text-zinc-900 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-transform"
           >
-            Get Started <ArrowRight size={18} />
+            {t('common.getStarted') || 'Get Started'} <ArrowRight size={18} />
           </button>
         </div>
       </div>
@@ -56,8 +63,8 @@ const AdvertisingScreen = () => {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h3 className="text-lg font-black text-zinc-900 dark:text-white uppercase italic tracking-tight">Contact Options</h3>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Reach out to us directly</p>
+          <h3 className="text-lg font-black text-zinc-900 dark:text-white uppercase italic tracking-tight">{t('dashboard.contactOptions')}</h3>
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{t('dashboard.reachOutDirectly')}</p>
         </div>
       </div>
 
@@ -68,25 +75,36 @@ const AdvertisingScreen = () => {
             <Phone size={20} />
           </div>
           <div>
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Phone Number</p>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('dashboard.phoneNumber')}</p>
             <p className="text-sm font-bold text-zinc-900 dark:text-white">+251 99 115 2329</p>
           </div>
         </a>
 
         {/* Telegram */}
-        <a href="https://t.me/ethiocars9" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center shrink-0">
-            <Send size={20} className="-mr-0.5 mt-0.5" />
+        <a href="https://t.me/ethiocars18" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center shrink-0">
+            <Send size={20} />
           </div>
           <div>
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Telegram</p>
-            <p className="text-sm font-bold text-zinc-900 dark:text-white">+251 99 115 2329</p>
+            <p className="text-sm font-bold text-zinc-900 dark:text-white">@ethiocars18</p>
+          </div>
+        </a>
+
+        {/* Facebook */}
+        <a href="https://www.facebook.com/share/18Aad51wxS/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
+          <div className="w-10 h-10 rounded-xl bg-[#1877F2]/10 text-[#1877F2] dark:bg-[#1877F2]/20 flex items-center justify-center shrink-0">
+            <Facebook size={20} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Facebook</p>
+            <p className="text-sm font-bold text-zinc-900 dark:text-white">EthioCars</p>
           </div>
         </a>
 
         {/* Instagram */}
         <a href="https://www.instagram.com/ethi.ocars" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
-          <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-500 dark:bg-pink-500/20 dark:text-pink-400 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400 flex items-center justify-center shrink-0">
             <Instagram size={20} />
           </div>
           <div>
@@ -97,10 +115,8 @@ const AdvertisingScreen = () => {
 
         {/* TikTok */}
         <a href="https://www.tiktok.com/@ethi.ocars" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/50 transition-colors active:scale-95">
-          <div className="w-10 h-10 rounded-xl bg-zinc-200 text-black dark:bg-zinc-700 dark:text-white flex items-center justify-center shrink-0">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-            </svg>
+          <div className="w-10 h-10 rounded-xl bg-zinc-200 text-black dark:bg-zinc-800 dark:text-white flex items-center justify-center shrink-0">
+            <TikTokLogo size={20} />
           </div>
           <div>
             <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">TikTok</p>
@@ -125,17 +141,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [carToDelete, setCarToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [carToMarkSold, setCarToMarkSold] = useState<string | null>(null);
+  const [isMarkingSold, setIsMarkingSold] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Lock body scroll when delete or logout modal is open
   useEffect(() => {
-    if (carToDelete || showLogoutModal) {
+    if (carToDelete || carToMarkSold || showLogoutModal || showDeleteAccountModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [carToDelete, showLogoutModal]);
+  }, [carToDelete, carToMarkSold, showLogoutModal, showDeleteAccountModal]);
 
   const isAdmin = profile?.role?.toLowerCase() === 'admin' || user?.email === 'kaleabepherem@gmail.com' || user?.email === 'kaleabepherem98@gmail.com';
 
@@ -183,10 +203,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const carData = snapshot.docs.map(doc => ({
+      let carData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Car[];
+
+      carData = carData.filter(c => !isListingExpired(c));
 
       const sortedListings = carData.sort((a, b) => {
         const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
@@ -224,6 +246,75 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
     }
   };
 
+  // Background cleanup for expired sold listings
+  useEffect(() => {
+    if (!user || listings.length === 0) return;
+    const now = Date.now();
+    const expiredSoldListings = listings.filter(car => car.status === 'sold' && (car as any).scheduledDeleteAt && now >= (car as any).scheduledDeleteAt);
+
+    expiredSoldListings.forEach(async (car) => {
+      try {
+        const idToken = await user.getIdToken();
+        try {
+          await apiFetch(`/api/listings?id=${encodeURIComponent(car.id)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${idToken}` }
+          });
+        } catch {
+          await deleteDoc(doc(db, 'cars', car.id));
+        }
+      } catch (e) {
+        console.error('Background cleanup failed', e);
+      }
+    });
+  }, [listings, user]);
+
+  const handleMarkSold = async () => {
+    if (!carToMarkSold || !user) return;
+    setIsMarkingSold(true);
+    try {
+      const carRef = doc(db, 'cars', carToMarkSold);
+      const scheduledDeleteAt = Date.now() + 5 * 60 * 1000; // 5 mins
+      await updateDoc(carRef, {
+        status: 'sold',
+        soldAt: serverTimestamp(),
+        scheduledDeleteAt
+      });
+
+      // Increment totalSold securely on profile so deleting documents never lowers the stats
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, { totalSold: increment(1) });
+
+      const successKey = t('dashboard.markSoldSuccess');
+      showToast(successKey === 'dashboard.markSoldSuccess' ? 'Marked as sold successfully' : successKey, 'success');
+
+      // Auto-delete timer for current active session
+      const deletedId = carToMarkSold;
+      setTimeout(async () => {
+        try {
+          const idToken = await user.getIdToken();
+          try {
+            await apiFetch(`/api/listings?id=${encodeURIComponent(deletedId)}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${idToken}` }
+            });
+          } catch {
+            await deleteDoc(doc(db, 'cars', deletedId));
+          }
+        } catch (e) {
+          console.error("Scheduled delete failed:", e);
+        }
+      }, 5 * 60 * 1000);
+
+      setCarToMarkSold(null);
+    } catch (error: any) {
+      const errorKey = t('dashboard.markSoldFailed');
+      showToast(errorKey === 'dashboard.markSoldFailed' ? 'Failed to mark as sold' : errorKey, 'error');
+    } finally {
+      setIsMarkingSold(false);
+    }
+  };
+
   const handleDeleteListing = async (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -232,37 +323,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
 
     if (!carToDelete) return;
 
-    setIsDeleting(true);
+    // Optimistic UI: remove from list immediately for instant feel
+    const deletedId = carToDelete;
+    const prevListings = [...listings];
+    setListings(prev => prev.filter(car => car.id !== deletedId));
+    setCarToDelete(null);
+    showToast('Listing deleted successfully', 'success');
+
+    // Background: actual network deletion (R2 cleanup + Firestore)
     try {
-      if (!user) {
-        throw new Error('You must be logged in to delete listings');
-      }
-
-      // Try backend API first (handles R2 image cleanup + Firestore delete)
+      if (!user) throw new Error('Not authenticated');
+      const idToken = await user.getIdToken();
       try {
-        const idToken = await user.getIdToken();
-        await apiFetch(`/api/listings?id=${encodeURIComponent(carToDelete)}`, {
+        await apiFetch(`/api/listings?id=${encodeURIComponent(deletedId)}`, {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${idToken}`
-          }
+          headers: { 'Authorization': `Bearer ${idToken}` }
         });
-      } catch (apiErr: any) {
-        console.warn('Backend delete failed, falling back to direct Firestore:', apiErr.message);
-        // Fallback: delete directly from Firestore
-        const carRef = doc(db, 'cars', carToDelete);
-        await deleteDoc(carRef);
+        // Sync local Firestore SDK cache so onSnapshot listeners (Featured/Premium/Home) update instantly
+        try { await deleteDoc(doc(db, 'cars', deletedId)); } catch {}
+      } catch {
+        await deleteDoc(doc(db, 'cars', deletedId));
       }
-
-      // Update local state immediately for better perceived performance
-      setListings(prev => prev.filter(car => car.id !== carToDelete));
-      setCarToDelete(null);
-      showToast('Listing deleted successfully', 'success');
+      // Clear sessionStorage caches so Home page doesn't show stale listing data
+      sessionStorage.removeItem('cachedFeaturedCars');
+      sessionStorage.removeItem('cachedPremiumCars');
+      sessionStorage.removeItem('cachedHomeCars');
     } catch (error: any) {
+      // Revert optimistic update on failure
       console.error('Delete error:', error);
+      setListings(prevListings);
       showToast(`Failed to delete listing: ${error.message || 'Unknown error'}`, 'error');
-    } finally {
-      setIsDeleting(false);
     }
   };
   const handleLogout = async () => {
@@ -275,14 +365,108 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setIsDeletingAccount(true);
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("User not found");
+
+      const uid = currentUser.uid;
+      const idToken = await currentUser.getIdToken(true);
+
+      // ── PRE-FETCH all data while still authenticated ──
+      const carsSnap = await getDocs(query(collection(db, 'cars'), where('ownerId', '==', uid)));
+      const userListings = carsSnap.docs.map(d => ({ id: d.id, ...d.data() as Car }));
+      const chatsSnap = await getDocs(query(collection(db, 'chats'), where('participants', 'array-contains', uid)));
+      const paymentsSnap = await getDocs(query(collection(db, 'payments'), where('userId', '==', uid)));
+
+      // ── DELETE UPLOADED IMAGES (R2) + Firestore listings ──
+      for (const listing of userListings) {
+        try {
+          await apiFetch(`/api/listings?id=${encodeURIComponent(listing.id)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${idToken}` }
+          });
+        } catch (err) {
+          console.error(`R2 cleanup failed for listing ${listing.id}:`, err);
+        }
+      }
+      for (const carDoc of carsSnap.docs) {
+        try { await deleteDoc(carDoc.ref); } catch (err) { console.error(`Delete listing ${carDoc.id} failed:`, err); }
+      }
+
+      // ── DELETE CHATS & MESSAGES ──
+      for (const chatDoc of chatsSnap.docs) {
+        try {
+          const msgsSnap = await getDocs(collection(db, 'chats', chatDoc.id, 'messages'));
+          for (const msgDoc of msgsSnap.docs) { await deleteDoc(msgDoc.ref); }
+          await deleteDoc(chatDoc.ref);
+        } catch (err) { console.error(`Delete chat ${chatDoc.id} failed:`, err); }
+      }
+
+      // ── DELETE PAYMENT RECORDS ──
+      for (const paymentDoc of paymentsSnap.docs) {
+        try { await deleteDoc(paymentDoc.ref); } catch (err) { console.error(`Delete payment ${paymentDoc.id} failed:`, err); }
+      }
+
+      // ── DELETE USER PROFILE ──
+      try { await deleteDoc(doc(db, 'users', uid)); } catch (err) { console.error('Delete user profile failed:', err); }
+
+      // ── DELETE AUTH USER — if it fails, just sign out (data is already gone) ──
+      try {
+        await deleteUser(currentUser);
+      } catch (authErr) {
+        console.warn('Could not delete auth user, signing out instead:', authErr);
+        await signOut(auth);
+      }
+
+      // ── CLEAR SESSION & GO HOME ──
+      localStorage.clear();
+      sessionStorage.clear();
+      setShowDeleteAccountModal(false);
+      setPage('home');
+      showToast('Your account has been deleted successfully', 'success');
+
+    } catch (err: any) {
+      console.error('Account deletion error:', err);
+      showToast('Failed to delete account. Please try again.', 'error');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   if (authLoading) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-brand" /></div>;
   if (!user) return <div className="text-center py-24"><h2 className="text-2xl font-bold">{t('dashboard.loginRequired')}</h2></div>;
 
-  const menuItems: { id: string, label: any, icon: any, badge?: number }[] = [
-    { id: 'listings', label: t('dashboard.myListings'), icon: CarIcon },
-    { id: 'advertising', label: 'Advertising', icon: Megaphone },
-    { id: 'settings', label: t('dashboard.settings'), icon: Settings },
+  const getLabel = (key: string, fallback: string) => {
+    const val = t(key);
+    return val === key ? fallback : val;
+  };
+
+  const menuItems: { id: string, label: string, icon: any, badge?: number }[] = [
+    { id: 'listings', label: getLabel('dashboard.myListings', 'My Listings'), icon: List },
+    { id: 'advertising', label: getLabel('dashboard.advertising', 'Advertising'), icon: Megaphone },
+    { id: 'settings', label: getLabel('dashboard.settings', 'Settings'), icon: Settings },
   ];
+
+  const getJoinDateText = () => {
+    const creationTime = profile?.createdAt || user?.metadata?.creationTime;
+    if (!creationTime) return '';
+
+    const date = creationTime.toDate ? creationTime.toDate() : new Date(creationTime);
+    if (isNaN(date.getTime())) return '';
+
+    const now = new Date();
+    const diffTime = now.getTime() - date.getTime();
+    const diffDays = Math.floor(Math.max(0, diffTime) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Joined today';
+    if (diffDays < 30) return `Joined ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    const diffMonths = Math.floor(diffDays / 30);
+    return `Joined ${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+  };
 
   const handleTabClick = (id: string) => {
     if (id === 'admin') {
@@ -307,6 +491,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
               {profile?.sellerType && (
                 <p className="text-[9px] font-black text-brand truncate uppercase tracking-widest mt-0.5">{t(`sellerTypes.${profile.sellerType}`) || profile.sellerType}</p>
               )}
+              <p className="text-[9px] font-bold text-zinc-500 mt-1 uppercase tracking-widest">
+                {getJoinDateText()}
+              </p>
             </div>
           </div>
           <button
@@ -325,11 +512,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                 key={item.id}
                 onClick={() => handleTabClick(item.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${activeTab === item.id
-                    ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20'
-                    : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
+                  ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20'
+                  : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
                   }`}
               >
-                <item.icon size={14} />
+                <item.icon size={14} className="shrink-0" />
                 {item.label}
                 {item.badge ? (
                   <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${activeTab === item.id ? 'bg-white text-brand' : 'bg-brand text-white'
@@ -344,7 +531,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
 
         {/* Main Content Area */}
         <main className="space-y-6">
-          {activeTab === 'advertising' && <AdvertisingScreen />}
+          {activeTab === 'advertising' && <AdvertisingScreen t={t} />}
 
           {activeTab === 'listings' && (
             <div className="space-y-6">
@@ -378,14 +565,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                   </div>
                   <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">{t('dashboard.sold')}</p>
                   <p className="text-xl font-black text-zinc-900 dark:text-white">
-                    {listings.filter(l => l.status === 'sold').length}
+                    {(profile as any)?.totalSold ?? listings.filter(l => l.status === 'sold').length}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between px-1">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{t('dashboard.myInventory')}</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{t('dashboard.myInventory') || 'My Listings'}</h3>
                   <span className="text-[10px] font-bold text-zinc-400">{listings.length} {t('dashboard.items')}</span>
                 </div>
 
@@ -397,30 +584,44 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                       <div className="relative shrink-0">
                         <img src={car.imageURLs[0]} alt="" className="w-24 h-20 rounded-xl object-cover" referrerPolicy="no-referrer" />
                       </div>
-                      <div className="flex-1 min-w-0 py-1 flex flex-col items-start">
-                        <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate mb-0.5 w-full">{car.title}</h4>
-                        <p className="text-xs font-black text-brand mb-2">{car.price.toLocaleString()} ETB</p>
-                        <div className="mb-2">
-                          <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${car.status === 'approved'
-                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500'
-                              : car.status === 'rejected'
-                                ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-500'
-                                : car.status === 'sold'
-                                  ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
-                                  : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-500'
-                            }`}>
-                            <span className="whitespace-normal text-left break-words">
-                              {car.status === 'approved' ? t('dashboard.active') : car.status === 'rejected' ? 'Rejected' : car.status === 'sold' ? t('dashboard.sold') : 'Payment Pending Verification'}
-                            </span>
+                      <div className="flex-1 min-w-0 py-1 flex flex-col items-start w-full">
+                        <div className="flex items-start justify-between w-full">
+                          <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate mb-0.5 pr-2">{car.title}</h4>
+                          <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap pt-0.5">
+                            {car.createdAt ? (() => {
+                              const d = car.createdAt?.toDate?.() || new Date(car.createdAt);
+                              return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+                            })() : ''}
                           </span>
                         </div>
-                        <div className="flex gap-2">
+                        <p className="text-xs font-black text-brand mb-2">{car.price.toLocaleString()} ETB</p>
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${car.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500'
+                            : car.status === 'rejected' || car.status === 'payment_rejected'
+                              ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-500'
+                              : car.status === 'sold'
+                                ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'
+                                : 'bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-500'
+                            }`}>
+                            <span className="whitespace-normal text-left break-words">
+                              {car.status === 'approved' ? t('dashboard.active') : car.status === 'rejected' ? (t('dashboard.rejected') || 'Rejected') : car.status === 'payment_rejected' ? (t('dashboard.paymentRejected') || 'Payment Rejected') : car.status === 'sold' ? t('dashboard.sold') : (t('dashboard.pendingVerification') || 'Payment Pending Verification')}
+                            </span>
+                          </span>
+                          <span className={`inline-flex text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 ${
+                            car.packageType === 'premium'
+                              ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500'
+                              : car.packageType === 'featured'
+                                ? 'bg-brand/10 text-brand'
+                                : 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                          }`}>
+                            {car.packageType === 'premium' ? 'Premium' : car.packageType === 'featured' ? 'Featured' : 'Free'}
+                          </span>
+                        </div>
+                        <div className="flex gap-2 w-full justify-end mt-1">
                           {car.status === 'approved' && (
                             <button
-                              onClick={async () => {
-                                const carRef = doc(db, 'cars', car.id);
-                                await updateDoc(carRef, { status: 'sold' });
-                              }}
+                              onClick={() => setCarToMarkSold(car.id)}
                               className="flex-1 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1"
                             >
                               {t('dashboard.markSold')}
@@ -428,9 +629,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                           )}
                           <button
                             onClick={() => setCarToDelete(car.id)}
-                            className="p-1.5 text-red-500 bg-red-50 dark:bg-red-500/10 rounded-lg"
+                            className="py-1.5 px-3 text-red-500 bg-red-50 dark:bg-red-500/10 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1 shrink-0 ml-auto"
                           >
                             <LogOut size={14} className="rotate-180" />
+                            <span>{t('dashboard.deleteListingBtn') || 'Delete Listing'}</span>
                           </button>
                         </div>
                       </div>
@@ -478,8 +680,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                       <ShieldCheck size={20} />
                     </div>
                     <div>
-                      <h2 className="text-sm font-black text-white dark:text-zinc-900 uppercase tracking-tight">Admin Portal</h2>
-                      <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest">Manage platform</p>
+                      <h2 className="text-sm font-black text-white dark:text-zinc-900 uppercase tracking-tight">{t('dashboard.adminPortal')}</h2>
+                      <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-600 uppercase tracking-widest">{t('dashboard.managePlatform')}</p>
                     </div>
                   </div>
                   <button
@@ -532,7 +734,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                       name="sellerType"
                       value={sellerType}
                       onChange={(e) => setSellerType(e.target.value)}
-                      label="Select Role"
+                      label={t('auth.selectRole')}
                       options={SELLER_TYPES.map(type => ({ value: type, label: t(`sellerTypes.${type}`) || type }))}
                     />
                   </div>
@@ -579,10 +781,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                   </div>
                 </div>
               </div>
+
+              {/* Delete Account Section */}
+              <div className="mt-8 pt-8 border-t border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-10 h-10 bg-red-50 dark:bg-red-500/10 rounded-xl flex items-center justify-center text-red-500">
+                    <Trash2 size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black text-red-600 dark:text-red-400 uppercase tracking-tight">{t('dashboard.deleteAccount') || 'Delete Account'}</h2>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{t('dashboard.deleteDataDesc') || 'Permanently remove your data'}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
+                  {t('dashboard.deleteWarning') || 'This will permanently delete your account, all your listings, messages, payment records, and uploaded images. This action cannot be undone.'}
+                </p>
+                <button
+                  onClick={() => setShowDeleteAccountModal(true)}
+                  className="w-full py-4 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl font-black uppercase tracking-widest text-xs border border-red-100 dark:border-red-900/30 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all"
+                >
+                  {t('dashboard.yesDeleteAccount') || 'Delete My Account'}
+                </button>
+              </div>
             </div>
           )}
         </main>
       </div>
+
+      {/* Mark Sold Confirmation Modal */}
+      {carToMarkSold && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 mx-auto mb-6">
+              <ShieldCheck size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">{t('dashboard.markAsSoldTitle')}</h3>
+            <p className="text-zinc-500 text-center mb-8 font-medium">
+              {t('dashboard.markAsSoldConfirm')}
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleMarkSold}
+                disabled={isMarkingSold}
+                className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+              >
+                {isMarkingSold ? <Loader2 className="animate-spin mx-auto" size={20} /> : t('dashboard.confirm')}
+              </button>
+              <button
+                onClick={() => setCarToMarkSold(null)}
+                disabled={isMarkingSold}
+                className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+              >
+                {t('dashboard.cancel') || 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Delete Confirmation Modal — rendered via portal to escape scroll container */}
       {carToDelete && ReactDOM.createPortal(
@@ -623,22 +879,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
             <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6">
               <LogOut size={32} />
             </div>
-            <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">Log out?</h3>
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">{t('dashboard.logoutTitle') || 'Log out?'}</h3>
             <p className="text-zinc-500 text-center mb-8 font-medium">
-              Are you sure you want to log out?
+              {t('dashboard.logoutConfirm') || 'Are you sure you want to log out?'}
             </p>
             <div className="flex flex-col gap-3">
-              <button 
+              <button
                 onClick={handleLogout}
                 className="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
               >
-                Log out
+                {t('dashboard.logout') || 'Log out'}
               </button>
-              <button 
+              <button
                 onClick={() => setShowLogoutModal(false)}
                 className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
               >
-                Cancel
+                {t('dashboard.cancel') || 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountModal && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6">
+              <AlertCircle size={32} />
+            </div>
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">{t('dashboard.deleteAccount') || 'Delete Account'}</h3>
+            <p className="text-zinc-500 text-center mb-8 font-medium">
+              {t('dashboard.deleteAccountConfirm') || 'Are you sure you want to permanently delete your account? All your listings, messages, and data will be removed forever. This cannot be undone.'}
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    <span>{t('dashboard.deletingAccount') || 'Deleting account...'}</span>
+                  </>
+                ) : (t('dashboard.yesDeleteAccount') || 'Yes, Delete My Account')}
+              </button>
+              <button
+                onClick={() => setShowDeleteAccountModal(false)}
+                disabled={isDeletingAccount}
+                className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+              >
+                {t('dashboard.cancel') || 'Cancel'}
               </button>
             </div>
           </div>

@@ -17,12 +17,25 @@ interface PostCarProps {
 }
 
 export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }) => {
-  const { user, profile, t } = useAppContext();
+  const { user, profile, t, appConfig } = useAppContext();
   const { showToast } = useToast();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() => {
+    return sessionStorage.getItem('pendingListing') ? 6 : 1;
+  });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [images, setImages] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [previews, setPreviews] = useState<string[]>(() => {
+    const pending = sessionStorage.getItem('pendingListing');
+    if (pending) {
+      try {
+        const parsed = JSON.parse(pending);
+        return parsed.imageURLs || [];
+      } catch (e) { return []; }
+    }
+    return [];
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const CAR_COLORS = [
@@ -30,28 +43,32 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     'Yellow', 'Brown', 'Gold', 'Orange', 'Purple', 'Beige', 'Other'
   ];
 
-  const [formData, setFormData] = useState({
-    title: '',
-    brand: '',
-    model: '',
-    year: new Date().getFullYear().toString(),
-    price: '',
-    priceType: 'Fixed Price',
-    mileage: '',
-    fuel: '',
-    transmission: '',
-    bodyType: '',
-    color: '',
-    engineSize: '',
-    city: '',
-    subCity: '',
-    description: '',
-    condition: '' as '' | 'Used' | 'New',
-    listingType: '' as '' | 'sale' | 'rent',
-    sellerPhone: profile?.phoneNumber || '',
-    packageType: 'free',
-    bankLoan: false,
-    bankLoanAmount: ''
+  const [formData, setFormData] = useState(() => {
+    const defaultData = {
+      title: '', brand: '', model: '', year: new Date().getFullYear().toString(),
+      price: '', priceType: '', mileage: '', fuel: '', transmission: '',
+      bodyType: '', color: '', engineSize: '', city: '', subCity: '', description: '',
+      condition: '' as '' | 'Used' | 'New', listingType: '' as '' | 'sale' | 'rent',
+      sellerPhone: profile?.phoneNumber || '', telegram: '', whatsapp: '',
+      packageType: 'free', bankLoan: false, bankLoanAmount: '',
+      fuelMileage: '', driveType: ''
+    };
+    
+    const pending = sessionStorage.getItem('pendingListing');
+    if (pending) {
+      try {
+        const parsed = JSON.parse(pending);
+        return {
+          ...defaultData,
+          ...parsed,
+          year: parsed.year?.toString() || defaultData.year,
+          price: parsed.price?.toString() || '',
+          mileage: parsed.mileage?.toString() || '',
+          bankLoanAmount: parsed.bankLoanAmount?.toString() || ''
+        };
+      } catch (e) { return defaultData; }
+    }
+    return defaultData;
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -96,6 +113,12 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       e.preventDefault();
       e.stopPropagation();
     }
+
+    if (profile?.isBanned) {
+      showToast('Your account is restricted. You cannot post listings.', 'error');
+      return;
+    }
+
     if (validateStep(currentStep)) {
       setCurrentStep(prev => prev + 1);
       window.scrollTo(0, 0);
@@ -121,7 +144,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
           showToast('City is required', 'warning'); return false;
         }
         if (formData.city === 'Addis Ababa' && !formData.subCity) {
-          return false; // Silent enforce
+          showToast('Please select a sub city', 'warning'); return false;
         }
         if (!formData.condition) {
           showToast('Condition is required', 'warning'); return false;
@@ -153,7 +176,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         }
         return true;
       case 5:
-        if (images.length === 0) {
+        if (images.length === 0 && previews.length === 0) {
           showToast(t('post.errorImageRequired') || 'Please upload at least one image', 'warning');
           return false;
         }
@@ -163,10 +186,29 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     }
   };
 
+  // Recursively remove undefined and NaN values from an object before sending to Firestore
+  const sanitizeForFirestore = (obj: Record<string, any>): Record<string, any> => {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined && !(typeof v === 'number' && isNaN(v)))
+        .map(([k, v]) => [
+          k,
+          v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date)
+            ? sanitizeForFirestore(v)
+            : v
+        ])
+    );
+  };
+
   const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
+    }
+
+    if (profile?.isBanned) {
+      showToast('Your account is restricted. You cannot post listings.', 'error');
+      return;
     }
 
     if (isSubmitting) return;
@@ -176,7 +218,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     }
 
     // Final validation
-    if (images.length === 0) {
+    if (images.length === 0 && previews.length === 0) {
       showToast(t('post.errorImageRequired') || 'Please upload at least one image', 'warning');
       return;
     }
@@ -186,22 +228,25 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     try {
       // Get Firebase ID token for authentication
       const idToken = await user.getIdToken();
-
-      showToast(t('post.uploading') || 'Uploading images...', 'info');
-
-      // 1. Upload images to R2 via Express server proxy (SEQUENTIAL to prevent OOM on Android)
-      const listingId = Math.random().toString(36).substring(2, 15);
-      const imageUrls: string[] = [];
       
-      for (let i = 0; i < images.length; i++) {
-        const image = images[i];
-        try {
-          const compressedBlob = await compressImage(image).catch(err => {
-            console.warn('Compression failed, using original:', err);
-            return image;
-          });
+      const pendingData = sessionStorage.getItem('pendingListing');
+      let listingId = pendingData ? JSON.parse(pendingData).id : Math.random().toString(36).substring(2, 15);
+      
+      let imageUrls: string[] = [];
 
-          const imageName = `image-${i + 1}-${Date.now()}`;
+      if (images.length > 0) {
+        showToast(t('post.uploading') || 'Uploading images...', 'info');
+
+        // Step A: Compress all images in parallel
+        const compressedImages = await Promise.all(
+          images.map(image =>
+            compressImage(image).catch(() => image)
+          )
+        );
+
+        // Step B: Upload all compressed images in parallel
+        const uploadPromises = compressedImages.map(async (blob, i) => {
+          const imageName = `image-${i + 1}-${Date.now()}-${i}`;
           const key = `listings/${user.uid}/${listingId}/${imageName}.jpg`;
 
           const uploadData = await apiUpload(
@@ -212,15 +257,16 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                 'Content-Type': 'image/jpeg',
                 'Authorization': `Bearer ${idToken}`
               },
-              body: await compressedBlob.arrayBuffer()
+              body: await blob.arrayBuffer()
             }
           );
+          return uploadData.publicUrl;
+        });
 
-          imageUrls.push(uploadData.publicUrl);
-        } catch (uploadErr: any) {
-          console.error(`ERROR: Image ${i + 1} upload failed:`, uploadErr.message);
-          throw new Error(`Image ${i + 1} upload failed: ${uploadErr.message}`);
-        }
+        imageUrls = await Promise.all(uploadPromises);
+      } else if (pendingData) {
+        // If no new images uploaded, retain existing ones
+        imageUrls = JSON.parse(pendingData).imageURLs || [];
       }
 
       const isPaid = formData.packageType !== 'free';
@@ -230,21 +276,28 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         ownerId: user.uid,
         ownerName: profile?.displayName || user.displayName || (user.email ? user.email.split('@')[0] : 'User'),
         ownerPhone: formData.sellerPhone,
+        ownerTelegram: formData.telegram || '',
+        ownerWhatsapp: formData.whatsapp || '',
         ownerSellerType: profile?.sellerType || 'Private Seller',
         ...formData,
         year: parseInt(formData.year.toString().replace(/[^0-9]/g, '')) || new Date().getFullYear(),
         price: parseFloat(formData.price.toString().replace(/[^0-9.]/g, '')) || 0,
         mileage: parseFloat(formData.mileage.toString().replace(/[^0-9.]/g, '')) || 0,
-        bankLoanAmount: formData.bankLoanAmount ? (parseFloat(formData.bankLoanAmount.toString().replace(/[^0-9.]/g, '')) || 0) : undefined,
+        bankLoanAmount: formData.bankLoanAmount ? (parseFloat(formData.bankLoanAmount.toString().replace(/[^0-9.]/g, '')) || 0) : null,
+        fuelMileage: formData.fuelMileage || null,
+        driveType: formData.driveType || null,
         imageURLs: imageUrls,
-        status: isPaid ? 'pending_payment_verification' : 'pending',
+        status: isPaid ? 'pending_payment_verification' : 'approved',
         views: 0,
         createdAt: new Date().toISOString()
       };
 
+      // Sanitize: remove any undefined/NaN values before Firestore or sessionStorage
+      const cleanPayload = sanitizeForFirestore(listingPayload);
+
       if (isPaid) {
         // Store temporary listing data
-        sessionStorage.setItem('pendingListing', JSON.stringify(listingPayload));
+        sessionStorage.setItem('pendingListing', JSON.stringify(cleanPayload));
         setPendingListingId(listingId);
         showToast(t('post.redirectingPayment') || 'Redirecting to payment...', 'info');
         setPage('payment');
@@ -252,9 +305,19 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         // 2. Save car data directly to Firestore
         const carRef = doc(db, 'cars', listingId);
         await setDoc(carRef, {
-          ...listingPayload,
+          ...cleanPayload,
           createdAt: serverTimestamp()
         });
+        
+        // Optimistic UI cache injection for immediate loading on Home.tsx
+        try {
+          const cachedStr = sessionStorage.getItem('cachedHomeCars');
+          const parsed = cachedStr ? JSON.parse(cachedStr) : [];
+          sessionStorage.setItem('cachedHomeCars', JSON.stringify([{
+            ...cleanPayload,
+            createdAt: { seconds: Math.floor(Date.now()/1000) } // Mock Firestore ts
+          }, ...parsed]));
+        } catch(e) {}
 
         showToast(t('post.success') || 'Listing posted successfully!', 'success');
         setPage('home');
@@ -263,7 +326,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       console.error('ERROR: Post listing failed:', error);
       const msg = (t('post.errorPosting') || 'Failed to post listing: ') + error.message;
       showToast(msg, 'error');
-      alert(`Submission Error: ${msg}`); // Explicit alert so user doesn't miss the failure reason
     } finally {
       setIsSubmitting(false);
     }
@@ -297,7 +359,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   <BottomSheetSelect 
                     id="condition"
                     name="condition"
-                    sheetHeight="40vh"
                     value={formData.condition}
                     onChange={handleInputChange}
                     label={t('post.selectCondition') || 'Select Condition'}
@@ -313,7 +374,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   <BottomSheetSelect 
                     id="listingType"
                     name="listingType"
-                    sheetHeight="40vh"
                     value={formData.listingType}
                     onChange={handleInputChange}
                     label={t('post.selectListingType') || 'Select Listing Type'}
@@ -332,7 +392,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     value={formData.city}
                     onChange={handleInputChange}
                     label={t('post.selectCity') || 'Select City'}
-                    options={LOCATIONS.map(l => ({ value: l, label: t(`locations.${l}`) || l }))}
+                    options={LOCATIONS.map(l => ({ value: l, label: (() => { const v = t(`locations.${l}`); return (typeof v === 'string' && v.startsWith('locations.')) ? l : (v || l); })() }))}
                   />
                 </div>
                 
@@ -473,6 +533,33 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     options={CAR_COLORS.map(c => ({ value: c, label: t(`colors.${c}`) || c }))}
                   />
                 </div>
+                <div>
+                  <label htmlFor="fuelMileage" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.fuelMileage') || 'Fuel Mileage (km/L)'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
+                  <input 
+                    id="fuelMileage"
+                    name="fuelMileage"
+                    value={formData.fuelMileage}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 15"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="driveType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.driveType') || 'Drive Type'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
+                  <BottomSheetSelect 
+                    id="driveType"
+                    name="driveType"
+                    value={formData.driveType}
+                    onChange={handleInputChange}
+                    label="Select Drive Type"
+                    options={[
+                      { value: "FWD", label: "FWD" },
+                      { value: "RWD", label: "RWD" },
+                      { value: "AWD", label: "AWD" },
+                      { value: "4WD", label: "4WD" }
+                    ]}
+                  />
+                </div>
               </div>
             </div>
           </motion.div>
@@ -503,10 +590,9 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   <BottomSheetSelect 
                     id="priceType"
                     name="priceType"
-                    sheetHeight="40vh"
                     value={formData.priceType}
                     onChange={handleInputChange}
-                    label={"Select"}
+                    label={t('post.selectPriceType') || 'Select Price Type'}
                     options={PRICE_TYPES.map(type => ({ value: type, label: t(`priceTypes.${type}`) || type }))}
                   />
                 </div>
@@ -561,6 +647,28 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
+                <div>
+                  <label htmlFor="telegram" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Telegram <span className="text-zinc-300">(Optional)</span></label>
+                  <input 
+                    id="telegram"
+                    name="telegram"
+                    value={formData.telegram}
+                    onChange={handleInputChange}
+                    placeholder="e.g. @username or t.me/username"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="whatsapp" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">WhatsApp <span className="text-zinc-300">(Optional)</span></label>
+                  <input 
+                    id="whatsapp"
+                    name="whatsapp"
+                    value={formData.whatsapp}
+                    onChange={handleInputChange}
+                    placeholder="e.g. +251912345678"
+                    className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
+                  />
+                </div>
               </div>
             </div>
           </motion.div>
@@ -582,7 +690,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                         <img src={p} alt="Preview" className="w-full h-full object-cover" />
                         <button 
                           onClick={() => removeImage(i)}
-                          className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full shadow-lg active:scale-95 transition-all"
                         >
                           <X size={14} />
                         </button>
@@ -633,7 +741,13 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {LISTING_PACKAGES.map((pkg) => (
+                {LISTING_PACKAGES.map((basePkg) => {
+                  const pkg = {
+                    ...basePkg,
+                    price: basePkg.id === 'featured' ? (appConfig.featured_price ?? basePkg.price) : 
+                           basePkg.id === 'premium' ? (appConfig.premium_price ?? basePkg.price) : basePkg.price
+                  };
+                  return (
                   <button
                     key={pkg.id}
                     type="button"
@@ -650,11 +764,11 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                       </div>
                     )}
                     <h3 className="font-black text-sm uppercase tracking-tight mb-1 dark:text-white">
-                      {t(`packages.${pkg.id}.name`) || pkg.name}
+                      {pkg.name}
                     </h3>
-                    <p className="text-brand font-black text-lg mb-4">{pkg.price === 0 ? t('postSteps.free') : `${pkg.price} ETB`}</p>
+                    <p className="text-brand font-black text-lg mb-4">{pkg.price === 0 ? 'Free' : `${pkg.price} ETB`}</p>
                     <ul className="space-y-2">
-                      {((t(`packages.${pkg.id}.features`, { returnObjects: true }) as any) || pkg.features).map((f: string, i: number) => (
+                      {pkg.features.map((f: string, i: number) => (
                         <li key={i} className="text-[10px] text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
                           <div className="w-1 h-1 bg-brand rounded-full" />
                           {f}
@@ -662,7 +776,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                       ))}
                     </ul>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </motion.div>

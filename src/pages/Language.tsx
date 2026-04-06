@@ -9,6 +9,12 @@ export const Language: React.FC = () => {
 
   const handleSelect = (lang: LangType) => {
     setLanguage(lang);
+    setTimeout(() => {
+      const homeBtn = Array.from(document.querySelectorAll('nav button')).find(
+        (b) => b.textContent?.toLowerCase().includes('home') || b.textContent?.includes('መነሻ')
+      );
+      if (homeBtn) (homeBtn as HTMLButtonElement).click();
+    }, 150); // fast redirect without full loader screen
   };
 
   return (

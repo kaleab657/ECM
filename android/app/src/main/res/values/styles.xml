@@ -12,17 +12,50 @@
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:background">#FFFFFF</item>
+        <!-- Use windowBackground instead of background to prevent the copy/paste menu from inheriting the solid color -->
+        <item name="android:windowBackground">#18181b</item>
         <!-- Allow drawing behind the notch/cutout when status bar is hidden to fix black gap -->
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
         <item name="android:windowTranslucentNavigation">false</item>
+
+        <!-- Let the native OS handle the text selection context menu directly without pushing the app down -->
+        <item name="windowActionModeOverlay">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:forceDarkAllowed">true</item>
+
+        <!-- Native floating text selection toolbar — no white box background -->
+        <item name="actionModeBackground">@android:color/transparent</item>
+        <item name="actionModePopupWindowStyle">@style/ActionModePopup</item>
+        <item name="android:actionModeBackground">@android:color/transparent</item>
+        <item name="android:actionModeSplitBackground">@android:color/transparent</item>
+        
+        <!-- NEW: Remove the huge block of space by setting bar height to 0 and background to null -->
+        <item name="actionModeStyle">@style/CustomActionModeStyle</item>
+        <item name="android:actionModeStyle">@style/CustomActionModeStyle</item>
+        
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:textColorHighlight">#40FF5C22</item>
+    </style>
+
+    <!-- Custom style to kill the 'empty space' block during text selection -->
+    <style name="CustomActionModeStyle" parent="Widget.AppCompat.ActionMode">
+        <item name="background">@null</item>
+        <item name="android:background">@null</item>
+        <item name="height">0dp</item>
+        <item name="android:height">0dp</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
     </style>
 
 
-    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#FFFFFF</item>
-        <item name="windowSplashScreenIconBackgroundColor">#FFFFFF</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
-        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <!-- Makes text selection toolbar fully transparent/native — no white background box -->
+    <style name="ActionModePopup" parent="Widget.AppCompat.PopupWindow">
+        <item name="android:popupBackground">@android:color/transparent</item>
+        <item name="android:elevation">4dp</item>
     </style>
 </resources>

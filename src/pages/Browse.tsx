@@ -9,6 +9,7 @@ import { db } from '../lib/firebase';
 import { BottomSheetSelect } from '../components/BottomSheetSelect';
 import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
+import { isListingExpired } from '../utils/expiry';
 
 interface BrowseProps {
   setPage: (page: Page) => void;
@@ -50,6 +51,9 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
 
   const filteredCars = useMemo(() => {
     let result = cars.filter(car => {
+      // Auto Expiry handling
+      if (isListingExpired(car)) return false;
+
       // Text search (client-side as Firestore doesn't support full-text search easily)
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
@@ -71,6 +75,11 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
 
     // Sorting
     result.sort((a, b) => {
+      // 1. Premium Plan Boost (always first placement)
+      if (a.packageType === 'premium' && b.packageType !== 'premium') return -1;
+      if (a.packageType !== 'premium' && b.packageType === 'premium') return 1;
+
+      // 2. Standard Sorting
       switch (sortBy) {
         case 'price-low': return a.price - b.price;
         case 'price-high': return b.price - a.price;
@@ -198,7 +207,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
   );
 
   const SidebarContent = () => (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-5 pb-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-2 italic uppercase tracking-tight">
           <Filter size={20} className="text-brand" /> {t('browse.filters')}
@@ -211,7 +220,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
         </button>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-5">
         <FilterSection title={t('search.make')}>
           <div className="grid grid-cols-1 gap-3">
             <div className="relative">
@@ -308,7 +317,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
                 value={filters.city}
                 onChange={(e) => handleFilterChange('city', e.target.value)}
                 label={t('search.anyLocation') || 'Any Location'}
-                options={LOCATIONS.map(l => ({ value: l, label: t(`locations.${l}`) || l }))}
+                options={LOCATIONS.map(l => ({ value: l, label: (() => { const v = t(`locations.${l}`); return (typeof v === 'string' && v.startsWith('locations.')) ? l : (v || l); })() }))}
                 className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-2xl px-4 py-3.5 text-sm font-bold focus:outline-none appearance-none cursor-pointer dark:text-white transition-all italic"
               />
             </div>
@@ -349,12 +358,6 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
               className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl pl-10 pr-4 py-3 text-xs font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all shadow-sm dark:text-white italic"
             />
           </div>
-          <button 
-            onClick={() => setIsFilterOpen(true)}
-            className="p-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl text-zinc-900 dark:text-white shadow-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all active:scale-95"
-          >
-            <SlidersHorizontal size={18} />
-          </button>
         </div>
 
         {/* Sorting Pills */}
@@ -411,17 +414,32 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
                   initial={{ y: '100%' }}
                   animate={{ y: 0 }}
                   exit={{ y: '100%' }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                  className="lg:hidden fixed bottom-0 left-0 right-0 z-[110] bg-white dark:bg-zinc-950 rounded-t-[40px] max-h-[90vh] overflow-y-auto px-6 pt-2 pb-10 shadow-2xl"
+                  transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                  className="lg:hidden fixed bottom-0 left-0 right-0 z-[110] bg-white dark:bg-zinc-950 rounded-t-[32px] shadow-2xl flex flex-col"
+                  style={{ maxHeight: '80vh' }}
                 >
-                  <div className="w-12 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-auto mb-6 mt-2" />
+                  {/* Fixed handle */}
+                  <div className="shrink-0 pt-3 pb-2 flex justify-center">
+                    <div className="w-12 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
+                  </div>
                   
-                  <SidebarContent />
+                  {/* Scrollable filter content */}
+                  <div 
+                    className="flex-1 overflow-y-auto px-6 pb-4"
+                    style={{ 
+                      minHeight: 0, 
+                      WebkitOverflowScrolling: 'touch',
+                      overscrollBehavior: 'contain' 
+                    }}
+                  >
+                    <SidebarContent />
+                  </div>
 
-                  <div className="sticky bottom-0 left-0 right-0 pt-4 bg-white dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900 -mx-6 px-6">
+                  {/* Fixed bottom button */}
+                  <div className="shrink-0 px-6 pt-3 pb-[max(env(safe-area-inset-bottom,8px),8px)] bg-white dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-900">
                     <button 
                       onClick={() => setIsFilterOpen(false)}
-                      className="w-full bg-brand text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-brand/20 active:scale-95 transition-all mb-[env(safe-area-inset-bottom)]"
+                      className="w-full bg-brand text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-brand/20 active:scale-95 transition-all"
                     >
                       {t('browse.showResults')} ({filteredCars.length})
                     </button>
@@ -432,7 +450,7 @@ export const Browse: React.FC<BrowseProps> = ({ setPage, setSelectedCar, initial
           </AnimatePresence>
 
           {/* Results Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <CarCardSkeleton key={i} />

@@ -3,6 +3,8 @@ export type Car = {
   ownerId: string;
   ownerName: string;
   ownerPhone?: string;
+  ownerTelegram?: string;
+  ownerWhatsapp?: string;
   ownerSellerType?: string;
   title: string;
   brand: string;
@@ -17,7 +19,7 @@ export type Car = {
   description: string;
   imageURLs: string[];
   listingType: 'sale' | 'rent';
-  status: 'approved' | 'pending' | 'sold' | 'pending_payment_verification' | 'rejected';
+  status: 'approved' | 'pending' | 'sold' | 'pending_payment_verification' | 'rejected' | 'payment_rejected';
   condition: 'Used' | 'New';
   bodyType?: string;
   color?: string;
@@ -28,6 +30,8 @@ export type Car = {
   featured?: boolean;
   bankLoan?: boolean;
   bankLoanAmount?: number;
+  fuelMileage?: string;
+  driveType?: 'FWD' | 'RWD' | 'AWD' | '4WD';
   views?: number;
   createdAt: any;
 };
@@ -60,7 +64,8 @@ export type UserProfile = {
   sellerType?: string;
   isVerified?: boolean;
   role?: 'admin' | 'user';
+  isBanned?: boolean;
   createdAt: any;
 };
 
-export type Page = 'home' | 'menu' | 'browse' | 'detail' | 'post' | 'auth' | 'dashboard' | 'valuation' | 'dealerships' | 'help' | 'safety' | 'privacy' | 'terms' | 'contact' | 'chat' | 'payment' | 'admin' | 'saved' | 'about' | 'support' | 'language' | 'featuredListings';
+export type Page = 'home' | 'menu' | 'browse' | 'detail' | 'post' | 'auth' | 'dashboard' | 'valuation' | 'dealerships' | 'help' | 'safety' | 'privacy' | 'terms' | 'contact' | 'chat' | 'payment' | 'admin' | 'saved' | 'about' | 'support' | 'language' | 'featuredListings' | 'premiumListings';

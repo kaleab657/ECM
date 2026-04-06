@@ -1,0 +1,480 @@
+{
+	"info": {
+		"_postman_id": "ethiocars-api-collection",
+		"name": "🚗 EthioCars API — Complete Collection",
+		"description": "All 15 backend API endpoints for EthioCars.\n\n🔑 SETUP:\n1. Go to the Variables tab of this collection\n2. Set 'firebase_token' to your Firebase ID Token\n3. Set 'user_uid' to your Firebase User UID\n\n💡 HOW TO GET YOUR TOKEN:\nOpen your app in browser → DevTools Console → Run:\n(await firebase.auth().currentUser.getIdToken())\n\nTokens expire after 1 hour. Refresh when needed.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://ethiocars-9jsd.onrender.com",
+			"type": "string"
+		},
+		{
+		},
+		{
+			"key": "user_uid",
+			"value": "P1HQ1wgJxBgavHvTgffE6iDfiYJ3",
+			"type": "string"
+		},
+		{
+			"key": "listing_id",
+			"value": "hvqzo3a3eug",
+			"type": "string"
+		},
+		{
+			"key": "payment_id",
+			"value": "xz9yee3zki",
+			"type": "string"
+		},
+		{
+			"key": "recipient_uid",
+			"value": "PASTE_RECIPIENT_USER_UID_HERE",
+			"type": "string"
+		},
+		{
+			"key": "chat_id",
+			"value": "1O1lJPc9CkP94yVwJml7",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🟢 Health & Diagnostics",
+			"item": [
+				{
+					"name": "1 — Health Check (Wake Server)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/health",
+							"host": ["{{base_url}}"],
+							"path": ["api", "health"]
+						},
+						"description": "Health check endpoint. Also used to wake the Render server from cold sleep.\n\nNo auth required.\n\nExpected response:\n{\n  \"status\": \"ok\",\n  \"timestamp\": \"2026-03-23T...\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "2 — R2 Connectivity Test",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/r2/test",
+							"host": ["{{base_url}}"],
+							"path": ["api", "r2", "test"]
+						},
+						"description": "Tests if the server can connect to Cloudflare R2.\n\nNo auth required.\n\nExpected response:\n{\n  \"success\": true,\n  \"message\": \"Cloudflare R2 is connected and authenticated.\"\n}"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📤 Upload / R2",
+			"item": [
+				{
+					"name": "3 — Upload Listing Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "image/jpeg"
+							}
+						],
+						"body": {
+							"mode": "file",
+							"file": {
+								"src": ""
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/r2/upload-listing?fileName=test-image.jpg&fileType=image/jpeg&customKey=listings/{{user_uid}}/test/image1.jpg",
+							"host": ["{{base_url}}"],
+							"path": ["api", "r2", "upload-listing"],
+							"query": [
+								{
+									"key": "fileName",
+									"value": "test-image.jpg"
+								},
+								{
+									"key": "fileType",
+									"value": "image/jpeg"
+								},
+								{
+									"key": "customKey",
+									"value": "listings/{{user_uid}}/test/image1.jpg"
+								}
+							]
+						},
+						"description": "Uploads a listing image directly to Cloudflare R2.\n\nIn Postman: Body tab → select 'binary' → choose a JPG file.\n\nExpected response:\n{\n  \"success\": true,\n  \"publicUrl\": \"https://pub-26cca...r2.dev/listings/.../image1.jpg\",\n  \"key\": \"listings/.../image1.jpg\",\n  \"bucket\": \"ethiocars-images\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "4 — Upload Payment Proof",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "image/jpeg"
+							}
+						],
+						"body": {
+							"mode": "file",
+							"file": {
+								"src": ""
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/r2/upload-payment?fileName=payment-proof.jpg&fileType=image/jpeg&customKey=payments/{{user_uid}}/{{listing_id}}/proof.jpg",
+							"host": ["{{base_url}}"],
+							"path": ["api", "r2", "upload-payment"],
+							"query": [
+								{
+									"key": "fileName",
+									"value": "payment-proof.jpg"
+								},
+								{
+									"key": "fileType",
+									"value": "image/jpeg"
+								},
+								{
+									"key": "customKey",
+									"value": "payments/{{user_uid}}/{{listing_id}}/proof.jpg"
+								}
+							]
+						},
+						"description": "Uploads a payment screenshot to the payment-proofs R2 bucket.\n\nIn Postman: Body tab → select 'binary' → choose a JPG file.\n\nExpected response:\n{\n  \"success\": true,\n  \"publicUrl\": \"https://pub-241e6...r2.dev/payments/.../proof.jpg\",\n  \"key\": \"payments/.../proof.jpg\",\n  \"bucket\": \"payment-proofs\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "5 — Get Presigned Upload URL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fileName\": \"test-image.jpg\",\n  \"fileType\": \"image/jpeg\",\n  \"folder\": \"listings\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/r2/presigned-url",
+							"host": ["{{base_url}}"],
+							"path": ["api", "r2", "presigned-url"]
+						},
+						"description": "Generates a presigned URL for direct browser-to-R2 upload.\n\nThe response contains an uploadUrl (temporary, expires in 5 minutes) and a publicUrl (permanent CDN link).\n\nExpected response:\n{\n  \"success\": true,\n  \"uploadUrl\": \"https://...r2.cloudflarestorage.com/...?X-Amz-...\",\n  \"publicUrl\": \"https://pub-26cca...r2.dev/listings/...\",\n  \"key\": \"listings/...\",\n  \"bucket\": \"ethiocars-images\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "6 — Confirm Upload Exists",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"key\": \"listings/test/image1.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/r2/confirm-upload",
+							"host": ["{{base_url}}"],
+							"path": ["api", "r2", "confirm-upload"]
+						},
+						"description": "Verifies that a file exists in R2 after upload.\n\nUse the 'key' value you received from the upload or presigned-url response.\n\nExpected success:\n{ \"success\": true, \"message\": \"Upload verified successfully.\" }\n\nExpected failure (file not found):\n{ \"success\": false, \"error\": \"File not found in storage...\" }"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🚘 Listings",
+			"item": [
+				{
+					"name": "7 — Create Listing",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"listing\": {\n    \"id\": \"postman-test-001\",\n    \"ownerId\": \"{{user_uid}}\",\n    \"ownerName\": \"Postman Test\",\n    \"ownerPhone\": \"0912345678\",\n    \"ownerSellerType\": \"Private Seller\",\n    \"title\": \"2020 Toyota Corolla — Postman Test\",\n    \"brand\": \"Toyota\",\n    \"model\": \"Corolla\",\n    \"year\": 2020,\n    \"price\": 1500000,\n    \"priceType\": \"Fixed Price\",\n    \"mileage\": 45000,\n    \"fuel\": \"Petrol\",\n    \"transmission\": \"Automatic\",\n    \"bodyType\": \"Sedan\",\n    \"color\": \"White\",\n    \"engineSize\": \"1.8L\",\n    \"city\": \"Addis Ababa\",\n    \"subCity\": \"Bole\",\n    \"condition\": \"Used\",\n    \"listingType\": \"sale\",\n    \"description\": \"Test listing created from Postman\",\n    \"imageURLs\": [\"https://pub-26cca08a18064198a206549a3e2eb1c1.r2.dev/listings/test/image1.jpg\"],\n    \"status\": \"approved\",\n    \"packageType\": \"free\",\n    \"sellerPhone\": \"0912345678\",\n    \"bankLoan\": false,\n    \"views\": 0\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/listings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings"]
+						},
+						"description": "Creates a new car listing in Firestore.\n\n⚠️ IMPORTANT: The entire listing object MUST be wrapped inside a \"listing\" key.\nIf you send fields at root level, you get 400 \"Listing data required\".\n\nExpected response:\n{\n  \"success\": true,\n  \"id\": \"postman-test-001\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "8 — Delete Own Listing",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/listings?id={{listing_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "listings"],
+							"query": [
+								{
+									"key": "id",
+									"value": "{{listing_id}}"
+								}
+							]
+						},
+						"description": "Deletes a listing you own. Also cleans up R2 images.\n\n⚠️ The listing ID goes in the QUERY PARAM (?id=xxx), NOT in the body.\n⚠️ Your token's UID must match the listing's ownerId, or you must be an admin.\n\nExpected response:\n{\n  \"success\": true,\n  \"message\": \"Listing safely deleted\"\n}"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🛡️ Admin",
+			"item": [
+				{
+					"name": "9 — Admin: Get Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/stats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "stats"]
+						},
+						"description": "Returns admin dashboard statistics.\n\nRequires admin role.\n\nExpected response:\n{\n  \"success\": true,\n  \"stats\": {\n    \"totalUsers\": 42,\n    \"totalListings\": 15,\n    \"pendingApprovals\": 3,\n    \"featuredListings\": 5\n  }\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "10 — Admin: Get All Listings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/listings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "listings"]
+						},
+						"description": "Returns all listings (max 100, ordered by createdAt desc).\n\nRequires admin role.\n\nExpected response:\n{\n  \"success\": true,\n  \"listings\": [ ... ]\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "11 — Admin: Get Listings by Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/listings?status=pending",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "listings"],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending",
+									"description": "Options: all, approved, pending, sold, rejected, pending_payment_verification"
+								}
+							]
+						},
+						"description": "Returns listings filtered by status.\n\nValid status values: all, approved, pending, sold, rejected, pending_payment_verification\n\nRequires admin role."
+					},
+					"response": []
+				},
+				{
+					"name": "12 — Admin: Update Listing",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"approved\",\n  \"featured\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/listings/{{listing_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "listings", "{{listing_id}}"]
+						},
+						"description": "Updates any fields on a listing.\n\n⚠️ CRITICAL: The listing ID must be IN THE URL PATH, not in the body.\n✅ /api/admin/listings/abc123\n❌ /api/admin/listings/     ← 404!\n❌ /api/admin/listings      ← 404!\n\nRequires admin role.\n\nExpected response:\n{\n  \"success\": true,\n  \"message\": \"Listing updated successfully\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "13 — Admin: Delete Listing",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/admin/listings/{{listing_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "listings", "{{listing_id}}"]
+						},
+						"description": "Permanently deletes a listing + cleans up R2 images + payment proofs.\n\n⚠️ CRITICAL: The listing ID must be IN THE URL PATH.\n✅ /api/admin/listings/abc123\n❌ /api/admin/listings/     ← 404!\n\nRequires admin role.\n\nExpected response:\n{\n  \"success\": true,\n  \"message\": \"Listing safely deleted\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "14 — Admin: Verify/Reject Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"listingId\": \"{{listing_id}}\",\n  \"status\": \"verified\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/verify-payment",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "verify-payment"]
+						},
+						"description": "Verifies or rejects a payment.\n\nstatus options: \"verified\" or \"rejected\"\n\nWhen verified:\n- Payment status → verified\n- Listing status → approved, featured: true\n\nWhen rejected:\n- R2 images are deleted\n- Listing status → payment_rejected → rejected (after 3 min)\n\nRequires admin role.\n\nExpected response:\n{ \"success\": true }"
+					},
+					"response": []
+				},
+				{
+					"name": "15 — Admin: Broadcast Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"🚗 New Feature!\",\n  \"message\": \"Check out the latest cars on EthioCars!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/admin/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["api", "admin", "notifications"]
+						},
+						"description": "Sends a push notification to ALL registered users via FCM.\n\nRequires admin role.\n\nExpected response:\n{\n  \"success\": true,\n  \"sent\": true,\n  \"stats\": {\n    \"totalTokens\": 50,\n    \"delivered\": 48,\n    \"failed\": 2,\n    \"invalidTokensCleaned\": 1\n  }\n}"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "💬 Chat / Notifications",
+			"item": [
+				{
+					"name": "16 — Send Chat Push Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{firebase_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"recipientId\": \"{{recipient_uid}}\",\n  \"senderName\": \"Postman Tester\",\n  \"message\": \"Hello from Postman! 🚗\",\n  \"chatId\": \"{{chat_id}}\",\n  \"carTitle\": \"2020 Toyota Corolla\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/notifications/chat",
+							"host": ["{{base_url}}"],
+							"path": ["api", "notifications", "chat"]
+						},
+						"description": "Sends a push notification to a specific user when they receive a chat message.\n\nExpected response:\n{\n  \"success\": true,\n  \"sent\": true,\n  \"devicesNotified\": 1\n}"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

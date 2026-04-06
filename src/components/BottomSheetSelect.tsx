@@ -45,7 +45,7 @@ export const BottomSheetSelect: React.FC<BottomSheetSelectProps> = ({
 
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[300] flex flex-col justify-end">
+          <div className="fixed inset-0 flex flex-col justify-end z-[9999]">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
