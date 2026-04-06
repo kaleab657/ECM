@@ -18,7 +18,8 @@ import {
   Crown,
   Ban,
   UserMinus,
-  Settings
+  Settings,
+  AlertTriangle
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
@@ -81,6 +82,8 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
   const [carToDelete, setCarToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [userToBan, setUserToBan] = useState<string | null>(null);
+  const [banStep, setBanStep] = useState<1 | 2>(1);
+  const [banReason, setBanReason] = useState('');
 
   const isAdmin = profile?.role?.toLowerCase() === 'admin' || user?.email === 'kaleabepherem@gmail.com' || user?.email === 'kaleabepherem98@gmail.com';
 
@@ -146,22 +149,31 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     if (!user) return;
     if (!currentStatus) {
       setUserToBan(userId);
+      setBanStep(1);
+      setBanReason('');
       return;
     }
-    await executeToggleBan(userId, currentStatus);
+    await executeToggleBan(userId, currentStatus, '');
   };
 
-  const executeToggleBan = async (userId: string, currentStatus: boolean) => {
+  const executeToggleBan = async (userId: string, currentStatus: boolean, reasonText: string) => {
     setIsProcessing(userId);
     try {
-      await updateDoc(doc(db, 'users', userId), { isBanned: !currentStatus });
-      showToast(`User ${!currentStatus ? 'banned' : 'unbanned'} successfully!`, 'success');
+      if (currentStatus) {
+        // Unban: remove reason
+        await updateDoc(doc(db, 'users', userId), { isBanned: false, banReason: '' });
+      } else {
+        // Ban: add reason
+        await updateDoc(doc(db, 'users', userId), { isBanned: true, banReason: reasonText });
+      }
+      showToast(`User ${!currentStatus ? 'restricted' : 'unbanned'} successfully!`, 'success');
     } catch (error) {
       console.error('Error updating ban status:', error);
       showToast('Failed to update ban status', 'error');
     } finally {
       setIsProcessing(null);
       setUserToBan(null);
+      setBanReason('');
     }
   };
 
@@ -563,13 +575,6 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
                         >
                            {isProcessing === targetUser.id ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />} {targetUser.isBanned ? 'Unban User' : 'Ban User'}
                         </button>
-                        <button
-                          disabled={isProcessing === targetUser.id}
-                          onClick={() => handleSoftDelete(targetUser.id)}
-                          className="px-4 py-3 text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-xl transition-all disabled:opacity-50 border border-red-100 dark:border-red-900/30 shrink-0"
-                        >
-                          {isProcessing === targetUser.id ? <Loader2 size={16} className="animate-spin" /> : <UserMinus size={16} />}
-                        </button>
                       </div>
                     </div>
                   ))
@@ -896,26 +901,61 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
       {userToBan && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-[32px] p-8 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-in fade-in zoom-in duration-200">
-            <div className="w-16 h-16 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 mx-auto mb-6">
-              <Ban size={32} />
+            <div className="w-16 h-16 bg-amber-50 dark:bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-6">
+              <AlertTriangle size={32} />
             </div>
-            <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">Are you sure you want to ban this user?</h3>
-            <div className="flex flex-col gap-3 mt-8">
-              <button 
-                onClick={() => executeToggleBan(userToBan, false)}
-                disabled={isProcessing === userToBan}
-                className="w-full py-4 bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 disabled:opacity-50 flex justify-center items-center"
-              >
-                {isProcessing === userToBan ? <Loader2 className="animate-spin" size={20} /> : 'Confirm'}
-              </button>
-              <button 
-                onClick={() => setUserToBan(null)}
-                disabled={isProcessing === userToBan}
-                className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
+            
+            {banStep === 1 ? (
+              <>
+                <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">Restrict User?</h3>
+                <p className="text-zinc-500 text-center text-sm font-medium mb-8">Are you sure you want to restrict this user?</p>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={() => setBanStep(2)}
+                    className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
+                  >
+                    Confirm
+                  </button>
+                  <button 
+                    onClick={() => setUserToBan(null)}
+                    disabled={isProcessing === userToBan}
+                    className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-2xl font-black text-zinc-900 dark:text-white text-center mb-2 tracking-tight">Restriction Reason</h3>
+                <p className="text-zinc-500 text-center text-[10px] font-black mb-6 uppercase tracking-widest">Optional but recommended</p>
+                
+                <textarea 
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  placeholder="Enter reason for restriction..."
+                  rows={3}
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-4 text-sm font-bold focus:outline-none focus:border-amber-500 dark:text-white mb-6 resize-none"
+                />
+
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={() => executeToggleBan(userToBan, false, banReason)}
+                    disabled={isProcessing === userToBan}
+                    className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 flex justify-center items-center gap-2"
+                  >
+                    {isProcessing === userToBan ? <Loader2 className="animate-spin" size={20} /> : <><Ban size={18} /> Restrict User</>}
+                  </button>
+                  <button 
+                    onClick={() => setUserToBan(null)}
+                    disabled={isProcessing === userToBan}
+                    className="w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

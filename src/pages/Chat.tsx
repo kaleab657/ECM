@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useToast } from '../components/Toast';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db, auth } from '../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, updateDoc, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, updateDoc, limit, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { apiFetch } from '../lib/api-client';
 import { ChatSidebar } from '../components/chat/ChatSidebar';
@@ -48,6 +48,11 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDeletingChat, setIsDeletingChat] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBanWarning, setShowBanWarning] = useState(false);
+  const [dbBanData, setDbBanData] = useState<{ isBanned: boolean; banReason: string } | null>(null);
+
+  const isBanned = dbBanData ? dbBanData.isBanned : profile?.isBanned;
+  const banReason = dbBanData ? dbBanData.banReason : profile?.banReason;
 
   const activeChatId = initialChatId || null;
 
@@ -159,8 +164,17 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
 
   const handleSendMessage = useCallback(async (e?: React.FormEvent, imageURLs?: string[]) => {
     if (e) e.preventDefault();
-    if (profile?.isBanned) {
-      showToast('Your account is restricted. Chat is disabled.', 'error');
+    if (user) {
+      try {
+        const docSnap = await getDoc(doc(db, 'users', user.uid));
+        if (docSnap.exists() && docSnap.data().isBanned) {
+          setDbBanData({ isBanned: true, banReason: docSnap.data().banReason || '' });
+          setShowBanWarning(true);
+          return;
+        }
+      } catch (err) {}
+    } else if (profile?.isBanned) {
+      setShowBanWarning(true);
       return;
     }
     if (!inputText.trim() && (!imageURLs || imageURLs.length === 0)) return;
@@ -223,8 +237,18 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   }, [inputText, activeChatId, user, sessions]);
 
   const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (profile?.isBanned) {
-      showToast('Your account is restricted. Chat is disabled.', 'error');
+    if (user) {
+      try {
+        const docSnap = await getDoc(doc(db, 'users', user.uid));
+        if (docSnap.exists() && docSnap.data().isBanned) {
+          setDbBanData({ isBanned: true, banReason: docSnap.data().banReason || '' });
+          setShowBanWarning(true);
+          if (e.target) e.target.value = '';
+          return;
+        }
+      } catch (err) {}
+    } else if (profile?.isBanned) {
+      setShowBanWarning(true);
       if (e.target) e.target.value = '';
       return;
     }
@@ -344,6 +368,29 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
                 {t('chatPage.cancel') || 'Cancel'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showBanWarning && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-red-50 dark:bg-red-500/10 border-2 border-red-500/20 rounded-[32px] p-8 md:p-12 text-center max-w-lg w-full animate-in zoom-in duration-200 shadow-2xl">
+            <div className="w-20 h-20 bg-red-100 dark:bg-red-500/20 rounded-3xl flex items-center justify-center text-red-500 mx-auto mb-6">
+              <AlertTriangle size={40} strokeWidth={2.5} />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-black text-red-600 dark:text-red-400 tracking-tight mb-4 text-balance">
+              Your account is restricted
+            </h2>
+            <p className="text-zinc-600 dark:text-zinc-400 font-medium text-sm md:text-base mb-6 whitespace-pre-wrap">
+              Chat is disabled.
+              {banReason ? `\nReason: ${banReason}` : ''}
+            </p>
+            <button 
+              onClick={() => setShowBanWarning(false)}
+              className="mt-8 w-full bg-red-500 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-red-600 transition-all shadow-xl shadow-red-500/20"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

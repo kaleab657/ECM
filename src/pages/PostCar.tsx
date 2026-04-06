@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { useToast } from '../components/Toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { Camera, Upload, Info, X, Loader2, ChevronRight, ChevronLeft, CheckCircle2, DollarSign, MapPin, Car as CarIcon, User, Package, ChevronDown } from 'lucide-react';
+import { Camera, Upload, Info, X, Loader2, ChevronRight, ChevronLeft, CheckCircle2, DollarSign, MapPin, Car as CarIcon, User, Package, ChevronDown, AlertTriangle } from 'lucide-react';
 import { MAKES, LOCATIONS, ADDIS_ABABA_SUB_CITIES, BODY_TYPES, PRICE_TYPES, SELLER_TYPES, LISTING_PACKAGES } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { Car, Page, ListingPackage } from '../types';
 import { db } from '../lib/firebase';
-import { collection, serverTimestamp, doc, writeBatch, setDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, writeBatch, setDoc, getDoc } from 'firebase/firestore';
 import { apiUpload } from '../lib/api-client';
 import { compressImage } from '../utils/image-utils';
 import { BottomSheetSelect } from '../components/BottomSheetSelect';
@@ -23,6 +23,28 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     return sessionStorage.getItem('pendingListing') ? 6 : 1;
   });
   
+  const [dbBanData, setDbBanData] = useState<{ isBanned: boolean; banReason: string } | null>(null);
+
+  React.useEffect(() => {
+    const fetchBanData = async () => {
+      if (user?.uid) {
+        try {
+          const docSnap = await getDoc(doc(db, 'users', user.uid));
+          if (docSnap.exists()) {
+            setDbBanData({
+              isBanned: !!docSnap.data().isBanned,
+              banReason: docSnap.data().banReason || ''
+            });
+          }
+        } catch (e) {}
+      }
+    };
+    fetchBanData();
+  }, [user]);
+
+  const isBanned = dbBanData ? dbBanData.isBanned : profile?.isBanned;
+  const banReason = dbBanData ? dbBanData.banReason : profile?.banReason;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [images, setImages] = useState<File[]>([]);
@@ -114,11 +136,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       e.stopPropagation();
     }
 
-    if (profile?.isBanned) {
-      showToast('Your account is restricted. You cannot post listings.', 'error');
-      return;
-    }
-
     if (validateStep(currentStep)) {
       setCurrentStep(prev => prev + 1);
       window.scrollTo(0, 0);
@@ -204,11 +221,6 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     if (e) {
       e.preventDefault();
       e.stopPropagation();
-    }
-
-    if (profile?.isBanned) {
-      showToast('Your account is restricted. You cannot post listings.', 'error');
-      return;
     }
 
     if (isSubmitting) return;
@@ -786,6 +798,32 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         return null;
     }
   };
+
+  if (isBanned) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 pt-12 pb-24 flex justify-center">
+        <div className="bg-red-50 dark:bg-red-500/10 border-2 border-red-500/20 rounded-[32px] p-8 md:p-12 text-center max-w-lg w-full mt-4 md:mt-12 animate-in fade-in zoom-in duration-300">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-500/20 rounded-3xl flex items-center justify-center text-red-500 mx-auto mb-6">
+            <AlertTriangle size={40} strokeWidth={2.5} />
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black text-red-600 dark:text-red-400 tracking-tight mb-4 text-balance">
+            Your account is restricted
+          </h2>
+          <p className="text-zinc-600 dark:text-zinc-400 font-medium text-sm md:text-base mb-6 whitespace-pre-wrap">
+            You cannot post listings.
+            {banReason ? `\nReason: ${banReason}` : ''}
+          </p>
+          <button 
+            type="button"
+            onClick={() => setPage('home')}
+            className="mt-8 w-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all shadow-xl"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 pt-4 pb-4">

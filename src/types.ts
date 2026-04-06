@@ -65,6 +65,7 @@ export type UserProfile = {
   isVerified?: boolean;
   role?: 'admin' | 'user';
   isBanned?: boolean;
+  banReason?: string;
   createdAt: any;
 };
 
