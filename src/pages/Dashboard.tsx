@@ -234,8 +234,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
         displayName,
-        phoneNumber,
-        sellerType
+        phoneNumber
       });
 
       showToast(t('dashboard.profileUpdated'), 'success');
@@ -477,7 +476,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 pb-24">
+    <div className="max-w-7xl mx-auto px-4 py-6 pb-4">
       <div className="flex flex-col gap-6">
         {/* Profile Header - Mobile Optimized */}
         <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-5 border border-black/5 dark:border-white/5 shadow-sm flex items-center gap-4">
@@ -504,8 +503,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
           </button>
         </div>
 
-        {/* Mobile Tabs - Sticky & Compact */}
-        <div className="sticky z-10 bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md -mx-4 px-4 py-2" style={{ top: 'var(--header-h)' }}>
+        {/* Mobile Tabs - Compact */}
+        <div className="z-10 bg-transparent -mx-4 px-4 py-2">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {menuItems.map((item) => (
               <button
@@ -622,16 +621,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                           {car.status === 'approved' && (
                             <button
                               onClick={() => setCarToMarkSold(car.id)}
-                              className="flex-1 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1"
+                              className="flex-1 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all active:scale-[0.98]"
                             >
-                              {t('dashboard.markSold')}
+                              <ShieldCheck size={12} className="text-emerald-500" />
+                              <span>{t('dashboard.markSold')}</span>
                             </button>
                           )}
                           <button
                             onClick={() => setCarToDelete(car.id)}
-                            className="py-1.5 px-3 text-red-500 bg-red-50 dark:bg-red-500/10 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1 shrink-0 ml-auto"
+                            className="flex-1 py-1 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all active:scale-[0.98]"
                           >
-                            <LogOut size={14} className="rotate-180" />
+                            <Trash2 size={12} />
                             <span>{t('dashboard.deleteListingBtn') || 'Delete Listing'}</span>
                           </button>
                         </div>
@@ -725,18 +725,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                         className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl pl-12 pr-4 py-4 text-sm font-bold focus:outline-none focus:border-brand transition-all"
                       />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">{t('profile.labels.sellerType')}</label>
-                    <BottomSheetSelect
-                      id="dashboard-seller-type"
-                      name="sellerType"
-                      value={sellerType}
-                      onChange={(e) => setSellerType(e.target.value)}
-                      label={t('auth.selectRole')}
-                      options={SELLER_TYPES.map(type => ({ value: type, label: t(`sellerTypes.${type}`) || type }))}
-                    />
                   </div>
                 </div>
 

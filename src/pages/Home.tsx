@@ -15,7 +15,7 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch }) => {
-  const { t } = useAppContext();
+  const { t, user } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
 
@@ -109,7 +109,11 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
       const sorted = sortNewestFirst(filtered);
       
       // Block empty cached results — keep loading until real server data arrives
-      if (snapshot.metadata.fromCache && sorted.length === 0) return;
+      // But always resolve loading state to prevent infinite spinner on re-mount
+      if (activeTab === 'All' && snapshot.metadata.fromCache && sorted.length === 0) {
+        setLoading(false);
+        return;
+      }
 
       setCars(sorted);
       if (activeTab === 'All') sessionStorage.setItem('cachedHomeCars', JSON.stringify(sorted));
@@ -169,7 +173,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
       data = filterBySellerType(data, activeTab);
       const sorted = sortNewestFirst(data).slice(0, 12);
       
-      if (snapshot.metadata.fromCache && sorted.length === 0) return;
+      if (activeTab === 'All' && snapshot.metadata.fromCache && sorted.length === 0) return;
 
       setPremiumCars(sorted);
       if (activeTab === 'All') sessionStorage.setItem('cachedPremiumCars', JSON.stringify(sorted));
@@ -197,7 +201,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
       data = filterBySellerType(data, activeTab);
       const sorted = sortNewestFirst(data).slice(0, 8);
       
-      if (snapshot.metadata.fromCache && sorted.length === 0) return;
+      if (activeTab === 'All' && snapshot.metadata.fromCache && sorted.length === 0) return;
 
       setFeaturedCars(sorted);
       if (activeTab === 'All') sessionStorage.setItem('cachedFeaturedCars', JSON.stringify(sorted));
@@ -278,10 +282,36 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
   };
 
   return (
-    <div className="flex flex-col pb-20">
+    <div className="flex flex-col pb-4 w-full overflow-x-hidden" style={{ touchAction: 'pan-y' }}>
 
       {/* STICKY search + filter bar */}
-      <div className="sticky z-30 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md pt-2 pb-2 px-4 border-b border-zinc-100 dark:border-zinc-800" style={{ top: 'var(--header-h)' }}>
+      <div 
+        className="sticky top-0 z-30 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md pb-2 px-4 border-b border-zinc-100 dark:border-zinc-800 md:!top-[var(--header-h)] md:pt-2" 
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
+      >
+        {user?.displayName && (
+          <div className="mb-3 text-left">
+            <span className="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
+              {(() => {
+                let greeting = t('home.greeting.evening') || 'Good evening';
+                try {
+                  const timeStr = new Date().toLocaleString('en-US', { timeZone: 'Africa/Addis_Ababa', hour12: false });
+                  const match = timeStr.match(/(\d+):\d+:\d+/);
+                  let hour = match ? parseInt(match[1], 10) : new Date().getHours();
+                  if (hour === 24) hour = 0;
+                  if (hour >= 5 && hour < 12) greeting = t('home.greeting.morning') || 'Good morning';
+                  else if (hour >= 12 && hour < 18) greeting = t('home.greeting.afternoon') || 'Good afternoon';
+                } catch {
+                  const hr = new Date().getHours();
+                  if (hr >= 5 && hr < 12) greeting = t('home.greeting.morning') || 'Good morning';
+                  else if (hr >= 12 && hr < 18) greeting = t('home.greeting.afternoon') || 'Good afternoon';
+                }
+                const firstName = user.displayName.trim().split(' ')[0];
+                return `${greeting}, ${firstName}`;
+              })()}
+            </span>
+          </div>
+        )}
         <form onSubmit={handleSearchSubmit} className="relative mb-2">
           <input
             id="home-search-input"
@@ -413,7 +443,13 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
           ) : (
             <div className="text-center py-12 bg-zinc-50 dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
               <CarIcon size={32} className="mx-auto text-zinc-300 mb-2" />
-              <p className="text-zinc-500 text-xs font-bold">{t('home.noResults') || t('home.noListings')}</p>
+              <p className="text-zinc-500 text-xs font-bold">
+                {activeTab === 'private' ? 'No private seller listings' :
+                 activeTab === 'dealership' ? 'No dealership listings' :
+                 activeTab === 'broker' ? 'No broker listings' :
+                 activeTab === 'bankLoan' ? 'No bank loan listings' :
+                 (t('home.noResults') || t('home.noListings'))}
+              </p>
             </div>
           )}
 

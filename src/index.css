@@ -27,7 +27,8 @@ html {
 }
 
 html, body {
-  /* overflow-x removed to ensure native system UI visibility */
+  /* Prevent browser-level bounce/wiggle on empty areas and navigation bar */
+  overscroll-behavior-y: none !important;
   -webkit-overflow-scrolling: touch !important;
   scroll-behavior: smooth !important;
   width: 100% !important;
@@ -122,9 +123,11 @@ body, button, input, select, textarea {
 @layer base {
   :root {
     color-scheme: light dark;
-    /* Header height = bar height + status-bar inset.
-       Every element that offsets below the fixed header must use this. */
-    --header-h: calc(3.5rem + env(safe-area-inset-top, 0px));
+    /* Ensure Android native devices have a forced fallback if env doesn't map accurately */
+    --safe-area-top: max(env(safe-area-inset-top), 44px);
+    
+    /* Header height = bar height + status-bar inset. */
+    --header-h: calc(3.5rem + var(--safe-area-top));
   }
 
   :root.dark {
@@ -133,7 +136,7 @@ body, button, input, select, textarea {
   /* On md+ the header bar is h-16 (4rem) instead of h-14 (3.5rem) */
   @media (min-width: 768px) {
     :root {
-      --header-h: calc(4rem + env(safe-area-inset-top, 0px));
+      --header-h: calc(4rem + var(--safe-area-top));
     }
   }
 

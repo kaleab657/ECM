@@ -278,14 +278,56 @@ export default function App() {
     }
   };
 
+  const isChatActive = currentPage === 'chat' && activeChatId;
+  const isBottomNavHidden = isChatActive || currentPage === 'post';
+  const hideHeaderOnMobile = currentPage !== 'dashboard';
+
   return (
-    <div className={`w-full max-w-full min-h-[100vh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-500 ${currentPage === 'chat' && activeChatId ? '' : 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0'}`}>
+    <div 
+      className={`w-full max-w-full min-h-[100dvh] bg-[#FDFDFD] dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-500`}
+      style={{ 
+        overscrollBehavior: 'none',
+        touchAction: 'pan-y',
+        paddingBottom: isChatActive 
+          ? 'env(safe-area-inset-bottom)' 
+          : isBottomNavHidden 
+            ? 'max(env(safe-area-inset-bottom), 48px)' 
+            : 'calc(5rem + max(env(safe-area-inset-bottom), 48px))'
+      }}
+    >
       <NetworkStatus />
-      <div className={currentPage === 'chat' && activeChatId ? 'hidden md:block' : ''}>
+      <div className={hideHeaderOnMobile ? 'hidden md:block' : ''}>
         <Header currentPage={currentPage} setPage={setCurrentPage} />
       </div>
       
-      <main className={currentPage === 'chat' && activeChatId ? 'h-[100dvh]' : ''} style={currentPage === 'chat' && activeChatId ? undefined : { paddingTop: 'var(--header-h)' }}>
+      {/* Global Status Bar Protector: Strictly prevents scrolling text/UI from rendering under the system clock on non-Home pages */}
+      {hideHeaderOnMobile && currentPage !== 'home' && !(currentPage === 'chat' && activeChatId) && (
+        <div 
+          className="fixed top-0 inset-x-0 z-[120] bg-[#FDFDFD] dark:bg-zinc-950 md:hidden" 
+          style={{ height: 'var(--safe-area-top)' }} 
+        />
+      )}
+
+      <style>{`
+        .safe-padding-main {
+          padding-top: var(--safe-area-top);
+        }
+        @media (min-width: 768px) {
+          .safe-padding-main, .safe-padding-home {
+            padding-top: var(--header-h) !important;
+          }
+        }
+      `}</style>
+      <main 
+        className={
+          currentPage === 'chat' && activeChatId 
+            ? 'h-[100dvh]' 
+            : (hideHeaderOnMobile 
+                ? (currentPage === 'home' ? 'safe-padding-home' : 'safe-padding-main') 
+                : '')
+        }
+        style={!hideHeaderOnMobile ? { paddingTop: 'var(--header-h)' } : undefined}
+      >
         <PullToRefresh disabled={currentPage !== 'home'}>
             <React.Suspense fallback={
               <div className="min-h-[60vh] flex items-center justify-center">

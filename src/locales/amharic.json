@@ -38,6 +38,11 @@
     }
   },
   "home": {
+    "greeting": {
+      "morning": "እንደምን አደሩ",
+      "afternoon": "እንደምን ዋሉ",
+      "evening": "እንደምን አመሹ"
+    },
     "searchPlaceholder": "መኪናዎችን ይፈልጉ...",
     "featuredTitle": "ተለይተው የቀረቡ ማስታወቂያዎች",
     "premiumTitle": "ፕሪሚየም መኪኖች",
@@ -207,7 +212,7 @@
     "sellerInfo": "ስለ ሻጩ መረጃ",
     "iAmA": "እኔ...",
     "mediaDesc": "ምስሎች እና መግለጫ",
-    "uploadPhotos": "ፎቶዎችን ይጫኑ (ቢበዛ 4)",
+    "uploadPhotos": "ፎቶዎችን ይጫኑ (ቢያንስ 2፣ ቢበዛ 6)",
     "addPhoto": "ፎቶ ጨምር",
     "description": "መግለጫ",
     "descPlaceholder": "ስለ መኪናዎ ተጨማሪ ይንገሩ...",
@@ -227,16 +232,31 @@
     "completePost": "ይጨርሱ እና ይለጥፉ",
     "success": "ማስታወቂያው በትክክል ተለጥፏል!",
     "errorMissingFields": "እባክዎ ሁሉንም አስፈላጊ ቦታዎች ይሙሉ",
-    "errorImageRequired": "እባክዎ ቢያንስ አንድ ምስል ይጫኑ",
-    "errorMaxImages": "ቢበዛ 4 ምስሎች ብቻ ነው የሚፈቀደው",
+    "errorImageRequired": "እባክዎ ቢያንስ 2 ምስሎች ይጫኑ",
+    "errorMaxImages": "ቢበዛ 6 ምስሎች ብቻ ነው የሚፈቀደው",
     "errorImageSize": "እያንዳንዱ ምስል ከ5MB በታች መሆን አለበት",
     "errorCarDetails": "እባክዎ ሁሉንም የመኪና ዝርዝሮች ይሙሉ",
     "errorPrice": "እባክዎ ዋጋ ያስገቡ",
     "errorPhone": "እባክዎ የስልክ ቁጥርዎን ያስገቡ",
     "errorPosting": "ማስታወቂያውን መለጠፍ አልተቻለም፦ ",
+    "errorTitle": "የማስታወቂያ ርዕስ ያስፈልጋል",
+    "errorCity": "ከተማ ያስፈልጋል",
+    "errorSubCity": "እባክዎ ክፍለ ከተማ ይምረጡ",
+    "errorCondition": "ሁኔታ ያስፈልጋል",
+    "errorListingType": "የማስታወቂያ ዓይነት ያስፈልጋል",
+    "errorMake": "የመኪና ስም ያስፈልጋል",
+    "errorModel": "ሞዴል ያስፈልጋል",
+    "errorYear": "ዓመት ያስፈልጋል",
+    "errorMileage": "የተጓዘው ርቀት (ኪ.ሜ) ያስፈልጋል",
+    "errorTransmission": "ትራንስሚሽን ያስፈልጋል",
+    "errorFuel": "የነዳጅ ዓይነት ያስፈልጋል",
+    "errorBodyType": "የመኪና ቅርጽ ያስፈልጋል",
     "days": "የልጥፍ ቀናት",
     "driveType": "የማሽከርከር አይነት",
-    "fuelMileage": "የነዳጅ ፍጆታ (ኪ.ሜ/ሊ)"
+    "fuelMileage": "የነዳጅ ፍጆታ (ኪ.ሜ/ሊ)",
+    "commission": {
+      "warn": "ኮሚሽን ከ1% እስከ 5% መሆን አለበት"
+    }
   },
   "sell": {
     "price": "ዋጋ (በብር)",
@@ -432,7 +452,7 @@
     "priceType": "የዋጋ ዓይነት",
     "sellerType": "የሻጭ ዓይነት",
     "phoneNumber": "ስልክ ቁጥር",
-    "carImages": "የመኪና ምስሎች (ቢበዛ 4)",
+    "carImages": "የመኪና ምስሎች (ቢያንስ 2፣ ቢበዛ 6)",
     "addPhoto": "ምስል ጨምር",
     "description": "መግለጫ (አማራጭ)",
     "descriptionPlaceholder": "ስለ መኪናዎ ለገዢዎች ተጨማሪ ይንገሩ...",

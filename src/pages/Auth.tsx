@@ -77,7 +77,8 @@ async function ensureUserDocument(user: any): Promise<boolean> {
       displayName: fallbackName,
       createdAt: serverTimestamp(),
       phoneNumber: user.phoneNumber || '',
-      sellerType: ''
+      sellerType: '',
+      profileCompleted: false
     });
     // Stats update is non-critical — fire and forget (saves ~200-500ms)
     setDoc(doc(db, 'stats', 'global'), {
@@ -85,8 +86,15 @@ async function ensureUserDocument(user: any): Promise<boolean> {
     }, { merge: true }).catch(() => {});
     return true; // Wait for profile completion
   } else {
-    // Sync Google data into existing profile if the profile is lacking it
     const data = userDoc.data();
+    
+    // Check if profile is actually fully completed (or legacy user that already filled data)
+    const isCompleted = data.profileCompleted === true || (Boolean(data.sellerType) && Boolean(data.phoneNumber));
+    if (!isCompleted) {
+      return true; // Force profile completion if they never actually finished it
+    }
+
+    // Sync Google data into existing profile if the profile is lacking it
     const updates: any = {};
     
     if (!data.email && user.email) updates.email = user.email;
@@ -219,7 +227,8 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
       await setDoc(userRef, {
         displayName: fullName,
         phoneNumber,
-        sellerType
+        sellerType,
+        profileCompleted: true
       }, { merge: true });
 
       const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
@@ -287,6 +296,7 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
           displayName: fullName,
           phoneNumber: phoneNumber,
           sellerType: sellerType,
+          profileCompleted: true,
           createdAt: serverTimestamp(),
         });
         await setDoc(doc(db, 'stats', 'global'), {

@@ -26,6 +26,11 @@ export const translations = {
       }
     },
     home: {
+      greeting: {
+        morning: 'Good morning',
+        afternoon: 'Good afternoon',
+        evening: 'Good evening'
+      },
       latestTitle: 'Latest Listings',
       featuredTitle: 'Featured Cars',
       premiumTitle: 'Premium Cars',
@@ -146,7 +151,7 @@ export const translations = {
       addPhoto: 'Add Photo',
       dropzone: 'Click to upload or drag and drop',
       dropzoneHint: 'PNG, JPG up to 10MB',
-      imageRequired: 'Please upload at least one image',
+      imageRequired: 'Please upload at least 2 images',
       phoneWarning: 'You have not set a phone number in your profile. Buyers might not be able to call you. Would you like to proceed anyway? (You can add your phone number in the description)'
     },
     dashboard: {
@@ -255,7 +260,7 @@ export const translations = {
       priceType: 'Price Type',
       sellerType: 'Seller Type',
       phoneNumber: 'Phone Number',
-      carImages: 'Car Images (Max 4)',
+      carImages: 'Car Images (Max 6)',
       addPhoto: 'Add Photo',
       description: 'Description (Optional)',
       descriptionPlaceholder: 'Tell buyers more about your car...',
@@ -293,9 +298,14 @@ export const translations = {
       }
     },
     home: {
-      latestTitle: 'የቅርብ ጊዜ ማስታወቂያዎች',
+      greeting: {
+        morning: 'እንደምን አደሩ',
+        afternoon: 'እንደምን ዋሉ',
+        evening: 'እንደምን አመሹ'
+      },
+      latestTitle: 'አዳዲስ ማስታወቂያዎች',
       featuredTitle: 'ተለይተው የቀረቡ መኪናዎች',
-      premiumTitle: 'ልዩ (Premium) መኪናዎች',
+      premiumTitle: 'ፕሪሚየም መኪናዎች',
       viewAll: 'ሁሉንም ይመልከቱ',
       noListings: 'እስካሁን ምንም መኪና አልተመዘገበም። የመጀመሪያው ይሁኑ!',
       noResults: 'በዚህ ምድብ ውስጥ ምንም ዝርዝሮች አልተገኙም'
@@ -413,7 +423,7 @@ export const translations = {
       addPhoto: 'ፎቶ ጨምር',
       dropzone: 'ለመጫን እዚህ ይጫኑ ወይም ፎቶውን ይጎትቱ',
       dropzoneHint: 'PNG, JPG እስከ 10MB',
-      imageRequired: 'እባክዎ ቢያንስ አንድ ምስል ይጫኑ',
+      imageRequired: 'እባክዎ ቢያንስ 2 ምስሎች ይጫኑ',
       phoneWarning: 'በመለያዎ ላይ ስልክ ቁጥር አላስገቡም። ገዢዎች ሊደውሉልዎ አይችሉም። ቢሆንም መቀጠል ይፈልጋሉ? (በመግለጫው ውስጥ ስልክ ቁጥርዎን ማከል ይችላሉ)'
     },
     dashboard: {
@@ -522,7 +532,7 @@ export const translations = {
       priceType: 'የዋጋ ዓይነት',
       sellerType: 'የሻጭ ዓይነት',
       phoneNumber: 'ስልክ ቁጥር',
-      carImages: 'የመኪና ምስሎች (ቢበዛ 4)',
+      carImages: 'የመኪና ምስሎች (ቢያንስ 2፣ ቢበዛ 6)',
       addPhoto: 'ምስል ጨምር',
       description: 'መግለጫ (አማራጭ)',
       descriptionPlaceholder: 'ስለ መኪናዎ ለገዢዎች ተጨማሪ ይንገሩ...',

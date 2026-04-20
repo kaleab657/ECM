@@ -18,14 +18,17 @@ import {
   Crown,
   Ban,
   UserMinus,
-  Settings,
-  AlertTriangle
+  AlertTriangle,
+  Megaphone,
+  Wallet,
+  LayoutGrid
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { db } from '../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { Car, Page } from '../types';
+import { isListingExpired } from '../utils/expiry';
 import { apiFetch } from '../lib/api-client';
 
 import { useToast } from '../components/Toast';
@@ -56,21 +59,6 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
 
-  // Settings state
-  const { appConfig } = useAppContext();
-  const [settingsValues, setSettingsValues] = useState({
-    featured_price: '',
-    premium_price: '',
-    premium_enabled: true
-  });
-  
-  useEffect(() => {
-    setSettingsValues({
-      featured_price: appConfig.featured_price?.toString() ?? '300',
-      premium_price: appConfig.premium_price?.toString() ?? '600',
-      premium_enabled: appConfig.premium_enabled !== false
-    });
-  }, [appConfig]);
   
   // Notification form state
   const [notifTitle, setNotifTitle] = useState('');
@@ -118,7 +106,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
 
       setStats(prev => ({
         ...prev,
-        totalListings: allCars.length,
+        totalListings: allCars.filter(c => !isListingExpired(c)).length,
         pendingApprovals: allCars.filter(c => c.status === 'pending' || c.status === 'pending_payment_verification').length,
         featuredListings: allCars.filter(c => c.packageType === 'featured').length,
         premiumListings: allCars.filter(c => c.packageType === 'premium').length
@@ -191,26 +179,6 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
     }
   };
 
-  const handleSaveSettings = async () => {
-    if (!user) return;
-    setIsProcessing('settings');
-    const featured_price = parseFloat(settingsValues.featured_price) || 0;
-    const premium_price = parseFloat(settingsValues.premium_price) || 0;
-    
-    try {
-      await setDoc(doc(db, 'settings', 'app_config'), {
-        featured_price,
-        premium_price,
-        premium_enabled: settingsValues.premium_enabled
-      }, { merge: true });
-      showToast('Global settings updated dynamically!', 'success');
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      showToast('Failed to update app configuration', 'error');
-    } finally {
-      setIsProcessing(null);
-    }
-  };
 
   const handleUpdateStatus = async (carId: string, newStatus: string) => {
     if (!user) return;
@@ -410,31 +378,34 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
           {[
             { id: 'overview', label: 'Overview', icon: LayoutDashboard },
             { id: 'users', label: 'Users', icon: Users },
-            { id: 'listings', label: 'Listings', icon: CarIcon },
-            { id: 'payments', label: 'Payments', icon: CreditCard, badge: pendingPayments.length },
-            { id: 'notifications', label: 'Broadcast', icon: Bell },
-            { id: 'settings', label: 'Settings', icon: Settings },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
-                activeTab === tab.id 
-                  ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20' 
-                  : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
-              }`}
-            >
-              <tab.icon size={14} />
-              {tab.label}
-              {tab.badge ? (
-                <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${
-                  activeTab === tab.id ? 'bg-white text-brand' : 'bg-brand text-white'
-                }`}>
-                  {tab.badge}
-                </span>
-              ) : null}
-            </button>
-          ))}
+            { id: 'listings', label: 'Listings', icon: LayoutGrid },
+            { id: 'payments', label: 'Payments', icon: Wallet, badge: pendingPayments.length },
+            { id: 'notifications', label: 'Broadcast', icon: Megaphone },
+
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+                  activeTab === tab.id 
+                    ? 'bg-brand border-brand text-white shadow-lg shadow-brand/20' 
+                    : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 text-zinc-500'
+                }`}
+              >
+                <Icon size={14} />
+                {tab.label}
+                {tab.badge ? (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black ${
+                    activeTab === tab.id ? 'bg-white text-brand' : 'bg-brand text-white'
+                  }`}>
+                    {tab.badge}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
 
         <main className="space-y-6">
@@ -826,74 +797,7 @@ export const Admin: React.FC<AdminProps> = ({ setPage, setSelectedCar }) => {
             </div>
           )}
 
-          {activeTab === 'settings' && (
-            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center">
-                  <Settings size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-zinc-900 dark:text-white">Dynamic Configuration</h3>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Safely manage app behavior</p>
-                </div>
-              </div>
 
-              <div className="space-y-6 border-t border-zinc-100 dark:border-zinc-800 pt-6">
-                <div>
-                  <h4 className="text-sm font-black text-zinc-900 dark:text-white mb-4 uppercase tracking-widest">Pricing Controls</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">Featured Price (ETB)</label>
-                      <input 
-                        type="number" 
-                        value={settingsValues.featured_price}
-                        onChange={(e) => setSettingsValues(prev => ({ ...prev, featured_price: e.target.value }))}
-                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-4 text-sm font-bold focus:outline-none focus:border-brand transition-all"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-2">Premium Price (ETB)</label>
-                      <input 
-                        type="number" 
-                        value={settingsValues.premium_price}
-                        onChange={(e) => setSettingsValues(prev => ({ ...prev, premium_price: e.target.value }))}
-                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-2xl px-4 py-4 text-sm font-bold focus:outline-none focus:border-brand transition-all"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[9px] font-bold text-brand uppercase mt-2 ml-2">Updates instantly across app</p>
-                </div>
-
-                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-6">
-                  <h4 className="text-sm font-black text-zinc-900 dark:text-white mb-4 uppercase tracking-widest">Features Toggle</h4>
-                  
-                  <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 relative overflow-hidden group">
-                    <div>
-                      <h5 className="font-bold text-sm text-zinc-900 dark:text-white mb-0.5">Premium Badge UI</h5>
-                      <p className="text-[10px] font-bold text-zinc-500 max-w-[80%] leading-relaxed">Turn OFF to globally hide the Premium badge across the entire platform. Data and logic won't be deleted, only visibility.</p>
-                    </div>
-                    <button 
-                      onClick={() => setSettingsValues(prev => ({ ...prev, premium_enabled: !prev.premium_enabled }))}
-                      className={`relative w-14 h-8 rounded-full transition-colors flex items-center shadow-inner shrink-0 ${settingsValues.premium_enabled ? 'bg-brand' : 'bg-red-500'}`}
-                    >
-                      <div className={`w-6 h-6 rounded-full bg-white transition-all shadow-md transform ${settingsValues.premium_enabled ? 'translate-x-7' : 'translate-x-1'}`} />
-                    </button>
-                    {!settingsValues.premium_enabled && <div className="absolute inset-y-0 right-0 w-1 bg-red-500" />}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                <button 
-                  disabled={isProcessing === 'settings'}
-                  onClick={handleSaveSettings}
-                  className="w-full py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:bg-black dark:hover:bg-zinc-200"
-                >
-                  {isProcessing === 'settings' ? <Loader2 className="animate-spin" size={20} /> : <><CheckCircle size={16} /> Save Active Configuration</>}
-                </button>
-              </div>
-            </div>
-          )}
         </main>
       </div>
 

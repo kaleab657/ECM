@@ -73,7 +73,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       condition: '' as '' | 'Used' | 'New', listingType: '' as '' | 'sale' | 'rent',
       sellerPhone: profile?.phoneNumber || '', telegram: '', whatsapp: '',
       packageType: 'free', bankLoan: false, bankLoanAmount: '',
-      fuelMileage: '', driveType: ''
+      fuelMileage: '', driveType: '',
+      commission: ''
     };
     
     const pending = sessionStorage.getItem('pendingListing');
@@ -99,7 +100,21 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      let finalValue = value;
+      if (name === 'price' || name === 'bankLoanAmount' || name === 'mileage' || name === 'commission') {
+        const rawValue = finalValue.replace(/[^0-9]/g, '');
+        if (name === 'commission') {
+          // Rule 21-23: Commission 1-5
+          if (rawValue && (Number(rawValue) < 1 || Number(rawValue) > 5)) {
+            showToast(t('post.commission.warn') || 'Commission must be between 1% and 5%', 'warning');
+            return;
+          }
+          finalValue = rawValue;
+        } else {
+          finalValue = rawValue ? Number(rawValue).toLocaleString('en-US') : '';
+        }
+      }
+      setFormData(prev => ({ ...prev, [name]: finalValue }));
     }
   };
 
@@ -107,8 +122,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       
-      if (images.length + newFiles.length > 4) {
-        showToast(t('post.errorMaxImages') || 'Maximum 4 images allowed', 'warning');
+      if (images.length + newFiles.length > 6) {
+        showToast(t('post.errorMaxImages') || 'Maximum 6 images allowed', 'warning');
         return;
       }
 
@@ -155,35 +170,42 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     switch (step) {
       case 1:
         if (!formData.title) {
-          showToast('Listing title is required', 'warning'); return false;
+          showToast(t('post.errorTitle') || 'Listing title is required', 'warning'); return false;
         }
         if (!formData.city) {
-          showToast('City is required', 'warning'); return false;
+          showToast(t('post.errorCity') || 'City is required', 'warning'); return false;
         }
         if (formData.city === 'Addis Ababa' && !formData.subCity) {
-          showToast('Please select a sub city', 'warning'); return false;
+          showToast(t('post.errorSubCity') || 'Please select a sub city', 'warning'); return false;
         }
         if (!formData.condition) {
-          showToast('Condition is required', 'warning'); return false;
+          showToast(t('post.errorCondition') || 'Condition is required', 'warning'); return false;
         }
         if (!formData.listingType) {
-          showToast('Listing type is required', 'warning'); return false;
+          showToast(t('post.errorListingType') || 'Listing type is required', 'warning'); return false;
         }
         return true;
       case 2:
-        if (!formData.brand) { showToast('Make is required', 'warning'); return false; }
-        if (!formData.model) { showToast('Model is required', 'warning'); return false; }
-        if (!formData.year) { showToast('Year is required', 'warning'); return false; }
-        if (!formData.mileage) { showToast('Mileage is required', 'warning'); return false; }
-        if (!formData.transmission) { showToast('Transmission is required', 'warning'); return false; }
-        if (!formData.fuel) { showToast('Fuel type is required', 'warning'); return false; }
-        if (!formData.bodyType) { showToast('Body type is required', 'warning'); return false; }
+        if (!formData.brand) { showToast(t('post.errorMake') || 'Make is required', 'warning'); return false; }
+        if (!formData.model) { showToast(t('post.errorModel') || 'Model is required', 'warning'); return false; }
+        if (!formData.year) { showToast(t('post.errorYear') || 'Year is required', 'warning'); return false; }
+        if (!formData.mileage) { showToast(t('post.errorMileage') || 'Mileage is required', 'warning'); return false; }
+        if (!formData.transmission) { showToast(t('post.errorTransmission') || 'Transmission is required', 'warning'); return false; }
+        if (!formData.fuel) { showToast(t('post.errorFuel') || 'Fuel type is required', 'warning'); return false; }
+        if (!formData.bodyType) { showToast(t('post.errorBodyType') || 'Body type is required', 'warning'); return false; }
         // Color and engineSize are optional — no validation needed
         return true;
       case 3:
         if (!formData.price) {
           showToast(t('post.errorPrice') || 'Please enter a price', 'warning');
           return false;
+        }
+        if (profile?.sellerType === 'Broker' && formData.commission) {
+          const comm = Number(formData.commission);
+          if (comm < 1 || comm > 5) {
+            showToast(t('post.commission.warn') || 'Commission must be between 1% and 5%', 'warning');
+            return false;
+          }
         }
         return true;
       case 4:
@@ -193,8 +215,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         }
         return true;
       case 5:
-        if (images.length === 0 && previews.length === 0) {
-          showToast(t('post.errorImageRequired') || 'Please upload at least one image', 'warning');
+        if (previews.length < 2) {
+          showToast(t('post.errorImageRequired') || 'Minimum 2 images required', 'warning');
           return false;
         }
         return true;
@@ -230,8 +252,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
     }
 
     // Final validation
-    if (images.length === 0 && previews.length === 0) {
-      showToast(t('post.errorImageRequired') || 'Please upload at least one image', 'warning');
+    if (previews.length < 2) {
+      showToast(t('post.errorImageRequired') || 'Minimum 2 images required', 'warning');
       return;
     }
 
@@ -298,6 +320,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
         bankLoanAmount: formData.bankLoanAmount ? (parseFloat(formData.bankLoanAmount.toString().replace(/[^0-9.]/g, '')) || 0) : null,
         fuelMileage: formData.fuelMileage || null,
         driveType: formData.driveType || null,
+        commission: (profile?.sellerType === 'Broker' && formData.commission) ? parseInt(formData.commission.toString()) : null,
         imageURLs: imageUrls,
         status: isPaid ? 'pending_payment_verification' : 'approved',
         views: 0,
@@ -473,7 +496,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   <input 
                     id="mileage"
                     name="mileage"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.mileage}
                     onChange={handleInputChange}
                     placeholder="e.g. 45000"
@@ -522,7 +546,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   />
                 </div>
                 <div>
-                  <label htmlFor="engineSize" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.engineSize') || 'Engine Size'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
+                  <label htmlFor="engineSize" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.engineSize') || 'Engine Size'} <span className="font-bold text-zinc-800 dark:text-zinc-200">({t('common.optional') || 'Optional'})</span></label>
                   <input 
                     id="engineSize"
                     name="engineSize"
@@ -535,7 +559,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   />
                 </div>
                 <div>
-                  <label htmlFor="color" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.color') || 'Color'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
+                  <label htmlFor="color" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.color') || 'Color'} <span className="font-bold text-zinc-800 dark:text-zinc-200">({t('common.optional') || 'Optional'})</span></label>
                   <BottomSheetSelect 
                     id="color"
                     name="color"
@@ -546,7 +570,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   />
                 </div>
                 <div>
-                  <label htmlFor="fuelMileage" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.fuelMileage') || 'Fuel Mileage (km/L)'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
+                  <label htmlFor="fuelMileage" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.fuelMileage') || 'Fuel Mileage (km/L)'} <span className="font-bold text-zinc-800 dark:text-zinc-200">({t('common.optional') || 'Optional'})</span></label>
                   <input 
                     id="fuelMileage"
                     name="fuelMileage"
@@ -557,7 +581,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   />
                 </div>
                 <div>
-                  <label htmlFor="driveType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.driveType') || 'Drive Type'} <span className="text-zinc-300">({t('common.optional') || 'Optional'})</span></label>
+                  <label htmlFor="driveType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.driveType') || 'Drive Type'} <span className="font-bold text-zinc-800 dark:text-zinc-200">({t('common.optional') || 'Optional'})</span></label>
                   <BottomSheetSelect 
                     id="driveType"
                     name="driveType"
@@ -586,19 +610,38 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
-                  <label htmlFor="price" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('sell.price') || 'Price (ETB)'}</label>
+                  <label htmlFor="price" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">
+                    {formData.listingType === 'rent' ? 'Rent Price (ETB)' : 'Sale Price (ETB)'}
+                  </label>
                   <input 
                     id="price"
                     name="price"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={formData.price}
                     onChange={handleInputChange}
-                    placeholder="e.g. 1500000"
+                    placeholder={formData.listingType === 'rent' ? 'Enter rent price' : 'Enter sale price'}
                     className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
                   />
                 </div>
+                {profile?.sellerType === 'Broker' && (
+                  <div>
+                    <label htmlFor="commission" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Commission (%)</label>
+                    <input 
+                      id="commission"
+                      name="commission"
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.commission}
+                      onChange={handleInputChange}
+                      placeholder="Enter 1% to 5%"
+                      className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl px-4 py-2.5 text-xs font-bold focus:outline-none text-zinc-900 dark:text-white appearance-none"
+                    />
+                    <p className="mt-1.5 text-[9px] font-bold text-zinc-400 uppercase tracking-tight">Enter 1% to 5%</p>
+                  </div>
+                )}
                 <div>
-                  <label htmlFor="priceType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.priceType') || 'Price Type'}</label>
+                  <label htmlFor="priceType" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('detail.priceType') || 'Price Type'} <span className="font-bold text-zinc-800 dark:text-zinc-200">({t('common.optional') || 'Optional'})</span></label>
                   <BottomSheetSelect 
                     id="priceType"
                     name="priceType"
@@ -627,7 +670,8 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                     <input 
                       id="bankLoanAmount"
                       name="bankLoanAmount"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={formData.bankLoanAmount}
                       onChange={handleInputChange}
                       placeholder={t('post.loanPlaceholder') || 'Enter remaining loan amount (ETB)'}
@@ -660,7 +704,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   />
                 </div>
                 <div>
-                  <label htmlFor="telegram" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Telegram <span className="text-zinc-300">(Optional)</span></label>
+                  <label htmlFor="telegram" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Telegram <span className="font-bold text-zinc-800 dark:text-zinc-200">(Optional)</span></label>
                   <input 
                     id="telegram"
                     name="telegram"
@@ -671,7 +715,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                   />
                 </div>
                 <div>
-                  <label htmlFor="whatsapp" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">WhatsApp <span className="text-zinc-300">(Optional)</span></label>
+                  <label htmlFor="whatsapp" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">WhatsApp <span className="font-bold text-zinc-800 dark:text-zinc-200">(Optional)</span></label>
                   <input 
                     id="whatsapp"
                     name="whatsapp"
@@ -695,7 +739,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
               
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.uploadPhotos') || 'Upload Photos (Max 4)'}</label>
+                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{t('post.uploadPhotos') || 'Upload Photos (Min 2, Max 6)'}</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
                     {previews.map((p, i) => (
                       <div key={i} className="relative aspect-square rounded-2xl overflow-hidden group">
@@ -708,7 +752,7 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
                         </button>
                       </div>
                     ))}
-                    {previews.length < 4 && (
+                    {previews.length < 6 && (
                       <button 
                         onClick={() => fileInputRef.current?.click()}
                         className="aspect-square border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl flex flex-col items-center justify-center hover:border-brand transition-colors bg-zinc-50 dark:bg-zinc-800/50"

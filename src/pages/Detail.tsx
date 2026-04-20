@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useToast } from '../components/Toast';
 import { Car, Page, UserProfile } from '../types';
-import { MapPin, Calendar, Gauge, Fuel, Settings, ShieldCheck, Phone, MessageCircle, ChevronLeft, User, X, ChevronRight, Maximize2 } from 'lucide-react';
+import { MapPin, Calendar, Gauge, Fuel, Settings, ShieldCheck, Phone, MessageCircle, ChevronLeft, User, X, ChevronRight, Maximize2, Tag, Palette, Banknote, Landmark, Box, Car as CarIcon, Flag, Cog } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { CarCard } from '../components/CarCard';
 import { motion, AnimatePresence } from 'motion/react';
@@ -270,25 +270,25 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
             <div className="md:hidden px-4 mb-4 space-y-4">
               <div>
                 <div className="flex flex-wrap gap-2 mb-2">
-                  <span className="px-2 py-0.5 bg-brand/10 text-brand text-[9px] font-black uppercase tracking-widest rounded-md border border-brand/20">
+                  <span className="px-2 py-0.5 bg-brand/10 text-brand text-[9px] font-bold uppercase tracking-wide rounded-md border border-brand/20">
                     {car.condition ? (t(`search.${car.condition.toLowerCase()}`) || car.condition) : ''}
                   </span>
                   {car.bankLoan && (
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-black uppercase tracking-widest rounded-md border border-emerald-500/20">
+                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold uppercase tracking-wide rounded-md border border-emerald-500/20">
                       {t('detail.bankLoan')}
                     </span>
                   )}
-                  <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[9px] font-black uppercase tracking-widest rounded-md border border-black/5 dark:border-white/5">
+                  <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[9px] font-bold uppercase tracking-wide rounded-md border border-black/5 dark:border-white/5">
                     {car.listingType === 'sale' ? t('sell.forSale') || 'For Sale' : t('sell.forRent') || 'For Rent'}
                   </span>
                 </div>
-                <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight leading-tight uppercase italic">{car.title}</h1>
-                <p className="text-3xl font-black text-brand tracking-tighter mt-1">
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight leading-tight uppercase">{car.title}</h1>
+                <p className="text-3xl font-bold text-brand tracking-tight mt-1">
                   {car.price.toLocaleString()} <span className="text-sm font-bold opacity-70">ETB</span>
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 text-[10px] sm:text-xs font-bold text-zinc-500 uppercase tracking-widest bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex-wrap">
+              <div className="flex items-center gap-4 text-[10px] sm:text-xs font-bold text-zinc-500 uppercase tracking-wide bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <MapPin size={14} className="text-brand" />
                   <span>{(() => { const v = t(`locations.${car.city}`); return (typeof v === 'string' && v.startsWith('locations.')) ? car.city : (v || car.city); })()}</span>
@@ -302,7 +302,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                   <>
                     <div className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700 shrink-0" />
                     <div className="flex items-center gap-1.5 whitespace-nowrap">
-                      <span className="font-black text-zinc-400">{getRelativeTime(car.createdAt)}</span>
+                      <span className="font-bold text-zinc-400">{getRelativeTime(car.createdAt)}</span>
                     </div>
                   </>
                 )}
@@ -310,89 +310,131 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
             </div>
 
             <div className="bg-white dark:bg-zinc-900 md:rounded-[32px] p-6 md:p-8 border-y md:border border-zinc-100 dark:border-zinc-800 shadow-sm">
-              <h2 className="text-sm font-black text-zinc-900 dark:text-white mb-4 uppercase tracking-widest italic">{t('detail.description')}</h2>
+              <h2 className="text-sm font-black text-zinc-900 dark:text-white mb-4 uppercase tracking-wide">{t('detail.description')}</h2>
               <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap">
                 {car.description}
               </p>
             </div>
 
             <div className="bg-white dark:bg-zinc-900 md:rounded-[32px] p-6 md:p-8 border-y md:border border-zinc-100 dark:border-zinc-800 shadow-sm">
-              <h2 className="text-sm font-black text-zinc-900 dark:text-white mb-6 uppercase tracking-widest italic">{t('detail.specifications')}</h2>
+              <h2 className="text-sm font-black text-zinc-900 dark:text-white mb-6 uppercase tracking-wide">{t('detail.specifications')}</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.make')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.brand}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-zinc-400 uppercase tracking-wide">
+                    <Tag size={12} strokeWidth={2.5} /> {t('search.make')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.brand}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.model')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.model}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <CarIcon size={12} strokeWidth={2.5} /> {t('search.model')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.model}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.year')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.year}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Calendar size={12} strokeWidth={2.5} /> {t('search.year')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.year}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.mileage')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.mileage.toLocaleString()} km</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Gauge size={12} strokeWidth={2.5} /> {t('detail.mileage')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.mileage.toLocaleString()} km</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.fuel')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.fuel ? (t(`common.${car.fuel.toLowerCase()}`) || car.fuel) : ''}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Fuel size={12} strokeWidth={2.5} /> {t('search.fuel')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.fuel ? (t(`common.${car.fuel.toLowerCase()}`) || car.fuel) : ''}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.transmission')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.transmission ? (t(`common.${car.transmission.toLowerCase()}`) || car.transmission) : ''}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Cog size={12} strokeWidth={2.5} /> {t('search.transmission')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.transmission ? (t(`common.${car.transmission.toLowerCase()}`) || car.transmission) : ''}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.condition')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.condition ? (t(`search.${car.condition.toLowerCase()}`) || car.condition) : t('search.used')}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <ShieldCheck size={12} strokeWidth={2.5} /> {t('search.condition')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.condition ? (t(`search.${car.condition.toLowerCase()}`) || car.condition) : t('search.used')}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.bodyType')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.bodyType ? (t(`bodyTypes.${car.bodyType}`) || car.bodyType) : 'N/A'}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Box size={12} strokeWidth={2.5} /> {t('detail.bodyType')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.bodyType ? (t(`bodyTypes.${car.bodyType}`) || car.bodyType) : 'N/A'}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.engineSize')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.engineSize || 'N/A'}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Settings size={12} strokeWidth={2.5} /> {t('detail.engineSize')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.engineSize || 'N/A'}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.color')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.color || 'N/A'}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Palette size={12} strokeWidth={2.5} /> {t('detail.color')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.color || 'N/A'}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.listingTypeLabel')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white uppercase italic">{car.listingType === 'sale' ? t('sell.forSale') : t('sell.forRent')}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Banknote size={12} strokeWidth={2.5} /> {t('detail.listingTypeLabel')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white uppercase">{car.listingType === 'sale' ? t('sell.forSale') : t('sell.forRent')}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.priceType')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.priceType ? (t(`priceTypes.${car.priceType}`) || car.priceType) : t('priceTypes.Negotiable')}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Tag size={12} strokeWidth={2.5} /> {t('detail.priceType')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.priceType ? (t(`priceTypes.${car.priceType}`) || car.priceType) : t('priceTypes.Negotiable')}</p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('search.location')}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <MapPin size={12} strokeWidth={2.5} /> {t('search.location')}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">
                     {(() => { const v = t(`locations.${car.city}`); return (typeof v === 'string' && v.startsWith('locations.')) ? car.city : (v || car.city); })()}{car.subCity ? `, ${(() => { const v = t(`subcities.${car.subCity}`); return (typeof v === 'string' && v.startsWith('subcities.')) ? car.subCity : (v || car.subCity); })()}` : ''}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.bankLoan') || 'Bank Loan'}</span>
-                  <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.bankLoan ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}</p>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                    <Landmark size={12} strokeWidth={2.5} /> {t('detail.bankLoan') || 'Bank Loan'}
+                  </span>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.bankLoan ? (t('common.yes') || 'Yes') : (t('common.no') || 'No')}</p>
                 </div>
                 {car.bankLoan && car.bankLoanAmount && (
                   <div className="space-y-1">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.remainingLoan') || 'Remaining Loan'}</span>
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.bankLoanAmount.toLocaleString()} ETB</p>
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                      <Landmark size={12} strokeWidth={2.5} /> {t('detail.remainingLoan') || 'Remaining Loan'}
+                    </span>
+                    <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.bankLoanAmount.toLocaleString()} ETB</p>
                   </div>
                 )}
                 {car.fuelMileage && (
                   <div className="space-y-1">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.fuelMileage') || 'Fuel Mileage'}</span>
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.fuelMileage} km/L</p>
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                      <Gauge size={12} strokeWidth={2.5} /> {t('detail.fuelMileage') || 'Fuel Mileage'}
+                    </span>
+                    <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.fuelMileage} km/L</p>
                   </div>
                 )}
                 {car.driveType && (
                   <div className="space-y-1">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.driveType') || 'Drive Type'}</span>
-                    <p className="font-bold text-sm text-zinc-900 dark:text-white italic">{car.driveType}</p>
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                      <Cog size={12} strokeWidth={2.5} /> {t('detail.driveType') || 'Drive Type'}
+                    </span>
+                    <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.driveType}</p>
+                  </div>
+                )}
+                {car.commission && (
+                  <div className="space-y-1">
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                      <Tag size={12} strokeWidth={2.5} /> Commission
+                    </span>
+                    <p className="font-bold text-sm text-zinc-900 dark:text-white">{car.commission}%</p>
                   </div>
                 )}
               </div>
@@ -400,18 +442,18 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
 
             {/* Mobile Seller Info (In-flow before Similar Cars) */}
             <div className="md:hidden bg-white dark:bg-zinc-900 md:rounded-[32px] p-6 border-y border-zinc-100 dark:border-zinc-800 shadow-sm mt-4">
-              <h2 className="text-sm font-black text-zinc-900 dark:text-white mb-6 uppercase tracking-widest italic">{t('detail.sellerInfo') || 'Seller Info'}</h2>
+              <h2 className="text-sm font-black text-zinc-900 dark:text-white mb-6 uppercase tracking-wide">{t('detail.sellerInfo') || 'Seller Info'}</h2>
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-400">
                   <User size={24} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.sellerInfo') || 'Seller'}</p>
-                  <p className="font-bold text-zinc-900 dark:text-white text-sm">
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-wide">{t('detail.sellerInfo') || 'Seller'}</p>
+                  <p className="font-black text-zinc-900 dark:text-white text-sm">
                     {(sellerProfile?.displayName !== 'Anonymous' ? sellerProfile?.displayName : undefined) || (car.ownerName !== 'Anonymous' ? car.ownerName : undefined) || sellerProfile?.email?.split('@')[0] || 'User'}
                   </p>
                   {car.ownerSellerType && (
-                    <p className="text-[9px] font-black text-brand uppercase tracking-widest mt-0.5">{t(`sellerTypes.${car.ownerSellerType}`) || car.ownerSellerType}</p>
+                    <p className="text-[9px] font-bold text-brand uppercase tracking-wide mt-0.5">{t(`sellerTypes.${car.ownerSellerType}`) || car.ownerSellerType}</p>
                   )}
                 </div>
               </div>
@@ -419,14 +461,14 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
               <div className="space-y-3">
                 <button 
                   onClick={() => car.ownerPhone && (window.location.href = `tel:${car.ownerPhone}`)}
-                  className="w-full bg-brand text-white py-3.5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-brand/20 active:scale-95 transition-all text-xs"
+                  className="w-full bg-brand text-white py-3.5 rounded-2xl font-black uppercase tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-brand/20 active:scale-95 transition-all text-xs"
                 >
                   <Phone size={18} fill="currentColor" /> {t('detail.callSeller') || 'Call Seller'}
                 </button>
                 
                 <button 
                   onClick={handleSendMessage}
-                  className="w-full bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white py-3.5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all text-xs"
+                  className="w-full bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white py-3.5 rounded-2xl font-black uppercase tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-all text-xs"
                 >
                   <MessageCircle size={18} fill="currentColor" /> {t('detail.messageBtn') || 'Send Message'}
                 </button>
@@ -436,7 +478,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     {car.ownerTelegram && (
                       <button
                         onClick={() => window.open(getTelegramUrl(car.ownerTelegram!), '_blank')}
-                        className="flex-1 bg-[#229ED9] text-white py-3 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-0 active:scale-95 transition-all"
+                        className="flex-1 bg-[#229ED9] text-white py-3 rounded-2xl font-bold uppercase tracking-wide flex items-center justify-center gap-0 active:scale-95 transition-all"
                       >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
                       </button>
@@ -444,7 +486,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     {car.ownerWhatsapp && (
                       <button
                         onClick={() => window.open(getWhatsappUrl(car.ownerWhatsapp!), '_blank')}
-                        className="flex-1 bg-[#25D366] text-white py-3 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-0 active:scale-95 transition-all"
+                        className="flex-1 bg-[#25D366] text-white py-3 rounded-2xl font-bold uppercase tracking-wide flex items-center justify-center gap-0 active:scale-95 transition-all"
                       >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
                       </button>
@@ -460,15 +502,15 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
             <div className="bg-white dark:bg-zinc-900 rounded-[32px] p-8 border border-zinc-100 dark:border-zinc-800 shadow-xl shadow-black/5 sticky top-24">
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full text-[10px] font-bold text-zinc-500 uppercase tracking-wide">
                     <Gauge size={12} />
                     <span>{car.views || 0} {t('common.views') || 'Views'}</span>
                   </div>
-                  <div className="px-3 py-1 bg-brand/10 text-brand rounded-full text-[10px] font-black uppercase tracking-widest">
+                  <div className="px-3 py-1 bg-brand/10 text-brand rounded-full text-[10px] font-black uppercase tracking-wide">
                     {car.listingType === 'sale' ? t('sell.forSale') : t('sell.forRent')}
                   </div>
                 </div>
-                <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white mb-2 leading-tight italic uppercase">{car.title}</h1>
+                <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white mb-2 leading-tight uppercase">{car.title}</h1>
                 <div className="flex items-center flex-wrap gap-3 text-zinc-500 text-sm mb-6 uppercase font-bold tracking-tight">
                   <div className="flex items-center gap-1">
                     <MapPin size={16} />
@@ -477,12 +519,12 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                   {car.createdAt && (
                     <>
                       <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                      <span className="font-black text-zinc-400 text-xs">{getRelativeTime(car.createdAt)}</span>
+                      <span className="font-bold text-zinc-400 text-xs">{getRelativeTime(car.createdAt)}</span>
                     </>
                   )}
                 </div>
-                <div className="text-4xl font-black text-brand tracking-tighter">
-                  {car.price.toLocaleString()} <span className="text-lg font-bold">ETB</span>
+                <div className="text-4xl font-black text-brand tracking-tight">
+                  {car.price.toLocaleString()} <span className="text-lg font-black">ETB</span>
                 </div>
               </div>
 
@@ -492,26 +534,26 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     <User size={24} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('detail.sellerInfo')}</p>
-                    <p className="font-bold text-zinc-900 dark:text-white text-sm">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-wide">{t('detail.sellerInfo')}</p>
+                    <p className="font-black text-zinc-900 dark:text-white text-sm">
                       {(sellerProfile?.displayName !== 'Anonymous' ? sellerProfile?.displayName : undefined) || (car.ownerName !== 'Anonymous' ? car.ownerName : undefined) || sellerProfile?.email?.split('@')[0] || 'User'}
                     </p>
                     {car.ownerSellerType && (
-                      <p className="text-[9px] font-black text-brand uppercase tracking-widest mt-0.5">{t(`sellerTypes.${car.ownerSellerType}`) || car.ownerSellerType}</p>
+                      <p className="text-[9px] font-bold text-brand uppercase tracking-wide mt-0.5">{t(`sellerTypes.${car.ownerSellerType}`) || car.ownerSellerType}</p>
                     )}
                   </div>
                 </div>
 
                 <button 
                   onClick={() => car.ownerPhone && (window.location.href = `tel:${car.ownerPhone}`)}
-                  className="w-full bg-brand text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-brand/90 transition-all shadow-lg shadow-brand/20"
+                  className="w-full bg-brand text-white py-4 rounded-2xl font-black uppercase tracking-wide flex items-center justify-center gap-2 hover:bg-brand/90 transition-all shadow-lg shadow-brand/20"
                 >
                   <Phone size={20} fill="currentColor" /> {t('detail.callSeller')}
                 </button>
                 
                 <button 
                   onClick={handleSendMessage}
-                  className="w-full bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all"
+                  className="w-full bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white py-4 rounded-2xl font-black uppercase tracking-wide flex items-center justify-center gap-2 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all"
                 >
                   <MessageCircle size={20} fill="currentColor" /> {t('detail.sendMessage')}
                 </button>
@@ -521,7 +563,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     {car.ownerTelegram && (
                       <button
                         onClick={() => window.open(getTelegramUrl(car.ownerTelegram!), '_blank')}
-                        className="flex-1 bg-[#229ED9] text-white py-3.5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-0 hover:opacity-90 active:scale-95 transition-all"
+                        className="flex-1 bg-[#229ED9] text-white py-3.5 rounded-2xl font-bold uppercase tracking-wide flex items-center justify-center gap-0 hover:opacity-90 active:scale-95 transition-all"
                       >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
                       </button>
@@ -529,7 +571,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                     {car.ownerWhatsapp && (
                       <button
                         onClick={() => window.open(getWhatsappUrl(car.ownerWhatsapp!), '_blank')}
-                        className="flex-1 bg-[#25D366] text-white py-3.5 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-0 hover:opacity-90 active:scale-95 transition-all"
+                        className="flex-1 bg-[#25D366] text-white py-3.5 rounded-2xl font-bold uppercase tracking-wide flex items-center justify-center gap-0 hover:opacity-90 active:scale-95 transition-all"
                       >
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
                       </button>
@@ -545,7 +587,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
         {/* Similar Cars Section */}
         <section className="max-w-7xl mx-auto px-4 w-full mt-12 mb-20">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-black text-zinc-900 dark:text-white tracking-tight uppercase italic underline decoration-brand/30 decoration-4 underline-offset-4">
+            <h2 className="text-sm font-black text-zinc-900 dark:text-white tracking-tight uppercase underline decoration-brand/30 decoration-4 underline-offset-4">
               {t('detail.similarCars')}
             </h2>
           </div>
@@ -565,7 +607,7 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
           
           {similarCars.length === 0 && (
             <div className="text-center py-12 bg-zinc-50 dark:bg-zinc-900 rounded-[32px] border border-dashed border-zinc-200 dark:border-zinc-800">
-              <p className="text-zinc-500 font-bold italic">{t('detail.noSimilar')}</p>
+              <p className="text-zinc-500 font-bold">{t('detail.noSimilar')}</p>
             </div>
           )}
         </section>
@@ -577,19 +619,18 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed left-0 z-[100] bg-black w-full overflow-hidden"
+            className="fixed inset-0 z-[150] bg-black w-full overflow-hidden"
             style={{
-              top: 'calc(-1 * env(safe-area-inset-top, 0px))',
-              height: 'calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px))',
-              paddingTop: 'env(safe-area-inset-top, 0px)',
-              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
               touchAction: 'none' // Prevent pull-to-refresh & vertical scroll
             }}
           >
-            {/* Header (Absolute to top) */}
-            <div className="absolute top-0 inset-x-0 flex justify-between items-center px-4 py-3 z-20 pt-[max(env(safe-area-inset-top),16px)] pointer-events-none">
+            {/* Header (Absolute to top with top safe area calculation for X and pagination) */}
+            <div 
+              className="absolute top-0 inset-x-0 w-full z-20 pointer-events-none flex items-center justify-center"
+              style={{ paddingTop: 'max(env(safe-area-inset-top), 16px)', marginTop: '24px' }}
+            >
               <div className="flex-1 flex justify-center">
-                <span className="px-5 py-2 bg-black/50 backdrop-blur-md rounded-full font-black text-sm tracking-[0.2em] text-white drop-shadow-md">
+                <span className="px-5 py-2 bg-black/50 backdrop-blur-md rounded-full font-bold text-sm tracking-[0.2em] text-white drop-shadow-md">
                   {activeImage + 1} / {car.imageURLs.length}
                 </span>
               </div>

@@ -32,6 +32,7 @@ export type Car = {
   bankLoanAmount?: number;
   fuelMileage?: string;
   driveType?: 'FWD' | 'RWD' | 'AWD' | '4WD';
+  commission?: number;
   views?: number;
   createdAt: any;
 };

@@ -8,6 +8,8 @@ import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
 import compression from "compression";
+import crypto from "crypto";
+import fs from "fs";
 import { getR2Client, r2Config, initFirebaseAdmin } from "./src/lib/backend-config";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 
@@ -23,6 +25,9 @@ const db = admin?.firestore();
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // [SECURITY FIX #5] Disable X-Powered-By header to prevent server fingerprinting
+  app.disable('x-powered-by');
 
   // Helper to safely delete files from R2 and prevent orphans
   const deleteFilesFromR2 = async (urls: string[]) => {
@@ -132,16 +137,29 @@ async function startServer() {
     }
   };
 
-  // Shared CORS configuration — used by both middleware and preflight handler
+  // [SECURITY FIX #1] Restrict CORS to specific allowed origins (was: origin '*')
   //
-  // IMPORTANT: credentials is NOT set (defaults to false).
   // Auth is handled via Authorization Bearer headers, NOT cookies.
-  // When credentials is false, origin: '*' works correctly and the browser
-  // does not require exact origin matching on preflight responses.
-  // This is what allows Capacitor WebView (origin: https://localhost) to
-  // successfully complete preflight OPTIONS + actual requests.
+  // Capacitor WebView origin (https://localhost) is explicitly allowed.
+  const allowedOrigins = [
+    'https://ethiocars-9jsd.onrender.com',  // Production frontend
+    'https://localhost',                     // Capacitor WebView (Android/iOS)
+  ];
+
+  // In development, also allow local dev servers
+  if (process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:3000', 'http://localhost:5173');
+  }
+
   const corsConfig = {
-    origin: '*',
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (same-origin, server-to-server, mobile apps)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
   };
@@ -153,26 +171,51 @@ async function startServer() {
   app.options('*', cors(corsConfig));
   app.use(compression());
 
-  // Browser Security Headers (CSP, CORP)
+  // Browser Security Headers (CSP, CORP, HSTS)
   app.use((req, res, next) => {
     // Skip CSP for API endpoints — they return JSON, not HTML
     if (req.path.startsWith('/api')) {
       return next();
     }
 
+    // [SECURITY FIX #2] Generate a per-request cryptographic nonce for inline scripts/styles
+    // This replaces 'unsafe-inline' with a nonce-based policy
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+
+    // [SECURITY FIX #2] SHA-256 hashes for inline event handlers in index.html
+    // These allow specific inline event handlers without 'unsafe-inline':
+    //   onload="this.media='all'"  (Google Fonts lazy-load)
+    //   onerror="this.style.display='none';"  (Splash image fallback)
+    const onloadHash = crypto.createHash('sha256').update("this.media='all'").digest('base64');
+    const onerrorHash = crypto.createHash('sha256').update("this.style.display='none';").digest('base64');
+
     // Content Security Policy — strict but compatible with Firebase SDK
     // Note: Firebase Auth SDK internally uses Function() constructor for
     // cross-origin iframe communication. 'wasm-unsafe-eval' is NOT the same
     // as 'unsafe-eval' and is the minimal CSP relaxation needed.
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    // In production: use nonces (no unsafe-inline). In dev: keep unsafe-inline for Vite HMR.
+    const scriptSrc = isProduction
+      ? `script-src 'self' 'nonce-${nonce}' 'unsafe-hashes' 'sha256-${onloadHash}' 'sha256-${onerrorHash}' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.google-analytics.com https://firebaseinstallations.googleapis.com`
+      : "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.google-analytics.com https://firebaseinstallations.googleapis.com";
+
+    const styleSrc = isProduction
+      ? `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`
+      : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com";
+
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://www.google-analytics.com https://firebaseinstallations.googleapis.com",
+      scriptSrc,
       "worker-src 'self' blob:",
       "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.firebase.com https://*.cloudfunctions.net https://*.cloudflare.com https://*.onrender.com https://fonts.googleapis.com https://fonts.gstatic.com https://*.r2.dev wss://*.firebaseio.com ws://localhost:* http://localhost:*",
       "img-src 'self' data: blob: https://*.picsum.photos https://*.googleusercontent.com https://*.gstatic.com https://*.firebasestorage.googleapis.com https://*.r2.dev https://r2.dev https://*.r2.cloudflarestorage.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      styleSrc,
       "font-src 'self' data: https://fonts.gstatic.com",
       "frame-src 'self' https://*.firebaseapp.com https://*.google.com",
+      // [SECURITY FIX #3] frame-ancestors prevents clickjacking (replaces X-Frame-Options)
+      "frame-ancestors 'self'",
       "media-src 'self' blob:",
       "object-src 'none'",
       "base-uri 'self'",
@@ -184,6 +227,8 @@ async function startServer() {
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    // [SECURITY FIX #6] Force HTTPS via Strict-Transport-Security
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();
   });
   
@@ -503,6 +548,32 @@ async function startServer() {
     }
   });
 
+  // Admin App Settings Update API (Price control, feature toggles)
+  api.put("/admin/settings", authenticate, adminOnly, async (req, res) => {
+    try {
+      if (!db) throw new Error("Database not initialized");
+
+      const { featured_price, premium_price, premium_enabled } = req.body;
+
+      // Build payload — only include valid, defined fields
+      const payload: Record<string, any> = {};
+      if (typeof featured_price === 'number' && isFinite(featured_price)) payload.featured_price = featured_price;
+      if (typeof premium_price === 'number' && isFinite(premium_price)) payload.premium_price = premium_price;
+      if (typeof premium_enabled === 'boolean') payload.premium_enabled = premium_enabled;
+
+      if (Object.keys(payload).length === 0) {
+        return res.status(400).json({ success: false, error: "No valid settings provided" });
+      }
+
+      await db.collection('settings').doc('app_config').set(payload, { merge: true });
+
+      res.json({ success: true, message: "App configuration updated successfully" });
+    } catch (error: any) {
+      console.error('[Admin Settings] Error:', error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Admin Push Notification API (Broadcast to all users)
   api.post("/admin/notifications", authenticate, adminOnly, async (req, res) => {
     const { title, message } = req.body;
@@ -811,9 +882,9 @@ async function startServer() {
     try {
       if (!listing) return res.status(400).json({ success: false, error: "Listing data required" });
       
-      // Enforce max 4 images
-      if (listing.imageURLs && listing.imageURLs.length > 4) {
-        return res.status(400).json({ success: false, error: "Maximum 4 images allowed" });
+      // Enforce max 6 images
+      if (listing.imageURLs && listing.imageURLs.length > 6) {
+        return res.status(400).json({ success: false, error: "Maximum 6 images allowed" });
       }
 
       if (!admin || !db) {
@@ -941,9 +1012,27 @@ async function startServer() {
     }));
 
     // Serve index.html for all other routes with no-cache to ensure users get the latest version
+    // [SECURITY FIX #2] Inject CSP nonces into inline <script> and <style> tags
+    const distIndexPath = path.resolve(__dirname, "dist", "index.html");
+    let cachedHtml = '';
+    try { cachedHtml = fs.readFileSync(distIndexPath, 'utf-8'); } catch (_) { /* will fail gracefully on first request */ }
+
     app.get("*", (req, res) => {
       res.setHeader("Cache-Control", "no-cache");
-      res.sendFile(path.resolve(__dirname, "dist", "index.html"));
+
+      const nonce = res.locals.cspNonce;
+      if (!nonce || !cachedHtml) {
+        // Fallback: serve file as-is if nonce or HTML unavailable
+        return res.sendFile(distIndexPath);
+      }
+
+      // Inject nonce into all inline <script> and <style> tags (not external src/href tags)
+      const html = cachedHtml
+        .replace(/<script(?![^>]*\bsrc\b)([^>]*)>/gi, `<script nonce="${nonce}"$1>`)
+        .replace(/<style([^>]*)>/gi, `<style nonce="${nonce}"$1>`);
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
     });
   }
 
@@ -956,51 +1045,106 @@ async function startServer() {
   });
 
   // Periodic cleanup of expired listings
-  setInterval(async () => {
-    console.log('Running expired listings cleanup...');
+  const cleanupExpiredListings = async () => {
     if (!admin || !db) return;
     try {
       const now = Timestamp.now();
+      const batch = db.batch();
+      let deletedCount = 0;
+      const processedIds = new Set<string>();
+
+      // 1. Primary: listings with expiresAt field (new listings)
       const expiredQuery = db.collection('cars')
         .where('expiresAt', '<=', now)
         .where('status', '==', 'approved');
-      
-      const snapshot = await expiredQuery.get();
-      if (snapshot.empty) return;
 
-      const batch = db.batch();
-      let deletedCount = 0;
-      
-      for (const doc of snapshot.docs) {
+      const expiredSnap = await expiredQuery.get();
+
+      for (const doc of expiredSnap.docs) {
         const data = doc.data();
+        // Safety: never touch premium
+        if (data.packageType === 'premium') continue;
+
         const imageURLs = data.imageURLs || [];
-        
-        // Delete orphaned listing images before database removal
         if (imageURLs.length > 0) {
           await deleteListingImagesFromR2(imageURLs);
         }
-
-        // Delete payment proof from R2
         await deletePaymentProofFromR2(doc.id);
-        
+
         batch.delete(doc.ref);
+        processedIds.add(doc.id);
         deletedCount++;
       }
 
-      // Update global listings count correctly
+      // 2. Fallback: old free listings without expiresAt (created before field existed)
+      const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+      const freeQuery = db.collection('cars')
+        .where('packageType', '==', 'free')
+        .where('status', '==', 'approved')
+        .where('createdAt', '<=', Timestamp.fromDate(fifteenDaysAgo));
+
+      const freeSnap = await freeQuery.get();
+      for (const doc of freeSnap.docs) {
+        if (processedIds.has(doc.id)) continue;
+        const data = doc.data();
+        // Skip if expiresAt exists (already handled by primary query)
+        if (data.expiresAt) continue;
+
+        const imageURLs = data.imageURLs || [];
+        if (imageURLs.length > 0) {
+          await deleteListingImagesFromR2(imageURLs);
+        }
+        await deletePaymentProofFromR2(doc.id);
+
+        batch.delete(doc.ref);
+        processedIds.add(doc.id);
+        deletedCount++;
+      }
+
+      // 3. Fallback: old featured listings without expiresAt
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const featuredQuery = db.collection('cars')
+        .where('packageType', '==', 'featured')
+        .where('status', '==', 'approved')
+        .where('createdAt', '<=', Timestamp.fromDate(thirtyDaysAgo));
+
+      const featuredSnap = await featuredQuery.get();
+      for (const doc of featuredSnap.docs) {
+        if (processedIds.has(doc.id)) continue;
+        const data = doc.data();
+        if (data.expiresAt) continue;
+
+        const imageURLs = data.imageURLs || [];
+        if (imageURLs.length > 0) {
+          await deleteListingImagesFromR2(imageURLs);
+        }
+        await deletePaymentProofFromR2(doc.id);
+
+        batch.delete(doc.ref);
+        processedIds.add(doc.id);
+        deletedCount++;
+      }
+
+      // Update global listings count
       if (deletedCount > 0) {
         const statsRef = db.collection('stats').doc('global');
         batch.set(statsRef, {
           listingsCount: FieldValue.increment(-deletedCount)
         }, { merge: true });
-      }
 
-      await batch.commit();
-      console.log(`Cleaned up ${deletedCount} expired listings.`);
+        await batch.commit();
+        console.log(`[Expiry Cleanup] Deleted ${deletedCount} expired listing(s).`);
+      }
     } catch (error) {
-      console.error('Error cleaning up expired listings:', error);
+      console.error('[Expiry Cleanup] Error:', error);
     }
-  }, 1000 * 60 * 60); // Run every hour
+  };
+
+  // Run once on startup to clean existing ghost data
+  cleanupExpiredListings();
+
+  // Then run every hour
+  setInterval(cleanupExpiredListings, 1000 * 60 * 60);
 
   // Periodic cleanup: finalize stale 'payment_rejected' listings
   // Catches cases where the server restarted before a setTimeout could complete

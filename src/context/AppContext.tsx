@@ -284,18 +284,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Sync native Android status bar and navigation bar with theme
     if (Capacitor.isNativePlatform()) {
-      try {
-        const bgColor = theme === 'dark' ? '#09090b' : '#FDFDFD';
-        StatusBar.setBackgroundColor({ color: bgColor }).catch(() => {});
-        StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light }).catch(() => {});
-        
-        NavigationBar.setNavigationBarColor({
-          color: bgColor,
-          darkButtons: theme !== 'dark' // true means black buttons for light mode
-        }).catch((e) => console.log('NavBar err:', e));
-      } catch {
-        // StatusBar/NavigationBar plugin might not be ready during initial load
-      }
+      // Defer native plugin calls to prevent blocking the UI thread during React render
+      const timer = setTimeout(() => {
+        try {
+          const bgColor = theme === 'dark' ? '#09090b' : '#FDFDFD';
+          StatusBar.setBackgroundColor({ color: bgColor }).catch(() => { });
+          StatusBar.setStyle({ style: theme === 'dark' ? Style.Dark : Style.Light }).catch(() => { });
+
+          NavigationBar.setNavigationBarColor({
+            color: bgColor,
+            darkButtons: theme !== 'dark' // true means black buttons for light mode
+          }).catch((e) => console.log('NavBar err:', e));
+        } catch (err) {
+          console.warn('[ThemeSync] Native update failed:', err);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [theme]);
 

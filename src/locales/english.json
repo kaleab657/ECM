@@ -38,6 +38,11 @@
     }
   },
   "home": {
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening"
+    },
     "searchPlaceholder": "Search cars...",
     "featuredTitle": "Featured Listings",
     "premiumTitle": "Premium Cars",
@@ -207,7 +212,7 @@
     "sellerInfo": "Seller Information",
     "iAmA": "I am a",
     "mediaDesc": "Media & Description",
-    "uploadPhotos": "Upload Photos (Max 4)",
+    "uploadPhotos": "Upload Photos (Min 2, Max 6)",
     "addPhoto": "Add Photo",
     "description": "Description",
     "descPlaceholder": "Describe your car...",
@@ -227,13 +232,25 @@
     "completePost": "Complete & Post",
     "success": "Listing posted successfully!",
     "errorMissingFields": "Please fill in all required fields",
-    "errorImageRequired": "Please upload at least one image",
-    "errorMaxImages": "Maximum 4 images allowed",
+    "errorImageRequired": "Minimum 2 images required",
+    "errorMaxImages": "Maximum 6 images allowed",
     "errorImageSize": "Each image must be less than 5MB",
     "errorCarDetails": "Please fill in all required car details",
     "errorPrice": "Please enter a price",
     "errorPhone": "Please enter your phone number",
     "errorPosting": "Failed to post listing: ",
+    "errorTitle": "Listing title is required",
+    "errorCity": "City is required",
+    "errorSubCity": "Please select a sub city",
+    "errorCondition": "Condition is required",
+    "errorListingType": "Listing type is required",
+    "errorMake": "Make is required",
+    "errorModel": "Model is required",
+    "errorYear": "Year is required",
+    "errorMileage": "Mileage is required",
+    "errorTransmission": "Transmission is required",
+    "errorFuel": "Fuel type is required",
+    "errorBodyType": "Body type is required",
     "days": "Post Days",
     "driveType": "Drive Type",
     "fuelMileage": "Fuel Mileage (km/L)",
@@ -241,7 +258,10 @@
     "of": "of",
     "uploading": "Uploading images...",
     "redirectingPayment": "Redirecting to payment...",
-    "errorNotLoggedIn": "You must be logged in to post a listing"
+    "errorNotLoggedIn": "You must be logged in to post a listing",
+    "commission": {
+      "warn": "Commission must be between 1% and 5%"
+    }
   },
   "sell": {
     "price": "Price (ETB)",
