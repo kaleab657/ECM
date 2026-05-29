@@ -22,9 +22,10 @@ dotenv.config();
 const admin = initFirebaseAdmin();
 const db = admin?.firestore();
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
 
   // [SECURITY FIX #5] Disable X-Powered-By header to prevent server fingerprinting
   app.disable('x-powered-by');
@@ -1298,10 +1299,18 @@ async function startServer() {
     }
   }, 1000 * 60 * 5); // Run every 5 minutes
 
-  app.listen(PORT, "0.0.0.0", () => {
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  }
 }
 
 startServer().catch(err => {
-  process.exit(1);
+  console.error("Server startup error:", err);
+  if (!process.env.VERCEL) {
+    process.exit(1);
+  }
 });
+
+export default app;
