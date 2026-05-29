@@ -1,4 +1,4 @@
-export type Language = 'en' | 'am';
+export type Language = 'en' | 'am' | 'om' | 'ti';
 
 export const translations = {
   en: {
@@ -558,6 +558,34 @@ export const translations = {
     },
     valuation: {
       estimatedValue: 'ግምታዊ ዋጋ'
+    }
+  },
+  om: {
+    nav: {
+      home: 'Mana',
+      browse: 'Daawwadhu',
+      sell: 'Gurgurtaa',
+      rent: 'Kiraa',
+      chat: 'Marii',
+      account: 'Herrega',
+      login: 'Seeni',
+      valuation: 'Tilmaama',
+      dealerships: 'Gurgurtoota',
+      dashboard: 'Daashboordii'
+    }
+  },
+  ti: {
+    nav: {
+      home: 'መበገሲ',
+      browse: 'ርአ',
+      sell: 'መሸጣ',
+      rent: 'ክራይ',
+      chat: 'ዕላል',
+      account: 'ሕሳብ',
+      login: 'እቶ',
+      valuation: 'ገምጋም',
+      dealerships: 'መሸጣ መኪናታት',
+      dashboard: 'ዳሽቦርድ'
     }
   }
 };

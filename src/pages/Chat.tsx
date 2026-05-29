@@ -50,6 +50,20 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBanWarning, setShowBanWarning] = useState(false);
   const [dbBanData, setDbBanData] = useState<{ isBanned: boolean; banReason: string } | null>(null);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+
+  // Global Viewport Lock for Chat Page
+  useEffect(() => {
+    const originalOverscroll = document.body.style.overscrollBehavior;
+    
+    document.body.style.overscrollBehavior = 'none';
+    document.documentElement.style.overscrollBehavior = 'none';
+    
+    return () => {
+      document.body.style.overscrollBehavior = originalOverscroll;
+      document.documentElement.style.overscrollBehavior = '';
+    };
+  }, []);
 
   const isBanned = dbBanData ? dbBanData.isBanned : profile?.isBanned;
   const banReason = dbBanData ? dbBanData.banReason : profile?.banReason;
@@ -120,6 +134,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
       limit(100)
     );
 
+    setMessagesLoading(true);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const messageData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -127,7 +142,9 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
       })) as Message[];
       
       setMessages(messageData);
+      setMessagesLoading(false);
     }, (error) => {
+      setMessagesLoading(false);
       handleFirestoreError(error, OperationType.LIST, `chats/${activeChatId}/messages`);
     });
 
@@ -317,7 +334,10 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
   if (!user) return <div className="text-center py-24"><h2 className="text-2xl font-bold">{t('chatPage.loginRequired') || 'Please login to view messages'}</h2></div>;
 
   return (
-    <div className="w-full h-[100dvh] bg-white dark:bg-zinc-900 flex flex-col md:flex-row md:max-w-7xl md:mx-auto md:rounded-[40px] md:shadow-xl md:shadow-black/5 md:border md:border-zinc-100 md:dark:border-zinc-800 md:min-h-[70vh] md:h-auto">
+    <div 
+      className="fixed inset-0 z-10 md:static md:w-full md:h-[85vh] bg-white dark:bg-zinc-900 flex flex-col md:flex-row md:max-w-7xl md:mx-auto md:rounded-[40px] md:shadow-xl md:shadow-black/5 md:border md:border-zinc-100 md:dark:border-zinc-800 md:overflow-hidden"
+      style={{ paddingBottom: activeChatId ? 0 : 'calc(72px + max(env(safe-area-inset-bottom), 16px))' }}
+    >
       <ChatSidebar 
         sessions={sessions}
         activeChatId={activeChatId}
@@ -340,6 +360,7 @@ export const Chat: React.FC<ChatProps> = ({ initialChatId, onChatChange }) => {
         handleSendMessage={handleSendMessage}
         handleImageUpload={handleImageUpload}
         isUploading={isUploading}
+        loadingMessages={messagesLoading}
       />
 
       {showDeleteConfirm && (

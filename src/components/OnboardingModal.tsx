@@ -105,6 +105,34 @@ export const OnboardingModal: React.FC = () => {
                       </div>
                       {language === 'am' && <Check size={16} className="text-brand shrink-0" />}
                     </button>
+                    <button
+                      onClick={() => setLanguage('om')}
+                      className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 ${
+                        language === 'om'
+                          ? 'border-brand bg-brand/5 dark:bg-brand/10'
+                          : 'border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🇪🇹</span>
+                        <span className="text-sm font-bold text-zinc-900 dark:text-white">Afaan Oromoo</span>
+                      </div>
+                      {language === 'om' && <Check size={16} className="text-brand shrink-0" />}
+                    </button>
+                    <button
+                      onClick={() => setLanguage('ti')}
+                      className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 ${
+                        language === 'ti'
+                          ? 'border-brand bg-brand/5 dark:bg-brand/10'
+                          : 'border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🇪🇹</span>
+                        <span className="text-sm font-bold text-zinc-900 dark:text-white">ትግርኛ</span>
+                      </div>
+                      {language === 'ti' && <Check size={16} className="text-brand shrink-0" />}
+                    </button>
                   </div>
                 </div>
 

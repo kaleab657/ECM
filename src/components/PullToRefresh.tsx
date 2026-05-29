@@ -1,5 +1,13 @@
-import React, { useState, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useRef, createContext, useContext } from 'react';
+
+interface RefreshContextType {
+  isRefreshing: boolean;
+  pullDistance: number;
+}
+
+const RefreshContext = createContext<RefreshContextType>({ isRefreshing: false, pullDistance: 0 });
+
+export const useRefresh = () => useContext(RefreshContext);
 
 interface PullToRefreshProps {
   children: React.ReactNode;
@@ -13,11 +21,11 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
   const isPulling = useRef(false);
   const startY = useRef(0);
 
-  const PULL_THRESHOLD = 80;
-  const MAX_PULL = 180;
+  const PULL_THRESHOLD = 70;
+  const MAX_PULL = 150;
 
   React.useEffect(() => {
-    if (disabled) return; // Only set overscrollBehavior when pull-to-refresh is active
+    if (disabled) return;
     document.body.style.overscrollBehaviorY = 'contain';
     return () => { document.body.style.overscrollBehaviorY = ''; };
   }, [disabled]);
@@ -32,7 +40,7 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
     if (disabled || !isPulling.current || isRefreshing) return;
     const diff = e.touches[0].clientY - startY.current;
     if (diff > 0 && window.scrollY <= 5) {
-      setPullDistance(Math.min(diff * 0.45, MAX_PULL));
+      setPullDistance(Math.min(diff * 0.4, MAX_PULL));
     } else if (diff < 0) {
       setPullDistance(0);
     }
@@ -45,11 +53,23 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
     if (pullDistance > PULL_THRESHOLD && !isRefreshing) {
       setIsRefreshing(true);
       setPullDistance(PULL_THRESHOLD);
+      
+      const refreshStartTime = Date.now();
+      
       if (onRefresh) {
-        await onRefresh();
+        try {
+          await onRefresh();
+        } catch (e) {
+          console.error('Refresh failed:', e);
+        }
       }
-      // Small delay so the user sees the refresh indicator
-      await new Promise(r => setTimeout(r, 300));
+      
+      // Ensure spinner runs for at least 2 seconds as per Rule 9 & 4
+      const elapsedTime = Date.now() - refreshStartTime;
+      const remainingTime = Math.max(0, 2000 - elapsedTime);
+      
+      await new Promise(r => setTimeout(r, remainingTime));
+      
       setIsRefreshing(false);
       setPullDistance(0);
     } else {
@@ -57,44 +77,25 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefres
     }
   };
 
-  // When disabled, render children directly — NO wrapper div, NO touch handlers
-  // This ensures zero interference with native browser scrolling on non-home pages
   if (disabled) {
     return <>{children}</>;
   }
 
-  const showIndicator = pullDistance > 20 || isRefreshing;
-
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      className="w-full relative"
-    >
-      {showIndicator && (
-        <div
-          className="fixed left-0 right-0 z-40 flex justify-center pointer-events-none transition-all duration-200"
-          style={{
-            top: `calc(env(safe-area-inset-top, 0px) + 64px)`,
-            opacity: showIndicator ? 1 : 0,
-            transform: `translateY(${isRefreshing ? 20 : Math.max(-40, pullDistance - 40)}px)`
-          }}
-        >
-          <div className="bg-white dark:bg-zinc-800 rounded-full p-2 shadow-lg shadow-black/5 dark:shadow-black/20 border border-zinc-100 dark:border-zinc-700/50">
-            <Loader2
-              className="w-5 h-5 text-brand animate-spin"
-              strokeWidth={2.5}
-            />
-          </div>
-        </div>
-      )}
+    <RefreshContext.Provider value={{ isRefreshing, pullDistance }}>
       <div
-        className="w-full transition-transform duration-200"
-        style={{ transform: `translateY(${isRefreshing ? 15 : pullDistance * 0.15}px)` }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="w-full relative"
       >
-        {children}
+        <div
+          className="w-full transition-transform duration-300 ease-out"
+          style={{ transform: `translateY(${isRefreshing ? 10 : pullDistance * 0.1}px)` }}
+        >
+          {children}
+        </div>
       </div>
-    </div>
+    </RefreshContext.Provider>
   );
 };

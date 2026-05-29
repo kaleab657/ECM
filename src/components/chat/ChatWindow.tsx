@@ -42,6 +42,7 @@ interface ChatWindowProps {
   handleSendMessage: (e?: React.FormEvent, imageURLs?: string[]) => Promise<void>;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   isUploading: boolean;
+  loadingMessages?: boolean;
 }
 
 const HEADER_H = 60;
@@ -59,7 +60,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
   setInputText,
   handleSendMessage,
   handleImageUpload,
-  isUploading
+  isUploading,
+  loadingMessages
 }) => {
   const { t } = useAppContext();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -81,29 +83,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
     };
   }, []);
 
-  if (!activeChatId || !activeChat) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-        <div className="bg-zinc-100 dark:bg-zinc-800 w-24 h-24 rounded-[32px] flex items-center justify-center mb-6">
-          <Search size={40} className="text-zinc-300" />
-        </div>
-        <h2 className="text-2xl font-black text-zinc-900 dark:text-white mb-2">
-          {t('chatPage.noChatSelected') || 'Select a conversation'}
-        </h2>
-        <p className="text-zinc-500 max-w-xs">
-          {t('chatPage.noChatSelectedDesc') || 'Choose a chat from the list to start talking with buyers or sellers.'}
-        </p>
-      </div>
-    );
-  }
+  if (!activeChatId) return null;
 
   return (
     // Full screen container — position relative so fixed children anchor to it
-    <div className="fixed inset-0 flex flex-col bg-zinc-50 dark:bg-zinc-950 md:static md:flex-1">
+    <div className="fixed inset-0 flex flex-col bg-zinc-50 dark:bg-zinc-950 md:static md:flex-1 md:h-full md:overflow-hidden">
 
       {/* HEADER — fixed at top, never moves */}
       <div
-        className="fixed top-0 left-0 right-0 z-20 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 md:static"
+        className="fixed top-0 left-0 right-0 z-20 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 md:static shrink-0"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex items-center gap-3 px-3 h-[60px]">
@@ -113,20 +101,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
           >
             <ChevronLeft size={24} />
           </button>
-          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-zinc-100 dark:border-zinc-800">
-            <img
-              src={activeChat.carImage}
-              alt=""
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-zinc-100 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800">
+            {activeChat?.carImage && (
+              <img
+                src={activeChat.carImage}
+                alt=""
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-bold text-[15px] text-zinc-900 dark:text-white truncate leading-tight">
-              {otherParticipantName}
+              {activeChat ? otherParticipantName : <div className="h-4 w-24 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded" />}
             </h2>
             <p className="text-brand text-[11px] font-semibold truncate">
-              {activeChat.carTitle}
+              {activeChat ? activeChat.carTitle : <div className="h-3 w-32 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded mt-1" />}
             </p>
           </div>
           <button
@@ -140,18 +130,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = React.memo(({
 
       {/* MESSAGES — fills space between header and input */}
       <div
-        className="fixed left-0 right-0 overflow-y-auto md:static md:flex-1"
+        className="fixed left-0 right-0 overflow-y-auto md:static md:flex-1 md:overflow-y-auto"
         style={{
           top: `calc(env(safe-area-inset-top) + ${HEADER_H}px)`,
           bottom: `calc(max(env(safe-area-inset-bottom), 48px) + 60px + ${keyboardHeight}px)`,
         }}
       >
+        {loadingMessages && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-50/50 dark:bg-zinc-950/50 backdrop-blur-[2px]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('common.loading') || 'Loading...'}</p>
+            </div>
+          </div>
+        )}
         <MessageList messages={messages} user={user} />
       </div>
 
       {/* INPUT — fixed at bottom, moves up with keyboard */}
       <div
-        className="fixed left-0 right-0 z-20 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 md:static"
+        className="fixed left-0 right-0 z-20 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 md:static shrink-0"
         style={{ bottom: keyboardHeight, paddingBottom: 'max(env(safe-area-inset-bottom), 48px)' }}
       >
         <MessageInput

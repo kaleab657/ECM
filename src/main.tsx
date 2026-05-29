@@ -18,6 +18,15 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
+// Re-enable CSS transitions after the initial render + theme application.
+// Double-rAF waits until after the first paint frame so the transition-less
+// theme update is fully committed before smooth transitions kick back in.
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    document.documentElement.classList.remove('no-transition');
+  });
+});
+
 // Catch unhandled promise rejections that escape React — prevents ErrorBoundary crash
 window.addEventListener('unhandledrejection', (event) => {
   console.error('[Unhandled Rejection]', event.reason);

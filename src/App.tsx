@@ -140,6 +140,11 @@ export default function App() {
         }
 
         // 5. On an inner page → pop back in history
+        if (page === 'post') {
+          window.dispatchEvent(new CustomEvent('post-car-back'));
+          return;
+        }
+
         if (h.length > 1) {
           const newHistory = h.slice(0, -1);
           const backTo = newHistory[newHistory.length - 1] || 'home';
@@ -300,8 +305,8 @@ export default function App() {
         <Header currentPage={currentPage} setPage={setCurrentPage} />
       </div>
       
-      {/* Global Status Bar Protector: Strictly prevents scrolling text/UI from rendering under the system clock on non-Home pages */}
-      {hideHeaderOnMobile && currentPage !== 'home' && !(currentPage === 'chat' && activeChatId) && (
+      {/* Global Status Bar Protector: Strictly prevents scrolling text/UI from rendering under the system clock */}
+      {hideHeaderOnMobile && !(currentPage === 'chat' && activeChatId) && (
         <div 
           className="fixed top-0 inset-x-0 z-[120] bg-[#FDFDFD] dark:bg-zinc-950 md:hidden" 
           style={{ height: 'var(--safe-area-top)' }} 

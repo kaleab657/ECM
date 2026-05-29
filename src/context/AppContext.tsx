@@ -9,6 +9,8 @@ import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import enTranslations from '../locales/english.json';
 import amTranslations from '../locales/amharic.json';
+import omTranslations from '../locales/om.json';
+import tiTranslations from '../locales/ti.json';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -16,10 +18,12 @@ import { NavigationBar } from '@capgo/capacitor-navigation-bar';
 
 const translations = {
   en: enTranslations,
-  am: amTranslations
+  am: amTranslations,
+  om: omTranslations,
+  ti: tiTranslations
 };
 
-export type Language = 'en' | 'am';
+export type Language = 'en' | 'am' | 'om' | 'ti';
 
 type Theme = 'light' | 'dark';
 
@@ -62,15 +66,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     const hasLaunched = localStorage.getItem('hasLaunchedBefore');
     if (!hasLaunched) {
+      // Preserve theme and language before clearing to prevent flash
+      const savedTheme = localStorage.getItem('theme');
+      const savedLang = localStorage.getItem('language');
       auth.signOut().catch(() => {});
       localStorage.clear();
       localStorage.setItem('hasLaunchedBefore', 'true');
+      if (savedTheme) localStorage.setItem('theme', savedTheme);
+      if (savedLang) localStorage.setItem('language', savedLang);
     }
   }, []);
 
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem('theme');
-    return (saved as Theme) || 'light';
+    if (saved === 'dark' || saved === 'light') return saved;
+    // Match the inline script in index.html: respect system preference
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
+    return 'light';
   });
 
   const [language, setLanguageState] = useState<Language>(() => {
@@ -239,6 +251,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         setUser(currentUser);
 
+        // Optimization: Immediately stop the global app loader once the auth state is known.
+        // We don't need to wait for the Firestore profile snapshot to show the app shell.
+        if (loading) setLoading(false);
+
         if (currentUser) {
           // Save any pending FCM token that was registered before auth resolved
           if (fcmTokenRef.current) {
@@ -254,15 +270,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             } else {
               setProfile(null);
             }
-            setLoading(false);
           }, (error) => {
             console.error('ERROR: Failed to load user profile:', error);
-            if (mounted.current) setLoading(false);
             handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
           });
         } else {
           setProfile(null);
-          setLoading(false);
         }
       });
     });

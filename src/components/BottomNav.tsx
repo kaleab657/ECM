@@ -54,11 +54,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, setPage }) =>
   }, [user]);
 
   const navItems = [
-    { id: 'home', label: t('nav.cars') === 'nav.cars' ? 'Cars' : t('nav.cars') || 'Cars', icon: Car },
+    { id: 'home', label: t('nav.cars'), icon: Car },
     { id: 'browse', label: t('nav.browse') || 'Browse', icon: Search },
     { id: 'post', label: '', icon: Plus }, // Central button drops the label for pure visual focus
     { id: 'chat', label: t('nav.chat') || 'Chat', icon: MessageCircle, badge: unreadCount },
-    { id: 'dashboard', label: t('nav.profile') === 'nav.profile' ? 'Profile' : t('nav.profile') || 'Profile', icon: User },
+    { id: 'dashboard', label: t('nav.profile'), icon: User },
   ];
 
   return (
@@ -102,7 +102,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, setPage }) =>
                   </span>
                 ) : null}
               </div>
-              <span className={`text-[10px] font-bold tracking-wide transition-all duration-300 ${
+              <span className={`text-[10px] font-bold tracking-wide transition-all duration-300 truncate w-full text-center px-0.5 ${
                 isActive ? 'opacity-100 text-brand' : 'opacity-80'
               }`}>
                 {item.label}

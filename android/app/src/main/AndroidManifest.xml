@@ -34,7 +34,7 @@
         <!-- FCM default notification icon (monochrome for status bar) -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_notification"
+            android:resource="@drawable/ic_notification"
         />
         <!-- FCM default notification channel -->
         <meta-data

@@ -236,10 +236,13 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                 <img 
                   src={car.imageURLs[activeImage]} 
                   alt={car.title}
-                  className="w-full h-full object-cover cursor-zoom-in bg-zinc-100 dark:bg-zinc-800"
+                  className="w-full h-full object-cover cursor-zoom-in bg-zinc-100 dark:bg-zinc-800 opacity-0 transition-opacity duration-500"
                   referrerPolicy="no-referrer"
-                  onError={(e) => { e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='533' viewBox='0 0 800 533'%3E%3Crect fill='%23e4e4e7' width='800' height='533'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%23a1a1aa'%3ENo Image%3C/text%3E%3C/svg%3E"; e.currentTarget.onerror = null; }}
+                  onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+                  ref={(img) => { if (img?.complete) img.classList.remove('opacity-0'); }}
+                  onError={(e) => { e.currentTarget.classList.remove('opacity-0'); e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='533' viewBox='0 0 800 533'%3E%3Crect fill='%23e4e4e7' width='800' height='533'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%23a1a1aa'%3ENo Image%3C/text%3E%3C/svg%3E"; e.currentTarget.onerror = null; }}
                   onClick={() => setIsViewerOpen(true)}
+                  decoding="async"
                 />
                 
                 {/* Feature badge removed for detail page as per rules */}
@@ -260,7 +263,16 @@ export const Detail: React.FC<DetailProps> = ({ car, setPage, setActiveChatId, s
                       activeImage === idx ? 'border-brand scale-95' : 'border-transparent opacity-70 hover:opacity-100'
                     }`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover bg-zinc-100 dark:bg-zinc-800" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%23e4e4e7' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23a1a1aa'%3ENo Image%3C/text%3E%3C/svg%3E"; e.currentTarget.onerror = null; }} />
+                    <img 
+                      src={img} 
+                      alt="" 
+                      className="w-full h-full object-cover bg-zinc-100 dark:bg-zinc-800 opacity-0 transition-opacity duration-300" 
+                      onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+                      ref={(imgElement) => { if (imgElement?.complete) imgElement.classList.remove('opacity-0'); }}
+                      referrerPolicy="no-referrer" 
+                      onError={(e) => { e.currentTarget.classList.remove('opacity-0'); e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%23e4e4e7' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14' fill='%23a1a1aa'%3ENo Image%3C/text%3E%3C/svg%3E"; e.currentTarget.onerror = null; }} 
+                      decoding="async"
+                    />
                   </button>
                 ))}
               </div>

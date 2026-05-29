@@ -461,10 +461,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
     const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(Math.max(0, diffTime) / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Joined today';
-    if (diffDays < 30) return `Joined ${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    if (diffDays === 0) return t('profile.join.today');
+    if (diffDays < 30) return t('profile.join.days', { count: diffDays });
+    
     const diffMonths = Math.floor(diffDays / 30);
-    return `Joined ${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+    if (diffMonths < 12) return t('profile.join.months', { count: diffMonths });
+    
+    const diffYears = Math.floor(diffMonths / 12);
+    return t('profile.join.years', { count: diffYears });
   };
 
   const handleTabClick = (id: string) => {
@@ -476,21 +480,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 pb-4">
-      <div className="flex flex-col gap-6">
-        {/* Profile Header - Mobile Optimized */}
-        <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-5 border border-black/5 dark:border-white/5 shadow-sm flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-brand/10 flex items-center justify-center text-brand shrink-0">
-            <User size={28} />
+    <div className="max-w-7xl mx-auto px-4 pt-2 pb-4">
+      <div className="flex flex-col gap-3">
+        {/* Profile Header - Native Mobile Feel */}
+        <div className="flex items-center gap-4 px-1 py-3">
+          <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center text-brand shrink-0">
+            <User size={32} />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-base font-black text-zinc-900 dark:text-white truncate leading-tight">{profile?.displayName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'User')}</h2>
+            <h2 className="text-xl font-black text-zinc-900 dark:text-white truncate leading-tight">{profile?.displayName || user?.displayName || (user?.email ? user.email.split('@')[0] : 'User')}</h2>
             <div className="flex flex-col">
-              <p className="text-[10px] font-bold text-zinc-400 truncate uppercase tracking-wider">{profile?.phoneNumber || user?.email || ''}</p>
+              <p className="text-[11px] font-bold text-zinc-400 truncate uppercase tracking-wider">{profile?.phoneNumber || user?.email || ''}</p>
               {profile?.sellerType && (
-                <p className="text-[9px] font-black text-brand truncate uppercase tracking-widest mt-0.5">{t(`sellerTypes.${profile.sellerType}`) || profile.sellerType}</p>
+                <p className="text-[10px] font-black text-brand truncate uppercase tracking-widest mt-0.5">{t(`sellerTypes.${profile.sellerType}`) || profile.sellerType}</p>
               )}
-              <p className="text-[9px] font-bold text-zinc-500 mt-1 uppercase tracking-widest">
+              <p className="text-[10px] font-bold text-zinc-500 mt-1 uppercase tracking-widest">
                 {getJoinDateText()}
               </p>
             </div>
@@ -499,12 +503,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
             onClick={() => setShowLogoutModal(true)}
             className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-2xl transition-all"
           >
-            <LogOut size={20} />
+            <LogOut size={22} />
           </button>
         </div>
 
         {/* Mobile Tabs - Compact */}
-        <div className="z-10 bg-transparent -mx-4 px-4 py-2">
+        <div className="z-10 bg-transparent -mx-4 px-4 py-0.5">
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             {menuItems.map((item) => (
               <button
@@ -529,11 +533,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
         </div>
 
         {/* Main Content Area */}
-        <main className="space-y-6">
+        <main className="space-y-4">
           {activeTab === 'advertising' && <AdvertisingScreen t={t} />}
 
           {activeTab === 'listings' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Stats Grid - Bento Style */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 bg-brand p-5 rounded-[2rem] text-white shadow-xl shadow-brand/20 flex items-center justify-between overflow-hidden relative">
@@ -549,7 +553,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     <PlusCircle size={14} /> {t('dashboard.postNew')}
                   </button>
                 </div>
-                <div className="bg-white dark:bg-zinc-900 p-4 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-[2rem] border border-black/5 dark:border-white/5 shadow-sm">
                   <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-2">
                     <ShieldCheck size={16} />
                   </div>
@@ -558,7 +562,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                     {listings.filter(l => l.status === 'approved' || l.status === 'pending_payment_verification' || l.status === 'pending').length}
                   </p>
                 </div>
-                <div className="bg-white dark:bg-zinc-900 p-4 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm">
+                <div className="bg-white dark:bg-zinc-900 p-4 rounded-[2rem] border border-black/5 dark:border-white/5 shadow-sm">
                   <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center mb-2">
                     <Briefcase size={16} />
                   </div>
@@ -569,7 +573,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between px-1">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{t('dashboard.myInventory') || 'My Listings'}</h3>
                   <span className="text-[10px] font-bold text-zinc-400">{listings.length} {t('dashboard.items')}</span>
@@ -579,7 +583,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                   <div className="flex justify-center py-12"><Loader2 className="animate-spin text-brand" /></div>
                 ) : listings.length > 0 ? (
                   listings.map((car) => (
-                    <div key={car.id} className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex gap-4 items-center group">
+                    <div key={car.id} className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border border-black/5 dark:border-white/5 shadow-sm flex gap-4 items-center group">
                       <div className="relative shrink-0">
                         <img src={car.imageURLs[0]} alt="" className="w-24 h-20 rounded-xl object-cover" referrerPolicy="no-referrer" />
                       </div>
@@ -614,7 +618,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                                 ? 'bg-brand/10 text-brand'
                                 : 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
                           }`}>
-                            {car.packageType === 'premium' ? 'Premium' : car.packageType === 'featured' ? 'Featured' : 'Free'}
+                            {car.packageType === 'premium' ? t('listing.premium') : car.packageType === 'featured' ? t('listing.featured') : t('listing.free')}
                           </span>
                         </div>
                         <div className="flex gap-2 w-full justify-end mt-1">
@@ -751,7 +755,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                 <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700/50">
                   <h3 className="text-xs font-black text-zinc-900 dark:text-white mb-1 uppercase tracking-tight">{t('dashboard.language')}</h3>
                   <p className="text-[10px] font-medium text-zinc-500 mb-4">{t('dashboard.languageDesc')}</p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => setLanguage('en')}
                       className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === 'en' ? 'bg-brand text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 border border-zinc-100 dark:border-zinc-800'
@@ -765,6 +769,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ setPage }) => {
                         }`}
                     >
                       Amharic
+                    </button>
+                    <button
+                      onClick={() => setLanguage('om')}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === 'om' ? 'bg-brand text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 border border-zinc-100 dark:border-zinc-800'
+                        }`}
+                    >
+                      Oromoo
+                    </button>
+                    <button
+                      onClick={() => setLanguage('ti')}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${language === 'ti' ? 'bg-brand text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 border border-zinc-100 dark:border-zinc-800'
+                        }`}
+                    >
+                      Tigrinya
                     </button>
                   </div>
                 </div>

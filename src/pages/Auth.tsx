@@ -187,16 +187,41 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
       }
       
       if (userRecord) {
-        const needsCompletion = await ensureUserDocument(userRecord);
-        if (needsCompletion) {
-          setGoogleUser(userRecord);
-          if (!fullName) setFullName(userRecord.displayName || '');
-          setIsCompletingProfile(true);
-        } else {
+        // Optimization: Use metadata to detect returning users. 
+        // If they are returning, we can optimisticly close the login UI immediately
+        // while ensureUserDocument (the sync check) runs in the background.
+        const isReturning = userRecord.metadata.lastSignInTime && 
+                           userRecord.metadata.creationTime && 
+                           userRecord.metadata.lastSignInTime !== userRecord.metadata.creationTime;
+
+        if (isReturning) {
+          // Close UI instantly for returning users
           const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
           sessionStorage.removeItem('redirectAfterLogin');
           setPage(redirectTo as any);
           setAuthModalOpen(false);
+          
+          // Sync/Check in background
+          ensureUserDocument(userRecord).then(needsCompletion => {
+            if (needsCompletion) {
+              // Rare case: returning user actually needs to complete something
+              setAuthModalOpen(true);
+              setIsCompletingProfile(true);
+            }
+          }).catch(console.error);
+        } else {
+          // New user or first time on this device — must wait to see if role selection is needed
+          const needsCompletion = await ensureUserDocument(userRecord);
+          if (needsCompletion) {
+            setGoogleUser(userRecord);
+            if (!fullName) setFullName(userRecord.displayName || '');
+            setIsCompletingProfile(true);
+          } else {
+            const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
+            sessionStorage.removeItem('redirectAfterLogin');
+            setPage(redirectTo as any);
+            setAuthModalOpen(false);
+          }
         }
       }
     } catch (err: any) {
@@ -280,13 +305,35 @@ export const Auth: React.FC<AuthProps> = ({ setPage }) => {
     try {
       if (isLogin) {
         const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
-        const needsCompletion = await ensureUserDocument(userCredential.user);
-        if (needsCompletion) {
-          setGoogleUser(userCredential.user);
-          if (!fullName) setFullName(userCredential.user.displayName || '');
-          setIsCompletingProfile(true);
-          setIsLoading(false);
+        
+        // Optimistic check for email login too
+        const isReturning = userCredential.user.metadata.lastSignInTime && 
+                           userCredential.user.metadata.creationTime && 
+                           userCredential.user.metadata.lastSignInTime !== userCredential.user.metadata.creationTime;
+
+        if (isReturning) {
+          const redirectTo = sessionStorage.getItem('redirectAfterLogin') || 'home';
+          sessionStorage.removeItem('redirectAfterLogin');
+          setPage(redirectTo as any);
+          setAuthModalOpen(false);
+          
+          ensureUserDocument(userCredential.user).then(needsCompletion => {
+            if (needsCompletion) {
+              setAuthModalOpen(true);
+              setGoogleUser(userCredential.user);
+              setIsCompletingProfile(true);
+            }
+          }).catch(console.error);
           return;
+        } else {
+          const needsCompletion = await ensureUserDocument(userCredential.user);
+          if (needsCompletion) {
+            setGoogleUser(userCredential.user);
+            if (!fullName) setFullName(userCredential.user.displayName || '');
+            setIsCompletingProfile(true);
+            setIsLoading(false);
+            return;
+          }
         }
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);

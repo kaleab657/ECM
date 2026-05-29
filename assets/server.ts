@@ -230,46 +230,7 @@ async function startServer() {
   app.options('*', cors(corsConfig));
   app.use(compression());
 
-  // ─── Error Disclosure Sanitizer (Production Only) ──────────────────────
-  // Intercepts JSON error responses to strip internal details before they reach the client.
-  // In development, full error details are preserved for debugging.
-  if (process.env.NODE_ENV === 'production') {
-    app.use((req, res, next) => {
-      const originalJson = res.json.bind(res);
-      res.json = (body: any) => {
-        if (body && typeof body === 'object' && body.success === false) {
-          // Strip internal implementation details
-          delete body.details;
-          // Sanitize raw error messages on 500-level responses
-          if (res.statusCode >= 500 && body.error) {
-            // Log the real error server-side for debugging
-            console.error(`[API Error] ${req.method} ${req.path}:`, body.error);
-            body.error = 'An internal error occurred. Please try again later.';
-          }
-        }
-        return originalJson(body);
-      };
-      next();
-    });
-  }
-
-  // ─── Universal Security Headers (ALL responses, including API) ──────────
-  app.use((req, res, next) => {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-    // [SECURITY FIX #6] Force HTTPS via Strict-Transport-Security
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-    // Prevent browsers from caching sensitive API responses
-    if (req.path.startsWith('/api')) {
-      res.setHeader("Cache-Control", "no-store");
-      res.setHeader("Pragma", "no-cache");
-    }
-    next();
-  });
-
-  // ─── Content Security Policy (HTML responses only) ─────────────────────
+  // Browser Security Headers (CSP, CORP, HSTS)
   app.use((req, res, next) => {
     // Skip CSP for API endpoints — they return JSON, not HTML
     if (req.path.startsWith('/api')) {
@@ -314,6 +275,12 @@ async function startServer() {
     ].join('; ');
 
     res.setHeader("Content-Security-Policy", csp);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    // [SECURITY FIX #6] Force HTTPS via Strict-Transport-Security
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     next();
   });
   
@@ -414,43 +381,18 @@ async function startServer() {
     next();
   });
 
-  // [SECURITY] Validate Content-Type on JSON-expecting requests
-  // Rejects POST/PUT/PATCH without proper Content-Type to prevent payload confusion
-  api.use((req: any, res: any, next: any) => {
-    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-      const contentType = req.headers['content-type'] || '';
-      // Allow JSON, form-data (uploads), raw binary (R2 uploads), and empty (for query-only requests)
-      if (contentType && 
-          !contentType.includes('application/json') && 
-          !contentType.includes('multipart/form-data') &&
-          !contentType.includes('application/octet-stream') &&
-          !contentType.includes('*/*')) {
-        return res.status(415).json({
-          success: false,
-          error: 'Unsupported Media Type. Expected application/json.'
-        });
-      }
-    }
-    next();
-  });
+  // Health check
+  api.get("/health", (req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
 
-  // Health check (minimal in production to reduce information exposure)
-  api.get("/health", (req, res) => {
-    if (process.env.NODE_ENV === 'production') {
-      return res.json({ status: "ok" });
-    }
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
-  });
-
-  // R2 Connectivity Test (Diagnostic) — admin-only to prevent infrastructure exposure
-  api.get("/r2/test", authenticate, adminOnly, async (req, res) => {
+  // R2 Connectivity Test (Diagnostic)
+  api.get("/r2/test", async (req, res) => {
     try {
       const r2Client = getR2Client();
       const command = new ListBucketsCommand({});
       await r2Client.send(command);
       res.json({ success: true, message: "Cloudflare R2 is connected and authenticated." });
     } catch (error: any) {
-      res.status(500).json({ success: false, error: "R2 connectivity check failed" });
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 
@@ -1162,14 +1104,7 @@ async function startServer() {
     if (res.headersSent) {
       return next(err);
     }
-    // Log the real error server-side
-    console.error(`[Unhandled Error] ${req.method} ${req.path}:`, err.message);
-    // In production, never expose internal error details to the client
-    const errorResponse: any = { success: false, error: "Internal server error" };
-    if (process.env.NODE_ENV !== 'production') {
-      errorResponse.details = err.message;
-    }
-    res.status(500).json(errorResponse);
+    res.status(500).json({ success: false, error: "Internal server error", details: err.message });
   });
 
   // Periodic cleanup of expired listings

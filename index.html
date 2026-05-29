@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-transition">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -50,6 +50,14 @@
       
       .dark #splash-screen { background: #09090b; }
       .dark .splash-loader { border: 3px solid #18181b; border-top: 3px solid #FF5C22; }
+
+      /* Suppress transitions on initial load to prevent theme flash */
+      .no-transition,
+      .no-transition *,
+      .no-transition *::before,
+      .no-transition *::after {
+        transition: none !important;
+      }
     </style>
     
     <script>
@@ -74,8 +82,6 @@
     <!-- Preload critical fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap"></noscript>
     
     <!-- PWA Installation Requirements -->
     <link rel="manifest" href="/manifest.json" />

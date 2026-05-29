@@ -3,10 +3,14 @@ import { Search, Car as CarIcon, Loader2 } from 'lucide-react';
 import { CarCard, CarCardSkeleton } from '../components/CarCard';
 import { Car, Page } from '../types';
 import { useAppContext } from '../context/AppContext';
+import { useRefresh } from '../components/PullToRefresh';
 import { db } from '../lib/firebase';
 import { collection, query, limit, onSnapshot, where, getDocs, startAfter, orderBy, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/firebase-errors';
 import { isListingExpired } from '../utils/expiry';
+import { motion, AnimatePresence } from 'motion/react';
+import { LineSpinner } from 'ldrs/react';
+import 'ldrs/react/LineSpinner.css';
 
 interface HomeProps {
   setPage: (page: Page) => void;
@@ -15,7 +19,8 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch }) => {
-  const { t, user } = useAppContext();
+  const { t, user, theme } = useAppContext();
+  const { isRefreshing, pullDistance } = useRefresh();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
 
@@ -157,6 +162,22 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
     return () => unsubscribe();
   }, [activeTab]);
 
+  // Global Viewport Lock for Home Page
+  useEffect(() => {
+    const originalOverscroll = document.body.style.overscrollBehavior;
+    const originalOverflowX = document.body.style.overflowX;
+    
+    document.body.style.overscrollBehavior = 'none';
+    document.body.style.overflowX = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+    
+    return () => {
+      document.body.style.overscrollBehavior = originalOverscroll;
+      document.body.style.overflowX = originalOverflowX;
+      document.documentElement.style.overscrollBehavior = '';
+    };
+  }, []);
+
   // Fetch Premium Cars
   useEffect(() => {
     const carsRef = collection(db, 'cars');
@@ -281,13 +302,18 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
     else setPage('browse');
   };
 
-  return (
-    <div className="flex flex-col pb-4 w-full overflow-x-hidden" style={{ touchAction: 'pan-y' }}>
+  const handleCarClick = React.useCallback((car: Car) => {
+    setSelectedCar(car);
+    setPage('detail');
+  }, [setSelectedCar, setPage]);
 
-      {/* STICKY search + filter bar */}
+  return (
+    <div className="flex flex-col w-full h-[100dvh] overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+
+      {/* STATIC search + filter bar (Locked to top) */}
       <div 
-        className="sticky top-0 z-30 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md pb-2 px-4 border-b border-zinc-100 dark:border-zinc-800 md:!top-[var(--header-h)] md:pt-2" 
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}
+        className="shrink-0 z-[100] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md pb-2 px-4 border-b border-zinc-100 dark:border-zinc-800 md:pt-2" 
+        style={{ paddingTop: 'var(--safe-area-top)' }}
       >
         {user?.displayName && (
           <div className="mb-3 text-left">
@@ -312,6 +338,28 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
             </span>
           </div>
         )}
+
+        {/* Anchored Refresh Spinner */}
+        <AnimatePresence>
+          {(isRefreshing || pullDistance > 30) && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+              animate={{ height: 'auto', opacity: 1, marginBottom: 16 }}
+              exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+              className="flex justify-center overflow-hidden"
+            >
+              <div className="py-2">
+                <LineSpinner
+                  size="32"
+                  stroke="3"
+                  speed="1"
+                  color={theme === 'dark' ? 'white' : 'black'}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <form onSubmit={handleSearchSubmit} className="relative mb-2">
           <input
             id="home-search-input"
@@ -331,7 +379,10 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
         </form>
 
         {/* Filter tabs */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide -mx-4 px-4">
+        <div 
+          className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide -mx-4 px-4"
+          onTouchMove={(e) => e.stopPropagation()}
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -348,8 +399,18 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
         </div>
       </div>
 
-      {/* Scrollable content below sticky bar */}
-      <div className="flex flex-col gap-3 md:gap-6 px-3 pt-3">
+      {/* Scrollable content below static bar */}
+      <div 
+        className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide pb-24"
+        style={{ overscrollBehavior: 'none' }}
+        onTouchStart={(e) => {
+          if (e.currentTarget.scrollTop > 5) e.stopPropagation();
+        }}
+        onTouchMove={(e) => {
+          if (e.currentTarget.scrollTop > 5) e.stopPropagation();
+        }}
+      >
+        <div className="flex flex-col gap-3 md:gap-6 px-3 pt-3">
 
         {/* Premium Listings - Horizontal Large Cards */}
         {premiumCars.length > 0 && (
@@ -368,13 +429,14 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
             <div 
               ref={premiumScrollRef}
               className="flex gap-2.5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-4 px-4"
+              onTouchMove={(e) => e.stopPropagation()}
             >
               {premiumCars.map((car, index) => (
                 <div key={car.id} className="min-w-[240px] max-w-[240px] snap-start">
                   <CarCard
                     car={car}
                     priority={index === 0}
-                    onClick={(car) => { setSelectedCar(car); setPage('detail'); }}
+                    onClick={handleCarClick}
                   />
                 </div>
               ))}
@@ -400,12 +462,13 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
               ref={featuredScrollRef}
               className={`grid ${featuredCars.length > 1 ? 'grid-rows-2' : 'grid-rows-1'} grid-flow-col gap-2.5 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory -mx-4 px-4`}
               style={{ gridAutoColumns: 'calc(50% - 10px)' }}
+              onTouchMove={(e) => e.stopPropagation()}
             >
               {featuredCars.map((car, index) => (
                 <div key={car.id} className="min-w-[160px] snap-start">
                   <CarCard
                     car={car}
-                    onClick={(car) => { setSelectedCar(car); setPage('detail'); }}
+                    onClick={handleCarClick}
                   />
                 </div>
               ))}
@@ -435,7 +498,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
                   <CarCard
                     car={car}
                     priority={index < 2 && featuredCars.length === 0}
-                    onClick={(car) => { setSelectedCar(car); setPage('detail'); }}
+                    onClick={handleCarClick}
                   />
                 </div>
               ))}
@@ -463,6 +526,7 @@ export const Home: React.FC<HomeProps> = ({ setPage, setSelectedCar, onSearch })
             <p className="text-center text-zinc-400 text-xs font-bold py-4">No more  Listings</p>
           )}
         </section>
+        </div>
       </div>
     </div>
   );

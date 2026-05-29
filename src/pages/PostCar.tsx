@@ -162,9 +162,23 @@ export const PostCar: React.FC<PostCarProps> = ({ setPage, setPendingListingId }
       e.preventDefault();
       e.stopPropagation();
     }
-    setCurrentStep(prev => prev - 1);
-    window.scrollTo(0, 0);
+    
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+      window.scrollTo(0, 0);
+    } else {
+      // Step 1 back goes to home
+      setPage('home');
+    }
   };
+
+  React.useEffect(() => {
+    const handleHardwareBack = () => {
+      prevStep();
+    };
+    window.addEventListener('post-car-back', handleHardwareBack);
+    return () => window.removeEventListener('post-car-back', handleHardwareBack);
+  }, [currentStep]);
 
   const validateStep = (step: number) => {
     switch (step) {
